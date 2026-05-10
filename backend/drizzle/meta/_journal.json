@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1778401919130,
+      "tag": "0000_harsh_gressill",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1747008000000,
+      "tag": "0001_add_scheduler_ai_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1778449541509,
+      "tag": "0002_uneven_mephisto",
+      "breakpoints": true
+    }
+  ]
+}
