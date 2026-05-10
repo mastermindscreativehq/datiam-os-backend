@@ -1,0 +1,88 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --green: #00ff41;
+  --cyan: #00d4ff;
+  --dark: #0a0a0a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--dark);
+  color: #e0e0e0;
+  font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: #0a0a0a;
+}
+::-webkit-scrollbar-thumb {
+  background: #00ff4144;
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #00ff41aa;
+}
+
+/* Glow utilities */
+.glow-green {
+  box-shadow: 0 0 12px rgba(0, 255, 65, 0.25), 0 0 24px rgba(0, 255, 65, 0.08);
+}
+.glow-cyan {
+  box-shadow: 0 0 12px rgba(0, 212, 255, 0.25), 0 0 24px rgba(0, 212, 255, 0.08);
+}
+.text-glow-green {
+  text-shadow: 0 0 12px rgba(0, 255, 65, 0.6);
+}
+.text-glow-cyan {
+  text-shadow: 0 0 12px rgba(0, 212, 255, 0.6);
+}
+
+/* Ambient background */
+.matrix-bg {
+  background-image:
+    radial-gradient(ellipse at 15% 40%, rgba(0, 255, 65, 0.04) 0%, transparent 55%),
+    radial-gradient(ellipse at 85% 15%, rgba(0, 212, 255, 0.04) 0%, transparent 55%),
+    radial-gradient(ellipse at 50% 90%, rgba(100, 0, 255, 0.03) 0%, transparent 50%);
+}
+
+/* Scanline animation */
+@keyframes scanline {
+  0%   { top: -2px; }
+  100% { top: 100vh; }
+}
+.scanline-anim {
+  position: fixed;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(to right, transparent, rgba(0, 255, 65, 0.15), transparent);
+  animation: scanline 6s linear infinite;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* Spinner */
+@keyframes spin-ccw {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(-360deg); }
+}
+.spin-ccw {
+  animation: spin-ccw 0.8s linear infinite;
+}
+
+/* Table row hover */
+.data-row:hover td {
+  color: #e0e0e0;
+}
