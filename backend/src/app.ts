@@ -27,6 +27,7 @@ import schedulerRouter from './modules/scheduler/scheduler.routes';
 import aiRouter from './modules/ai/ai.routes';
 
 const app = express();
+app.set('trust proxy', 1);
 
 app.use(helmet());
 
