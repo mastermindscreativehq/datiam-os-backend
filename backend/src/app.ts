@@ -29,6 +29,8 @@ import pipelineRouter from './modules/pipeline/pipeline.routes';
 import schedulerRouter from './modules/scheduler/scheduler.routes';
 import aiRouter from './modules/ai/ai.routes';
 import activityRouter from './modules/activity/activity.routes';
+import migrationsRouter from './modules/system/migrations.routes';
+import { verifySchema } from './db/schemaVerifier';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -80,11 +82,21 @@ app.get('/health/deep', async (_req, res) => {
   const timestamp = new Date().toISOString();
   try {
     await db.execute(sql`SELECT 1`);
+
+    let schemaStatus: 'healthy' | 'drift_detected' = 'healthy';
+    try {
+      const report = await verifySchema();
+      schemaStatus = report.healthy ? 'healthy' : 'drift_detected';
+    } catch {
+      // Non-fatal — schema check failure doesn't bring down health endpoint.
+    }
+
     res.json({
       success: true,
       status: 'ok',
       environment: process.env.NODE_ENV ?? 'unknown',
       database: 'connected',
+      schema: schemaStatus,
       timestamp,
     });
   } catch (err) {
@@ -94,6 +106,7 @@ app.get('/health/deep', async (_req, res) => {
       status: 'degraded',
       environment: process.env.NODE_ENV ?? 'unknown',
       database: 'disconnected',
+      schema: 'unknown',
       error: message,
       timestamp,
     });
@@ -121,6 +134,9 @@ app.use('/api/pipeline', pipelineRouter);
 app.use('/api/scheduler/jobs', schedulerRouter);
 app.use('/api/ai/recommendations', aiRouter);
 app.use('/api/activity', activityRouter);
+
+// ---- System Routes ----
+app.use('/api/system/migrations', migrationsRouter);
 
 app.use(errorHandler);
 

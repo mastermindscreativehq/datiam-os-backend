@@ -654,3 +654,11 @@ export type ScheduledJob = typeof scheduled_jobs.$inferSelect;
 export type NewScheduledJob = typeof scheduled_jobs.$inferInsert;
 export type AiRecommendation = typeof ai_recommendations.$inferSelect;
 export type NewAiRecommendation = typeof ai_recommendations.$inferInsert;
+
+export const schema_migrations = pgTable('schema_migrations', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  migration_name: text('migration_name').notNull().unique(),
+  executed_at: timestamp('executed_at', { withTimezone: true }).defaultNow(),
+});
+
+export type SchemaMigration = typeof schema_migrations.$inferSelect;

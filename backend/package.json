@@ -16,7 +16,8 @@
     "db:studio": "drizzle-kit studio",
     "db:seed": "ts-node src/db/seed.ts",
     "db:reset": "drizzle-kit drop && drizzle-kit push",
-    "admin:ensure": "ts-node src/db/admin-ensure.ts"
+    "admin:ensure": "ts-node src/db/admin-ensure.ts",
+    "db:verify": "ts-node src/db/verifySchema.ts"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

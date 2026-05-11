@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { env } from './config/env';
 import app from './app';
 import { startSchedulerWorker, stopSchedulerWorker } from './modules/scheduler/scheduler.worker';
+import { verifySchema } from './db/schemaVerifier';
 
 const port = parseInt(env.PORT, 10);
 
@@ -16,6 +17,22 @@ const server = app.listen(port, () => {
   } catch (err) {
     console.warn('[Scheduler] Worker failed to start (non-fatal):', err);
   }
+
+  verifySchema()
+    .then(report => {
+      if (report.healthy) {
+        console.log('[SchemaVerifier] schema healthy');
+      } else {
+        console.error('[SchemaVerifier] CRITICAL: drift detected', JSON.stringify({
+          event: 'schema_drift',
+          missingTables: report.missingTables,
+          missingColumns: report.missingColumns,
+        }));
+      }
+    })
+    .catch(err => {
+      console.warn('[SchemaVerifier] could not verify schema (non-fatal):', err instanceof Error ? err.message : String(err));
+    });
 });
 
 process.on('unhandledRejection', (err) => {
