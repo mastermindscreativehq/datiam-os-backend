@@ -5,6 +5,7 @@ const socialLinksSchema = z.object({
   tiktok: z.string().optional(),
   youtube: z.string().optional(),
   spotify: z.string().optional(),
+  apple_music: z.string().optional(),
   website: z.string().optional(),
 }).optional();
 

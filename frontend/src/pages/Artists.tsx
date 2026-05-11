@@ -13,6 +13,7 @@ interface SocialLinks {
   tiktok?: string
   youtube?: string
   spotify?: string
+  apple_music?: string
   website?: string
 }
 
@@ -43,6 +44,7 @@ const EMPTY_FORM = {
   tiktok: '',
   youtube: '',
   spotify: '',
+  apple_music: '',
   website: '',
 }
 
@@ -97,6 +99,7 @@ export default function Artists() {
       tiktok:       links.tiktok ?? '',
       youtube:      links.youtube ?? '',
       spotify:      links.spotify ?? '',
+      apple_music:  links.apple_music ?? '',
       website:      links.website ?? '',
     })
     setModalOpen(true)
@@ -110,11 +113,12 @@ export default function Artists() {
     setSubmitting(true)
     try {
       const rawLinks: Record<string, string> = {}
-      if (form.instagram.trim()) rawLinks.instagram = form.instagram.trim()
-      if (form.tiktok.trim())    rawLinks.tiktok    = form.tiktok.trim()
-      if (form.youtube.trim())   rawLinks.youtube   = form.youtube.trim()
-      if (form.spotify.trim())   rawLinks.spotify   = form.spotify.trim()
-      if (form.website.trim())   rawLinks.website   = form.website.trim()
+      if (form.instagram.trim())   rawLinks.instagram   = form.instagram.trim()
+      if (form.tiktok.trim())      rawLinks.tiktok      = form.tiktok.trim()
+      if (form.youtube.trim())     rawLinks.youtube     = form.youtube.trim()
+      if (form.spotify.trim())     rawLinks.spotify     = form.spotify.trim()
+      if (form.apple_music.trim()) rawLinks.apple_music = form.apple_music.trim()
+      if (form.website.trim())     rawLinks.website     = form.website.trim()
 
       const body: Record<string, unknown> = {
         stage_name: form.stage_name.trim(),
@@ -136,7 +140,8 @@ export default function Artists() {
       setModalOpen(false)
       fetchData()
     } catch (err: any) {
-      setToast({ message: err.response?.data?.message || 'Failed to save artist profile', type: 'error' })
+      console.error('ARTIST_CREATE_FAILED', err?.response?.status, err?.response?.data || err)
+      setToast({ message: err?.response?.data?.message || err?.response?.data?.error || 'Failed to save artist profile', type: 'error' })
     } finally { setSubmitting(false) }
   }
 
@@ -302,6 +307,12 @@ export default function Artists() {
                               SPOTIFY
                             </a>
                           )}
+                          {links.apple_music && (
+                            <a href={links.apple_music} target="_blank" rel="noopener noreferrer"
+                               className="text-[9px] font-mono text-gray-500 border border-white/10 rounded px-2.5 py-1 hover:text-purple-400 hover:border-purple-400/30 transition-colors">
+                              APPLE MUSIC
+                            </a>
+                          )}
                           {links.website && (
                             <a href={links.website} target="_blank" rel="noopener noreferrer"
                                className="text-[9px] font-mono text-gray-500 border border-white/10 rounded px-2.5 py-1 hover:text-purple-400 hover:border-purple-400/30 transition-colors">
@@ -376,6 +387,9 @@ export default function Artists() {
               </Field>
               <Field label="Spotify">
                 <Input value={form.spotify} onChange={set('spotify')} placeholder="https://open.spotify.com/artist/..." />
+              </Field>
+              <Field label="Apple Music">
+                <Input value={form.apple_music} onChange={set('apple_music')} placeholder="https://music.apple.com/artist/..." />
               </Field>
               <Field label="Website">
                 <Input value={form.website} onChange={set('website')} placeholder="https://..." />

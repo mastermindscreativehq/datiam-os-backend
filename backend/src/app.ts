@@ -73,7 +73,7 @@ app.get('/health', (_req, res) => {
 
 // ---- Phase 1 Routes ----
 app.use('/api/auth', authRouter);
-app.use('/api/artist', artistsRouter);
+app.use('/api/artists', artistsRouter);
 app.use('/api/songs', catalogRouter);
 app.use('/api/releases', releasesRouter);
 app.use('/api/release-tasks', releaseTasksRouter);
