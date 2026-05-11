@@ -65,6 +65,11 @@ export const fanIntelligence = {
   geography: () => apiClient.get('/fan-intelligence/geography'),
 }
 
+// ── Artists ─────────────────────────────────────────────────────────────────
+export const artists = {
+  list: () => apiClient.get('/artist'),
+}
+
 // ── Catalog ─────────────────────────────────────────────────────────────────
 export const catalog = {
   songs:  () => apiClient.get('/songs'),
