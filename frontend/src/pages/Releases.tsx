@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import DataTable from '../components/DataTable'
 import LoadingSpinner from '../components/LoadingSpinner'
 import ErrorMessage from '../components/ErrorMessage'
-import { releases } from '../api/client'
+import { releases, isCriticalError } from '../api/client'
 
 function normalise(raw: any): Record<string, unknown>[] {
   if (Array.isArray(raw)) return raw
@@ -21,10 +21,18 @@ export default function Releases() {
     setLoading(true)
     setError('')
     try {
+      console.log('[Releases] GET /api/releases')
       const res = await releases.list()
+      console.log('[Releases] response', res.status, res.data)
       setData(res.data)
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load releases')
+      const status = err.response?.status
+      console.error('[Releases] fetch error', { status, data: err.response?.data, message: err.message })
+      if (isCriticalError(err)) {
+        setError(err.response?.data?.message || err.message || 'Failed to load releases')
+      } else {
+        setData([])
+      }
     } finally {
       setLoading(false)
     }

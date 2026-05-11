@@ -39,6 +39,13 @@ apiClient.interceptors.response.use(
   },
 )
 
+// Returns true for errors that should surface as a red failure message.
+// 404 / other 4xx mean "no data yet" — show empty state instead.
+export function isCriticalError(err: any): boolean {
+  const status = err.response?.status
+  return !status || status === 401 || status === 403 || status >= 500
+}
+
 // ── Auth ────────────────────────────────────────────────────────────────────
 export const auth = {
   login: (email: string, password: string) =>
@@ -59,31 +66,37 @@ export const fanIntelligence = {
 }
 
 // ── Catalog ─────────────────────────────────────────────────────────────────
+// Backend: app.use('/api/songs', catalogRouter) → GET / lists all songs
 export const catalog = {
-  songs: () => apiClient.get('/catalog/songs'),
+  songs: () => apiClient.get('/songs'),
 }
 
 // ── Releases ────────────────────────────────────────────────────────────────
+// Backend: app.use('/api/releases', releasesRouter) → GET /
 export const releases = {
   list: () => apiClient.get('/releases'),
 }
 
 // ── Sync Pitches ────────────────────────────────────────────────────────────
+// Backend: app.use('/api/sync/pitches', syncRouter) → GET /
 export const syncPitches = {
-  list: () => apiClient.get('/sync-pitches'),
+  list: () => apiClient.get('/sync/pitches'),
 }
 
 // ── Royalty Sources ─────────────────────────────────────────────────────────
+// Backend: app.use('/api/royalties', royaltiesRouter) → GET /
 export const royaltySources = {
-  list: () => apiClient.get('/royalty-sources'),
+  list: () => apiClient.get('/royalties'),
 }
 
 // ── Content Ideas ───────────────────────────────────────────────────────────
+// Backend: app.use('/api/content/ideas', contentRouter) → GET /
 export const contentIdeas = {
-  list: () => apiClient.get('/content-ideas'),
+  list: () => apiClient.get('/content/ideas'),
 }
 
 // ── Automation Runs ─────────────────────────────────────────────────────────
+// Backend: app.use('/api/automation', automationRouter) → GET /runs
 export const automationRuns = {
-  list: () => apiClient.get('/automation-runs'),
+  list: () => apiClient.get('/automation/runs'),
 }

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import DataTable from '../components/DataTable'
 import LoadingSpinner from '../components/LoadingSpinner'
 import ErrorMessage from '../components/ErrorMessage'
-import { contentIdeas } from '../api/client'
+import { contentIdeas, isCriticalError } from '../api/client'
 
 function normalise(raw: any): Record<string, unknown>[] {
   if (Array.isArray(raw)) return raw
@@ -21,10 +21,18 @@ export default function ContentIdeas() {
     setLoading(true)
     setError('')
     try {
+      console.log('[ContentIdeas] GET /api/content/ideas')
       const res = await contentIdeas.list()
+      console.log('[ContentIdeas] response', res.status, res.data)
       setData(res.data)
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load content ideas')
+      const status = err.response?.status
+      console.error('[ContentIdeas] fetch error', { status, data: err.response?.data, message: err.message })
+      if (isCriticalError(err)) {
+        setError(err.response?.data?.message || err.message || 'Failed to load content ideas')
+      } else {
+        setData([])
+      }
     } finally {
       setLoading(false)
     }

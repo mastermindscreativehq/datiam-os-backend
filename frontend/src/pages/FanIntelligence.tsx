@@ -3,7 +3,7 @@ import StatCard from '../components/StatCard'
 import DataTable from '../components/DataTable'
 import LoadingSpinner from '../components/LoadingSpinner'
 import ErrorMessage from '../components/ErrorMessage'
-import { fanIntelligence } from '../api/client'
+import { fanIntelligence, isCriticalError } from '../api/client'
 
 function toArray(raw: any): Record<string, unknown>[] {
   if (Array.isArray(raw)) return raw
@@ -23,16 +23,30 @@ export default function FanIntelligence() {
     setLoading(true)
     setError('')
     try {
+      console.log('[FanIntelligence] fetching /fan-intelligence/summary|top-fans|geography')
       const [sRes, tfRes, gRes] = await Promise.all([
         fanIntelligence.summary(),
         fanIntelligence.topFans(),
         fanIntelligence.geography(),
       ])
-      setSummary(sRes.data)
-      setTopFans(tfRes.data)
-      setGeography(gRes.data)
+      console.log('[FanIntelligence] summary', sRes.status, sRes.data)
+      console.log('[FanIntelligence] top-fans', tfRes.status, tfRes.data)
+      console.log('[FanIntelligence] geography', gRes.status, gRes.data)
+      // Unwrap { success, data } envelope if present
+      setSummary(sRes.data?.data ?? sRes.data)
+      setTopFans(tfRes.data?.data ?? tfRes.data)
+      setGeography(gRes.data?.data ?? gRes.data)
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load fan intelligence')
+      const status = err.response?.status
+      console.error('[FanIntelligence] fetch error', { status, data: err.response?.data, message: err.message })
+      if (isCriticalError(err)) {
+        setError(err.response?.data?.message || err.message || 'Failed to load fan intelligence')
+      } else {
+        // Non-critical (404, etc.) — show empty state
+        setSummary({})
+        setTopFans([])
+        setGeography([])
+      }
     } finally {
       setLoading(false)
     }

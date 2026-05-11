@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import DataTable from '../components/DataTable'
 import LoadingSpinner from '../components/LoadingSpinner'
 import ErrorMessage from '../components/ErrorMessage'
-import { syncPitches } from '../api/client'
+import { syncPitches, isCriticalError } from '../api/client'
 
 function normalise(raw: any): Record<string, unknown>[] {
   if (Array.isArray(raw)) return raw
@@ -28,10 +28,18 @@ export default function SyncPitches() {
     setLoading(true)
     setError('')
     try {
+      console.log('[SyncPitches] GET /api/sync/pitches')
       const res = await syncPitches.list()
+      console.log('[SyncPitches] response', res.status, res.data)
       setData(res.data)
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load sync pitches')
+      const status = err.response?.status
+      console.error('[SyncPitches] fetch error', { status, data: err.response?.data, message: err.message })
+      if (isCriticalError(err)) {
+        setError(err.response?.data?.message || err.message || 'Failed to load sync pitches')
+      } else {
+        setData([])
+      }
     } finally {
       setLoading(false)
     }

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import DataTable from '../components/DataTable'
 import LoadingSpinner from '../components/LoadingSpinner'
 import ErrorMessage from '../components/ErrorMessage'
-import { automationRuns } from '../api/client'
+import { automationRuns, isCriticalError } from '../api/client'
 
 function normalise(raw: any): Record<string, unknown>[] {
   if (Array.isArray(raw)) return raw
@@ -29,10 +29,18 @@ export default function AutomationRuns() {
     setLoading(true)
     setError('')
     try {
+      console.log('[AutomationRuns] GET /api/automation/runs')
       const res = await automationRuns.list()
+      console.log('[AutomationRuns] response', res.status, res.data)
       setData(res.data)
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load automation runs')
+      const status = err.response?.status
+      console.error('[AutomationRuns] fetch error', { status, data: err.response?.data, message: err.message })
+      if (isCriticalError(err)) {
+        setError(err.response?.data?.message || err.message || 'Failed to load automation runs')
+      } else {
+        setData([])
+      }
     } finally {
       setLoading(false)
     }

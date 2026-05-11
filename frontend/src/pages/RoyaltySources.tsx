@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import DataTable from '../components/DataTable'
 import LoadingSpinner from '../components/LoadingSpinner'
 import ErrorMessage from '../components/ErrorMessage'
-import { royaltySources } from '../api/client'
+import { royaltySources, isCriticalError } from '../api/client'
 
 function normalise(raw: any): Record<string, unknown>[] {
   if (Array.isArray(raw)) return raw
@@ -21,10 +21,18 @@ export default function RoyaltySources() {
     setLoading(true)
     setError('')
     try {
+      console.log('[RoyaltySources] GET /api/royalties')
       const res = await royaltySources.list()
+      console.log('[RoyaltySources] response', res.status, res.data)
       setData(res.data)
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load royalty sources')
+      const status = err.response?.status
+      console.error('[RoyaltySources] fetch error', { status, data: err.response?.data, message: err.message })
+      if (isCriticalError(err)) {
+        setError(err.response?.data?.message || err.message || 'Failed to load royalty sources')
+      } else {
+        setData([])
+      }
     } finally {
       setLoading(false)
     }

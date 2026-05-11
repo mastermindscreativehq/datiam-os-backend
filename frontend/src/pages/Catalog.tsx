@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import DataTable from '../components/DataTable'
 import LoadingSpinner from '../components/LoadingSpinner'
 import ErrorMessage from '../components/ErrorMessage'
-import { catalog } from '../api/client'
+import { catalog, isCriticalError } from '../api/client'
 
 function normalise(raw: any): Record<string, unknown>[] {
   if (Array.isArray(raw)) return raw
@@ -21,10 +21,18 @@ export default function Catalog() {
     setLoading(true)
     setError('')
     try {
+      console.log('[Catalog] GET /api/songs')
       const res = await catalog.songs()
+      console.log('[Catalog] response', res.status, res.data)
       setData(res.data)
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load catalog')
+      const status = err.response?.status
+      console.error('[Catalog] fetch error', { status, data: err.response?.data, message: err.message })
+      if (isCriticalError(err)) {
+        setError(err.response?.data?.message || err.message || 'Failed to load catalog')
+      } else {
+        setData([])
+      }
     } finally {
       setLoading(false)
     }
