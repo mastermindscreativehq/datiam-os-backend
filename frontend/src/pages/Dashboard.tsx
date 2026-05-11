@@ -1,21 +1,17 @@
 import { useEffect, useState } from 'react'
 import StatCard from '../components/StatCard'
 import LoadingSpinner from '../components/LoadingSpinner'
-import ErrorMessage from '../components/ErrorMessage'
 import { dashboard } from '../api/client'
 
 const DEFAULT_DATA = {
-  songs:           { total: 0, released: 0, sync_ready: 0, draft: 0 },
-  fans:            { total: 0, superfans: 0, average_score: 0 },
-  releases:        { total: 0, live: 0, in_progress: 0, upcoming: [] },
-  tasks:           { pending: 0, blocked: 0 },
-  sync_pitches:    { active: 0, accepted: 0, win_rate_percent: 0 },
-  revenue_summary: { total_tracked: 0, by_type: {} },
-  content_ideas:   { total: 0, by_status: {} },
-  recent_fan_events:          [],
-  latest_automation_runs:     [],
-  active_scheduled_jobs:      [],
-  recent_ai_recommendations:  [],
+  fans:             { total: 0, active: 0, growth_rate: 0, engagement_avg: 0 },
+  songs:            { total: 0, released: 0, drafts: 0 },
+  revenue_summary:  { total_tracked: 0, monthly: 0, currency: 'USD' },
+  sync_pitches:     { active: 0, pending: 0, won: 0, win_rate: 0 },
+  releases:         { live: 0, upcoming: 0 },
+  tasks:            { pending: 0, completed: 0 },
+  automation:       { runs: 0, successful: 0, failed: 0 },
+  ai_recommendations: [] as any[],
 }
 
 function pick(obj: any, ...keys: string[]): string {
@@ -56,7 +52,8 @@ export default function Dashboard() {
       console.error('[Dashboard] request failed:', err.message)
       console.error('[Dashboard] response status:', err.response?.status)
       console.error('[Dashboard] response data:', err.response?.data)
-      setError(err.response?.data?.error || err.response?.data?.message || 'Failed to load dashboard overview')
+      setError('Live data unavailable — showing cached defaults')
+      setData(DEFAULT_DATA)
     } finally {
       setLoading(false)
     }
@@ -85,7 +82,19 @@ export default function Dashboard() {
         </div>
       )}
 
-      {error && <ErrorMessage message={error} onRetry={fetchData} />}
+      {error && (
+        <div className="mb-4 px-4 py-2 border border-yellow-500/30 rounded bg-yellow-500/5 flex items-center justify-between">
+          <span className="text-yellow-400/70 text-[11px] font-mono tracking-[0.15em]">
+            ⚠ {error}
+          </span>
+          <button
+            onClick={fetchData}
+            className="text-[10px] font-mono text-yellow-400/50 hover:text-yellow-400 ml-4 underline"
+          >
+            RETRY
+          </button>
+        </div>
+      )}
 
       {!loading && (
         <div className="space-y-6">
@@ -126,34 +135,26 @@ export default function Dashboard() {
           </div>
 
           {/* Secondary stats */}
-          {(data?.releases || data?.tasks) && (
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-              {data?.releases?.live != null && (
-                <StatCard
-                  label="Live Releases"
-                  value={pickNum(data.releases, 'live')}
-                  color="cyan"
-                  icon="◎"
-                />
-              )}
-              {data?.tasks?.pending != null && (
-                <StatCard
-                  label="Pending Tasks"
-                  value={pickNum(data.tasks, 'pending')}
-                  color="green"
-                  icon="◷"
-                />
-              )}
-              {data?.sync_pitches?.win_rate_percent != null && (
-                <StatCard
-                  label="Sync Win Rate"
-                  value={`${data.sync_pitches.win_rate_percent}%`}
-                  color="purple"
-                  icon="↑"
-                />
-              )}
-            </div>
-          )}
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+            <StatCard
+              label="Live Releases"
+              value={pickNum(data?.releases, 'live')}
+              color="cyan"
+              icon="◎"
+            />
+            <StatCard
+              label="Pending Tasks"
+              value={pickNum(data?.tasks, 'pending')}
+              color="green"
+              icon="◷"
+            />
+            <StatCard
+              label="Sync Win Rate"
+              value={`${data?.sync_pitches?.win_rate ?? 0}%`}
+              color="purple"
+              icon="↑"
+            />
+          </div>
 
           {/* Raw payload */}
           <div className="border border-[#00ff41]/15 rounded-lg bg-[#0d0d0d]">
