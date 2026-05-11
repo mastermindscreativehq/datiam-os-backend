@@ -30,7 +30,23 @@ export const logActivity = (input: LegacyLogInput): void => {
 export const getRecentActivity = async (limit = 50) => {
   try {
     return await db
-      .select()
+      .select({
+        id:          activity_log.id,
+        user_id:     activity_log.user_id,
+        user_email:  activity_log.user_email,
+        user_name:   activity_log.user_name,
+        action:      activity_log.action,
+        entity_type: activity_log.entity_type,
+        entity_id:   activity_log.entity_id,
+        entity_name: activity_log.entity_name,
+        event_type:  activity_log.event_type,
+        module:      activity_log.module,
+        title:       activity_log.title,
+        description: activity_log.description,
+        severity:    activity_log.severity,
+        metadata:    activity_log.metadata,
+        created_at:  activity_log.created_at,
+      })
       .from(activity_log)
       .orderBy(desc(activity_log.created_at))
       .limit(limit);

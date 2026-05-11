@@ -57,6 +57,13 @@
       "when": 1778450002000,
       "tag": "0007_activity_log_schema_repair",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1778457600000,
+      "tag": "0008_activity_log_full_alignment",
+      "breakpoints": true
     }
   ]
 }
