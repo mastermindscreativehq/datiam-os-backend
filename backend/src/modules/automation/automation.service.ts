@@ -3,7 +3,7 @@ import { desc } from 'drizzle-orm';
 import { db } from '../../db';
 import { automation_runs } from '../../db/schema';
 import { AppError } from '../../middleware/errorHandler';
-import type { WebhookInput } from './automation.schema';
+import type { WebhookInput, CreateRunInput } from './automation.schema';
 
 export const receiveWebhook = async (input: WebhookInput, secret?: string) => {
   const configuredSecret = process.env.N8N_WEBHOOK_SECRET;
@@ -35,4 +35,18 @@ export const getAutomationRuns = async () => {
     .from(automation_runs)
     .orderBy(desc(automation_runs.created_at))
     .limit(50);
+};
+
+export const createAutomationRun = async (input: CreateRunInput) => {
+  const [run] = await db
+    .insert(automation_runs)
+    .values({
+      workflow_name: input.workflow_name,
+      source: input.source,
+      status: input.status,
+      payload: input.payload ?? {},
+      result: input.result ?? {},
+    })
+    .returning();
+  return run;
 };

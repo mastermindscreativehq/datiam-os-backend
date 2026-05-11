@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import DataTable from '../components/DataTable'
+import EmptyState from '../components/EmptyState'
 import LoadingSpinner from '../components/LoadingSpinner'
 import ErrorMessage from '../components/ErrorMessage'
 import { syncPitches, isCriticalError } from '../api/client'
@@ -94,14 +95,13 @@ export default function SyncPitches() {
           {items.length > 0 ? (
             <DataTable data={items} color="cyan" />
           ) : (
-            <div className="border border-purple-500/15 rounded-lg bg-[#0d0d0d]">
-              <div className="px-5 py-2.5 border-b border-purple-500/10 text-[10px] font-mono tracking-widest text-purple-400/40">
-                GET /api/sync-pitches
-              </div>
-              <pre className="p-5 text-purple-400/60 text-[11px] font-mono overflow-auto max-h-96">
-                {JSON.stringify(data, null, 2)}
-              </pre>
-            </div>
+            <EmptyState
+              icon="⬢"
+              title="No sync pitches submitted"
+              message="No sync licensing pitches have been logged yet."
+              hint="Add pitch records manually or connect your sync licensing workflow to track opportunities."
+              color="purple"
+            />
           )}
         </div>
       )}

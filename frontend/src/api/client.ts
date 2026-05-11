@@ -66,37 +66,37 @@ export const fanIntelligence = {
 }
 
 // ── Catalog ─────────────────────────────────────────────────────────────────
-// Backend: app.use('/api/songs', catalogRouter) → GET / lists all songs
 export const catalog = {
-  songs: () => apiClient.get('/songs'),
+  songs:  () => apiClient.get('/songs'),
+  create: (body: Record<string, unknown>) => apiClient.post('/songs', body),
 }
 
 // ── Releases ────────────────────────────────────────────────────────────────
-// Backend: app.use('/api/releases', releasesRouter) → GET /
 export const releases = {
-  list: () => apiClient.get('/releases'),
+  list:   () => apiClient.get('/releases'),
+  create: (body: Record<string, unknown>) => apiClient.post('/releases', body),
 }
 
 // ── Sync Pitches ────────────────────────────────────────────────────────────
-// Backend: app.use('/api/sync/pitches', syncRouter) → GET /
 export const syncPitches = {
-  list: () => apiClient.get('/sync/pitches'),
+  list:   () => apiClient.get('/sync/pitches'),
+  create: (body: Record<string, unknown>) => apiClient.post('/sync/pitches', body),
 }
 
 // ── Royalty Sources ─────────────────────────────────────────────────────────
-// Backend: app.use('/api/royalties', royaltiesRouter) → GET /
 export const royaltySources = {
-  list: () => apiClient.get('/royalties'),
+  list:   () => apiClient.get('/royalties'),
+  create: (body: Record<string, unknown>) => apiClient.post('/royalties', body),
 }
 
 // ── Content Ideas ───────────────────────────────────────────────────────────
-// Backend: app.use('/api/content/ideas', contentRouter) → GET /
 export const contentIdeas = {
-  list: () => apiClient.get('/content/ideas'),
+  list:   () => apiClient.get('/content/ideas'),
+  create: (body: Record<string, unknown>) => apiClient.post('/content/ideas', body),
 }
 
 // ── Automation Runs ─────────────────────────────────────────────────────────
-// Backend: app.use('/api/automation', automationRouter) → GET /runs
 export const automationRuns = {
-  list: () => apiClient.get('/automation/runs'),
+  list:   () => apiClient.get('/automation/runs'),
+  create: (body: Record<string, unknown>) => apiClient.post('/automation/runs', body),
 }

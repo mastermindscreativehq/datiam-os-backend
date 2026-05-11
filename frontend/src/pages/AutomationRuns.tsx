@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import DataTable from '../components/DataTable'
+import EmptyState from '../components/EmptyState'
 import LoadingSpinner from '../components/LoadingSpinner'
 import ErrorMessage from '../components/ErrorMessage'
 import { automationRuns, isCriticalError } from '../api/client'
@@ -94,14 +95,13 @@ export default function AutomationRuns() {
           {items.length > 0 ? (
             <DataTable data={items} color="green" />
           ) : (
-            <div className="border border-orange-400/15 rounded-lg bg-[#0d0d0d]">
-              <div className="px-5 py-2.5 border-b border-orange-400/10 text-[10px] font-mono tracking-widest text-orange-400/40">
-                GET /api/automation-runs
-              </div>
-              <pre className="p-5 text-orange-400/60 text-[11px] font-mono overflow-auto max-h-96">
-                {JSON.stringify(data, null, 2)}
-              </pre>
-            </div>
+            <EmptyState
+              icon="◷"
+              title="No automation runs yet"
+              message="No workflow executions have been recorded."
+              hint="Automation activity appears here once n8n workflows or scheduled jobs are connected and triggered."
+              color="orange"
+            />
           )}
         </div>
       )}

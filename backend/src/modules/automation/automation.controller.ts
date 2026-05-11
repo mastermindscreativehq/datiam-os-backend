@@ -27,3 +27,15 @@ export const getAutomationRuns = async (
     next(err);
   }
 };
+
+export const createAutomationRun = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    success(res, await automationService.createAutomationRun(req.body), 201);
+  } catch (err) {
+    next(err);
+  }
+};

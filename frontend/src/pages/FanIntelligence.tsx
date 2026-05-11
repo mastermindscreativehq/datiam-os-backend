@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import StatCard from '../components/StatCard'
 import DataTable from '../components/DataTable'
+import EmptyState from '../components/EmptyState'
 import LoadingSpinner from '../components/LoadingSpinner'
 import ErrorMessage from '../components/ErrorMessage'
 import { fanIntelligence, isCriticalError } from '../api/client'
@@ -87,81 +88,72 @@ export default function FanIntelligence() {
               <div className="text-[10px] font-mono tracking-[0.25em] text-[#00d4ff]/40 mb-3 uppercase">
                 Audience Summary
               </div>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                <StatCard label="Total Fans"    value={summary.totalFans    ?? summary.total    ?? '—'} color="green" />
-                <StatCard label="Active Fans"   value={summary.activeFans   ?? summary.active   ?? '—'} color="cyan" />
-                <StatCard label="Avg Engagement" value={summary.avgEngagement ?? summary.engagement ?? '—'} color="purple" />
-                <StatCard label="Growth Rate"   value={summary.growthRate   ?? summary.growth   ?? '—'} color="orange" />
-              </div>
-              <div className="border border-[#00d4ff]/15 rounded-lg bg-[#0d0d0d]">
-                <div className="px-5 py-2.5 border-b border-[#00d4ff]/10 text-[10px] font-mono tracking-[0.2em] text-[#00d4ff]/40">
-                  GET /api/fan-intelligence/summary
-                </div>
-                <pre className="p-4 text-[#00d4ff]/60 text-[11px] font-mono overflow-auto max-h-40">
-                  {JSON.stringify(summary, null, 2)}
-                </pre>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <StatCard label="Total Fans"     value={summary.total_fans    ?? '0'} color="green" />
+                <StatCard label="Active Fans"    value={summary.active_fans   ?? '0'} color="cyan" />
+                <StatCard label="Avg Score"      value={summary.avg_score     ?? '0'} color="purple" />
+                <StatCard label="New (30d)"      value={summary.growth_30d?.new_fans ?? '0'} color="orange" />
               </div>
             </section>
           )}
 
           {/* Top Fans Table */}
-          {topFans && (
-            <section>
-              <div className="text-[10px] font-mono tracking-[0.25em] text-[#00ff41]/40 mb-3 uppercase">
-                Top Fans
-              </div>
-              {topFanRows.length > 0 ? (
-                <DataTable data={topFanRows} color="green" />
-              ) : (
-                <div className="border border-[#00ff41]/15 rounded-lg bg-[#0d0d0d]">
-                  <pre className="p-4 text-[#00ff41]/60 text-[11px] font-mono overflow-auto max-h-64">
-                    {JSON.stringify(topFans, null, 2)}
-                  </pre>
-                </div>
-              )}
-            </section>
-          )}
+          <section>
+            <div className="text-[10px] font-mono tracking-[0.25em] text-[#00ff41]/40 mb-3 uppercase">
+              Top Fans
+            </div>
+            {topFanRows.length > 0 ? (
+              <DataTable data={topFanRows} color="green" />
+            ) : (
+              <EmptyState
+                icon="◈"
+                title="No fan data collected yet"
+                message="Fan profiles will appear here as audience interactions are captured."
+                hint="Connect platform ingestion jobs or use the fan API to register audience members."
+                color="green"
+              />
+            )}
+          </section>
 
           {/* Geographic Distribution */}
-          {geography && (
-            <section>
-              <div className="text-[10px] font-mono tracking-[0.25em] text-[#00d4ff]/40 mb-3 uppercase">
-                Geographic Distribution
-              </div>
-              {geoItems.length > 0 ? (
-                <div className="border border-[#00d4ff]/20 rounded-lg bg-[#0d0d0d] p-5 space-y-3">
-                  {geoItems.slice(0, 12).map((item: any, i: number) => {
-                    const name = item.country || item.region || item.name || item.city || `Location ${i + 1}`
-                    const val  = Number(item.fans || item.count || item.value || item.listeners || 0)
-                    const maxVal = Math.max(...geoItems.map((g: any) =>
-                      Number(g.fans || g.count || g.value || g.listeners || 0)
-                    ), 1)
-                    const pct = Math.round((val / maxVal) * 100)
-                    return (
-                      <div key={i} className="flex items-center gap-3">
-                        <div className="w-28 text-gray-500 text-[11px] font-mono truncate">{name}</div>
-                        <div className="flex-1 h-1 bg-[#111] rounded overflow-hidden">
-                          <div
-                            className="h-full bg-gradient-to-r from-[#00d4ff]/80 to-[#00d4ff]/40 rounded transition-all"
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                        <div className="w-20 text-right text-[#00d4ff]/50 text-[11px] font-mono">
-                          {val.toLocaleString()}
-                        </div>
+          <section>
+            <div className="text-[10px] font-mono tracking-[0.25em] text-[#00d4ff]/40 mb-3 uppercase">
+              Geographic Distribution
+            </div>
+            {geoItems.length > 0 ? (
+              <div className="border border-[#00d4ff]/20 rounded-lg bg-[#0d0d0d] p-5 space-y-3">
+                {geoItems.slice(0, 12).map((item: any, i: number) => {
+                  const name = item.country || item.region || item.name || item.city || `Location ${i + 1}`
+                  const val  = Number(item.fans || item.count || item.value || item.listeners || 0)
+                  const maxVal = Math.max(...geoItems.map((g: any) =>
+                    Number(g.fans || g.count || g.value || g.listeners || 0)
+                  ), 1)
+                  const pct = Math.round((val / maxVal) * 100)
+                  return (
+                    <div key={i} className="flex items-center gap-3">
+                      <div className="w-28 text-gray-500 text-[11px] font-mono truncate">{name}</div>
+                      <div className="flex-1 h-1 bg-[#111] rounded overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-[#00d4ff]/80 to-[#00d4ff]/40 rounded transition-all"
+                          style={{ width: `${pct}%` }}
+                        />
                       </div>
-                    )
-                  })}
-                </div>
-              ) : (
-                <div className="border border-[#00d4ff]/15 rounded-lg bg-[#0d0d0d]">
-                  <pre className="p-4 text-[#00d4ff]/60 text-[11px] font-mono overflow-auto max-h-64">
-                    {JSON.stringify(geography, null, 2)}
-                  </pre>
-                </div>
-              )}
-            </section>
-          )}
+                      <div className="w-20 text-right text-[#00d4ff]/50 text-[11px] font-mono">
+                        {val.toLocaleString()}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <EmptyState
+                icon="◎"
+                title="No geographic data yet"
+                message="Audience location data will populate as fan profiles are collected."
+                color="cyan"
+              />
+            )}
+          </section>
         </div>
       )}
     </div>

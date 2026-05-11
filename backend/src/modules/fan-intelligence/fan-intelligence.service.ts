@@ -209,7 +209,17 @@ export const getIntelligenceSummary = async () => {
       getFanGrowth(30),
     ]);
 
+    const totalFans = (segments as any[]).reduce((sum, s) => sum + Number(s.count ?? 0), 0);
+    const activeFans = (segments as any[])
+      .filter((s) => s.segment === 'superfan' || s.segment === 'active')
+      .reduce((sum, s) => sum + Number(s.count ?? 0), 0);
+    const avgScoreRaw = (segments as any[]).reduce((sum, s) => sum + Number(s.avg_score ?? 0) * Number(s.count ?? 0), 0);
+    const avgScore = totalFans > 0 ? Math.round(avgScoreRaw / totalFans) : 0;
+
     const result = {
+      total_fans: totalFans,
+      active_fans: activeFans,
+      avg_score: avgScore,
       segments,
       top_fans: topFans,
       engagement_breakdown: engagement,
@@ -224,6 +234,9 @@ export const getIntelligenceSummary = async () => {
     console.error('[FanIntelligence] summary unhandled error:', err instanceof Error ? err.message : err);
     console.log(`[FanIntelligence] summary returned in ${Date.now() - start}ms`);
     return {
+      total_fans: 0,
+      active_fans: 0,
+      avg_score: 0,
       segments: [],
       top_fans: [],
       engagement_breakdown: [],

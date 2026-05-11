@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import DataTable from '../components/DataTable'
+import EmptyState from '../components/EmptyState'
 import LoadingSpinner from '../components/LoadingSpinner'
 import ErrorMessage from '../components/ErrorMessage'
 import { catalog, isCriticalError } from '../api/client'
@@ -73,14 +74,13 @@ export default function Catalog() {
         items.length > 0 ? (
           <DataTable data={items} color="green" />
         ) : (
-          <div className="border border-[#00ff41]/15 rounded-lg bg-[#0d0d0d]">
-            <div className="px-5 py-2.5 border-b border-[#00ff41]/10 text-[10px] font-mono tracking-widest text-[#00ff41]/40">
-              GET /api/catalog/songs
-            </div>
-            <pre className="p-5 text-[#00ff41]/60 text-[11px] font-mono overflow-auto max-h-96">
-              {JSON.stringify(data, null, 2)}
-            </pre>
-          </div>
+          <EmptyState
+            icon="◉"
+            title="No catalog entries yet"
+            message="Add your first song to begin building your registered catalog."
+            hint="Songs can be added via the admin API or imported from your distribution account."
+            color="green"
+          />
         )
       )}
     </div>
