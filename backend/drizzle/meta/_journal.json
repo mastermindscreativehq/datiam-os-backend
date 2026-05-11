@@ -22,6 +22,20 @@
       "when": 1778449541509,
       "tag": "0002_uneven_mephisto",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1778450000000,
+      "tag": "0003_activity_log_and_roles",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1778450001000,
+      "tag": "0004_artist_profile_fields",
+      "breakpoints": true
     }
   ]
 }

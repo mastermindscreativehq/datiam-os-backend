@@ -43,9 +43,13 @@ export const loginUser = async (input: LoginInput) => {
     .where(eq(users.email, input.email))
     .limit(1);
 
+  console.log(`[AUTH] login attempt email=${input.email} user_found=${!!user} role=${user?.role ?? 'n/a'}`);
+
   if (!user) throw new AppError('Invalid credentials', 401);
 
   const valid = await comparePassword(input.password, user.password_hash);
+  console.log(`[AUTH] password_match=${valid} user_id=${user.id}`);
+
   if (!valid) throw new AppError('Invalid credentials', 401);
 
   const token = signToken({ id: user.id, email: user.email, role: user.role });
