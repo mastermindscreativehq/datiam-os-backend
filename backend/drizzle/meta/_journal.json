@@ -43,6 +43,13 @@
       "when": 1747008001000,
       "tag": "0005_schema_migrations",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1747008002000,
+      "tag": "0006_activity_log_v2",
+      "breakpoints": true
     }
   ]
 }

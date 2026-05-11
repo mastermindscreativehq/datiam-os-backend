@@ -21,7 +21,9 @@
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\user\\\\datiam-os\" -Directory)",
       "Bash(Select-Object Name)",
       "Bash(xargs grep -l \"modal\\\\|form\\\\|input\\\\|Modal\\\\|Form\")",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\user\\\\datiam-os\\\\backend\\\\drizzle\" -Recurse -Force | ForEach-Object { $_.FullName })",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\user\\\\datiam-os\" -File | Where-Object { $_.Name -match 'railway|nixpacks|Procfile' } | ForEach-Object { $_.Name })"
     ]
   }
 }
