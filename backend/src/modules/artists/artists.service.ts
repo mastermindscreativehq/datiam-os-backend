@@ -4,8 +4,8 @@ import { artist_profiles } from '../../db/schema';
 import { AppError } from '../../middleware/errorHandler';
 import type { CreateArtistInput, UpdateArtistInput } from './artists.schema';
 
-export const getProfile = async () => {
-  return db.select().from(artist_profiles);
+export const listArtists = async () => {
+  return db.select().from(artist_profiles).orderBy(artist_profiles.created_at);
 };
 
 export const createProfile = async (input: CreateArtistInput) => {
@@ -19,7 +19,15 @@ export const updateProfile = async (id: string, input: UpdateArtistInput) => {
     .set({ ...input, updated_at: new Date() })
     .where(eq(artist_profiles.id, id))
     .returning();
-
   if (!updated) throw new AppError('Artist profile not found', 404);
   return updated;
+};
+
+export const deleteProfile = async (id: string) => {
+  const [deleted] = await db
+    .delete(artist_profiles)
+    .where(eq(artist_profiles.id, id))
+    .returning();
+  if (!deleted) throw new AppError('Artist profile not found', 404);
+  return deleted;
 };
