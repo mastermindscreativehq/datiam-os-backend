@@ -203,7 +203,7 @@ export default function Catalog() {
           <Field label="Song Title" required>
             <Input value={form.title} onChange={set('title')} placeholder="Enter song title" autoFocus />
           </Field>
-          <Field label="Artist" required hint={artistList.length === 0 ? 'No artist profile found — create one first via API' : undefined}>
+          <Field label="Artist" required hint={artistList.length === 0 ? 'No artist profile found — create one first via the ARTIST page' : undefined}>
             <Select value={form.artist_id} onChange={set('artist_id')}>
               <option value="">Select artist...</option>
               {artistList.map(a => <option key={a.id} value={a.id}>{a.stage_name || a.id}</option>)}
