@@ -50,6 +50,13 @@
       "when": 1747008002000,
       "tag": "0006_activity_log_v2",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1778450002000,
+      "tag": "0007_activity_log_schema_repair",
+      "breakpoints": true
     }
   ]
 }

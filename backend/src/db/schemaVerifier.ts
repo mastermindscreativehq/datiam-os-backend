@@ -17,12 +17,14 @@ const REQUIRED_TABLES = ['activity_log'];
 const REQUIRED_COLUMNS: ColumnCheck[] = [
   { table: 'artist_profiles', column: 'genre' },
   { table: 'users', column: 'role' },
-  // v2 activity columns — added by migration 0006
+  // activity_log columns — repaired by migration 0007
+  { table: 'activity_log', column: 'user_email' },
   { table: 'activity_log', column: 'event_type' },
   { table: 'activity_log', column: 'module' },
   { table: 'activity_log', column: 'severity' },
   { table: 'activity_log', column: 'metadata' },
   { table: 'activity_log', column: 'title' },
+  { table: 'activity_log', column: 'description' },
 ];
 
 export async function verifySchema(): Promise<SchemaReport> {
