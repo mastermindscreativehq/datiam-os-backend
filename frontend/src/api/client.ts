@@ -15,13 +15,31 @@ apiClient.interceptors.request.use((config) => {
   return config
 })
 
-// Auto-redirect on 401 — but NOT for auth/ endpoints
+// Log errors and auto-redirect on 401 — but NOT for auth/ endpoints
 apiClient.interceptors.response.use(
   (res) => res,
   (err) => {
     const url: string = err.config?.url ?? ''
+    const method: string = (err.config?.method ?? 'UNKNOWN').toUpperCase()
+    const status: number | undefined = err.response?.status
+    const requestId: string | null = err.response?.headers?.['x-request-id'] ?? null
+
+    // Safe body — never log raw response that might contain tokens
+    const safeBody = (() => {
+      try {
+        const data = err.response?.data
+        if (!data || typeof data !== 'object') return null
+        const { success, error, code, message } = data as Record<string, unknown>
+        return { success, error, code, message }
+      } catch {
+        return null
+      }
+    })()
+
+    console.error('[API Error]', { url, method, status, requestId, body: safeBody })
+
     const isAuthRoute = url.includes('/auth/')
-    if (err.response?.status === 401 && !isAuthRoute) {
+    if (status === 401 && !isAuthRoute) {
       localStorage.removeItem('datiam_token')
       if (!window.location.pathname.startsWith('/login')) {
         window.location.href = '/login'

@@ -1,10 +1,13 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
+import { sql } from 'drizzle-orm';
 
+import { requestId } from './middleware/requestId';
+import { requestLogger } from './middleware/requestLogger';
 import { errorHandler } from './middleware/errorHandler';
+import { db } from './db';
 
 // Phase 1 routers
 import authRouter from './modules/auth/auth.routes';
@@ -31,6 +34,7 @@ const app = express();
 app.set('trust proxy', 1);
 
 app.use(helmet());
+app.use(requestId);
 
 const ALLOWED_ORIGINS = [
   'http://localhost:3000',
@@ -52,12 +56,13 @@ app.use(cors({
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['X-Request-Id'],
   optionsSuccessStatus: 204,
 }));
 // Respond to preflight requests for all routes
 app.options('*', cors());
 app.use(express.json({ limit: '10mb' }));
-app.use(morgan('dev'));
+app.use(requestLogger);
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -69,6 +74,30 @@ app.use(limiter);
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', service: 'datiam-os', timestamp: new Date().toISOString() });
+});
+
+app.get('/health/deep', async (_req, res) => {
+  const timestamp = new Date().toISOString();
+  try {
+    await db.execute(sql`SELECT 1`);
+    res.json({
+      success: true,
+      status: 'ok',
+      environment: process.env.NODE_ENV ?? 'unknown',
+      database: 'connected',
+      timestamp,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    res.status(503).json({
+      success: false,
+      status: 'degraded',
+      environment: process.env.NODE_ENV ?? 'unknown',
+      database: 'disconnected',
+      error: message,
+      timestamp,
+    });
+  }
 });
 
 // ---- Phase 1 Routes ----
