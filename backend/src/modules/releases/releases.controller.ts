@@ -1,10 +1,14 @@
 import { Request, Response, NextFunction } from 'express';
 import * as releasesService from './releases.service';
+import { logActivity } from '../activity/activity.service';
 import { success } from '../../utils/response';
 
 export const createRelease = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  try { success(res, await releasesService.createRelease(req.body), 201); }
-  catch (err) { next(err); }
+  try {
+    const release = await releasesService.createRelease(req.body);
+    logActivity({ userId: req.user!.id, userEmail: req.user!.email, action: 'CREATE', entityType: 'release', entityId: release.id, entityName: release.release_title });
+    success(res, release, 201);
+  } catch (err) { next(err); }
 };
 
 export const getReleases = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -18,8 +22,19 @@ export const getReleaseById = async (req: Request, res: Response, next: NextFunc
 };
 
 export const updateRelease = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  try { success(res, await releasesService.updateRelease(req.params.id, req.body)); }
-  catch (err) { next(err); }
+  try {
+    const release = await releasesService.updateRelease(req.params.id, req.body);
+    logActivity({ userId: req.user!.id, userEmail: req.user!.email, action: 'UPDATE', entityType: 'release', entityId: release.id, entityName: release.release_title });
+    success(res, release);
+  } catch (err) { next(err); }
+};
+
+export const deleteRelease = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const result = await releasesService.deleteRelease(req.params.id);
+    logActivity({ userId: req.user!.id, userEmail: req.user!.email, action: 'DELETE', entityType: 'release', entityId: req.params.id });
+    success(res, result);
+  } catch (err) { next(err); }
 };
 
 export const createReleaseTask = async (req: Request, res: Response, next: NextFunction): Promise<void> => {

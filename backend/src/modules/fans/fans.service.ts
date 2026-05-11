@@ -4,6 +4,22 @@ import { fan_profiles, fan_events } from '../../db/schema';
 import { AppError } from '../../middleware/errorHandler';
 import type { CreateFanInput, CreateFanEventInput } from './fans.schema';
 
+export const updateFan = async (id: string, input: Partial<CreateFanInput>) => {
+  const [updated] = await db
+    .update(fan_profiles)
+    .set({ ...input, updated_at: new Date() })
+    .where(eq(fan_profiles.id, id))
+    .returning();
+  if (!updated) throw new AppError('Fan not found', 404);
+  return updated;
+};
+
+export const deleteFan = async (id: string) => {
+  const [deleted] = await db.delete(fan_profiles).where(eq(fan_profiles.id, id)).returning();
+  if (!deleted) throw new AppError('Fan not found', 404);
+  return { deleted: true, id };
+};
+
 export const createFan = async (input: CreateFanInput) => {
   const [fan] = await db.insert(fan_profiles).values(input).returning();
   return fan;

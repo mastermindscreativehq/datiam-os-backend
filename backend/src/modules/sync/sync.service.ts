@@ -22,3 +22,9 @@ export const updateSyncPitch = async (id: string, input: UpdateSyncPitchInput) =
   if (!updated) throw new AppError('Sync pitch not found', 404);
   return updated;
 };
+
+export const deleteSyncPitch = async (id: string) => {
+  const [deleted] = await db.delete(sync_pitches).where(eq(sync_pitches.id, id)).returning();
+  if (!deleted) throw new AppError('Sync pitch not found', 404);
+  return { deleted: true, id };
+};

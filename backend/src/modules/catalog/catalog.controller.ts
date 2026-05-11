@@ -1,10 +1,14 @@
 import { Request, Response, NextFunction } from 'express';
 import * as catalogService from './catalog.service';
+import { logActivity } from '../activity/activity.service';
 import { success } from '../../utils/response';
 
 export const createSong = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  try { success(res, await catalogService.createSong(req.body), 201); }
-  catch (err) { next(err); }
+  try {
+    const song = await catalogService.createSong(req.body);
+    logActivity({ userId: req.user!.id, userEmail: req.user!.email, action: 'CREATE', entityType: 'song', entityId: song.id, entityName: song.title });
+    success(res, song, 201);
+  } catch (err) { next(err); }
 };
 
 export const getSongs = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -18,13 +22,19 @@ export const getSongById = async (req: Request, res: Response, next: NextFunctio
 };
 
 export const updateSong = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  try { success(res, await catalogService.updateSong(req.params.id, req.body)); }
-  catch (err) { next(err); }
+  try {
+    const song = await catalogService.updateSong(req.params.id, req.body);
+    logActivity({ userId: req.user!.id, userEmail: req.user!.email, action: 'UPDATE', entityType: 'song', entityId: song.id, entityName: song.title });
+    success(res, song);
+  } catch (err) { next(err); }
 };
 
 export const deleteSong = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  try { success(res, await catalogService.deleteSong(req.params.id)); }
-  catch (err) { next(err); }
+  try {
+    const result = await catalogService.deleteSong(req.params.id);
+    logActivity({ userId: req.user!.id, userEmail: req.user!.email, action: 'DELETE', entityType: 'song', entityId: req.params.id });
+    success(res, result);
+  } catch (err) { next(err); }
 };
 
 export const createAsset = async (req: Request, res: Response, next: NextFunction): Promise<void> => {

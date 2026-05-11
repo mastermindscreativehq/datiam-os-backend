@@ -13,7 +13,15 @@
       "Bash(Select-Object -ExpandProperty FullName)",
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\user\\\\datiam-os\" -Force)",
       "Bash(Select-Object -Property Mode, Name)",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "PowerShell(Get-ChildItem C:\\\\Users\\\\user\\\\datiam-os -Name -Force | Where-Object { $_ -ne \"node_modules\" } 2>&1)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(xargs grep -l \"fan.intelligence\\\\|fanIntelligence\")",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\user\\\\datiam-os\" -Directory)",
+      "Bash(Select-Object Name)",
+      "Bash(xargs grep -l \"modal\\\\|form\\\\|input\\\\|Modal\\\\|Form\")",
+      "Bash(git push *)"
     ]
   }
 }

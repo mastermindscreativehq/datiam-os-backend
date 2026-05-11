@@ -39,3 +39,15 @@ export const createAutomationRun = async (
     next(err);
   }
 };
+
+export const deleteAutomationRun = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    success(res, await automationService.deleteAutomationRun(req.params.id));
+  } catch (err) {
+    next(err);
+  }
+};

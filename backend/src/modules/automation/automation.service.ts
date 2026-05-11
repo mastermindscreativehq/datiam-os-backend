@@ -50,3 +50,9 @@ export const createAutomationRun = async (input: CreateRunInput) => {
     .returning();
   return run;
 };
+
+export const deleteAutomationRun = async (id: string) => {
+  const [deleted] = await db.delete(automation_runs).where(eq(automation_runs.id, id)).returning();
+  if (!deleted) throw new AppError('Automation run not found', 404);
+  return { deleted: true, id };
+};

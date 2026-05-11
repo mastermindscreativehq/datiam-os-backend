@@ -1,15 +1,19 @@
 import { Router } from 'express';
 import * as royaltiesController from './royalties.controller';
 import { validate } from '../../middleware/validate';
-import { authenticate } from '../../middleware/auth';
+import { authenticate, requireRole } from '../../middleware/auth';
 import { createRoyaltySchema } from './royalties.schema';
 
 const router = Router();
 
 router.use(authenticate);
 
-router.post('/', validate(createRoyaltySchema), royaltiesController.createRoyalty);
+const canWrite = requireRole('owner', 'admin', 'editor', 'team');
+const canDelete = requireRole('owner', 'admin');
+
+router.post('/', canWrite, validate(createRoyaltySchema), royaltiesController.createRoyalty);
 router.get('/', royaltiesController.getRoyalties);
 router.get('/song/:songId', royaltiesController.getRoyaltiesBySong);
+router.delete('/:id', canDelete, royaltiesController.deleteRoyalty);
 
 export default router;

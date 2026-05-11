@@ -22,3 +22,9 @@ export const updateContact = async (id: string, input: UpdateCrmContactInput) =>
   if (!updated) throw new AppError('Contact not found', 404);
   return updated;
 };
+
+export const deleteContact = async (id: string) => {
+  const [deleted] = await db.delete(crm_contacts).where(eq(crm_contacts.id, id)).returning();
+  if (!deleted) throw new AppError('Contact not found', 404);
+  return { deleted: true, id };
+};

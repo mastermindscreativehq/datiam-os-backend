@@ -4,8 +4,10 @@ import EmptyState from '../components/EmptyState'
 import LoadingSpinner from '../components/LoadingSpinner'
 import ErrorMessage from '../components/ErrorMessage'
 import Modal, { Field, Input, Select, Textarea } from '../components/Modal'
+import ConfirmModal from '../components/ConfirmModal'
 import Toast from '../components/Toast'
 import { contentIdeas, catalog, isCriticalError } from '../api/client'
+import { useAuthStore } from '../store/authStore'
 
 function normalise(raw: any): Record<string, unknown>[] {
   if (Array.isArray(raw)) return raw
@@ -26,8 +28,10 @@ const STATUS_COLORS: Record<string, string> = {
   posted:    'text-[#00ff41]',
 }
 
+type ContentType = '' | 'short_video' | 'interview' | 'post' | 'thread' | 'live_script' | 'reel' | 'tiktok' | 'youtube_short'
+
 const EMPTY_FORM = {
-  content_type: '' as '' | 'short_video' | 'interview' | 'post' | 'thread' | 'live_script' | 'reel' | 'tiktok' | 'youtube_short',
+  content_type: '' as ContentType,
   song_id: '',
   hook: '',
   platform: '',
@@ -37,44 +41,61 @@ const EMPTY_FORM = {
 }
 
 export default function ContentIdeas() {
+  const { user } = useAuthStore()
+  const canWrite  = ['owner', 'admin', 'editor', 'team'].includes(user?.role ?? '')
+  const canDelete = ['owner', 'admin'].includes(user?.role ?? '')
+
   const [data,       setData]       = useState<any>(null)
   const [loading,    setLoading]    = useState(true)
   const [error,      setError]      = useState('')
   const [modalOpen,  setModalOpen]  = useState(false)
+  const [editItem,   setEditItem]   = useState<Record<string, unknown> | null>(null)
+  const [deleteItem, setDeleteItem] = useState<Record<string, unknown> | null>(null)
   const [form,       setForm]       = useState(EMPTY_FORM)
   const [submitting, setSubmitting] = useState(false)
+  const [deleting,   setDeleting]   = useState(false)
   const [songList,   setSongList]   = useState<SongOption[]>([])
   const [toast,      setToast]      = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
   const fetchData = useCallback(async () => {
-    setLoading(true)
-    setError('')
+    setLoading(true); setError('')
     try {
       const res = await contentIdeas.list()
       setData(res.data)
     } catch (err: any) {
-      if (isCriticalError(err)) {
-        setError(err.response?.data?.message || err.message || 'Failed to load content ideas')
-      } else {
-        setData([])
-      }
-    } finally {
-      setLoading(false)
-    }
+      if (isCriticalError(err)) setError(err.response?.data?.message || 'Failed to load content ideas')
+      else setData([])
+    } finally { setLoading(false) }
   }, [])
 
   useEffect(() => { fetchData() }, [fetchData])
 
-  const openModal = async () => {
-    setForm(EMPTY_FORM)
-    setModalOpen(true)
+  const loadSongs = async () => {
     try {
       const res = await catalog.songs()
       const list = Array.isArray(res.data) ? res.data : (res.data?.songs ?? res.data?.data ?? [])
       setSongList(list)
-    } catch {
-      setSongList([])
-    }
+    } catch { setSongList([]) }
+  }
+
+  const openCreate = async () => {
+    setForm(EMPTY_FORM); setEditItem(null); setModalOpen(true)
+    await loadSongs()
+  }
+
+  const openEdit = async (row: Record<string, unknown>) => {
+    setEditItem(row)
+    setForm({
+      content_type:   (row.content_type as ContentType) || '',
+      song_id:        String(row.song_id ?? ''),
+      hook:           String(row.hook ?? ''),
+      platform:       String(row.platform ?? ''),
+      status:         String(row.status ?? ''),
+      caption:        String(row.caption ?? ''),
+      scheduled_date: String(row.scheduled_date ?? ''),
+    })
+    setModalOpen(true)
+    await loadSongs()
   }
 
   const handleSubmit = async () => {
@@ -82,9 +103,7 @@ export default function ContentIdeas() {
 
     setSubmitting(true)
     try {
-      const body: Record<string, unknown> = {
-        content_type: form.content_type,
-      }
+      const body: Record<string, unknown> = { content_type: form.content_type }
       if (form.song_id)        body.song_id        = form.song_id
       if (form.hook)           body.hook           = form.hook.trim()
       if (form.platform)       body.platform       = form.platform.trim()
@@ -92,26 +111,38 @@ export default function ContentIdeas() {
       if (form.caption)        body.caption        = form.caption.trim()
       if (form.scheduled_date) body.scheduled_date = form.scheduled_date
 
-      await contentIdeas.create(body)
-      setModalOpen(false)
-      setToast({ message: 'Content idea created successfully', type: 'success' })
-      fetchData()
+      if (editItem) {
+        await contentIdeas.update(String(editItem.id), body)
+        setToast({ message: 'Content idea updated', type: 'success' })
+      } else {
+        await contentIdeas.create(body)
+        setToast({ message: 'Content idea created', type: 'success' })
+      }
+      setModalOpen(false); fetchData()
     } catch (err: any) {
-      setToast({ message: err.response?.data?.message || 'Failed to create content idea', type: 'error' })
-    } finally {
-      setSubmitting(false)
-    }
+      setToast({ message: err.response?.data?.message || 'Failed to save content idea', type: 'error' })
+    } finally { setSubmitting(false) }
+  }
+
+  const handleDelete = async () => {
+    if (!deleteItem) return
+    setDeleting(true)
+    try {
+      await contentIdeas.remove(String(deleteItem.id))
+      setToast({ message: 'Content idea deleted', type: 'success' })
+      setDeleteItem(null); fetchData()
+    } catch (err: any) {
+      setToast({ message: err.response?.data?.message || 'Failed to delete', type: 'error' })
+    } finally { setDeleting(false) }
   }
 
   const set = (k: keyof typeof EMPTY_FORM) => (e: React.ChangeEvent<any>) =>
     setForm(f => ({ ...f, [k]: e.target.value }))
 
   const items = normalise(data)
-
   const statusCounts = items.reduce<Record<string, number>>((acc, item: any) => {
     const s = String(item.status ?? 'unknown').toLowerCase()
-    acc[s] = (acc[s] || 0) + 1
-    return acc
+    acc[s] = (acc[s] || 0) + 1; return acc
   }, {})
 
   return (
@@ -120,33 +151,23 @@ export default function ContentIdeas() {
         <div>
           <div className="flex items-center gap-3 mb-1">
             <div className="w-1 h-6 bg-fuchsia-400 rounded-full" />
-            <h1 className="text-xl font-bold font-mono text-fuchsia-400 tracking-[0.2em]">
-              CONTENT IDEAS
-            </h1>
+            <h1 className="text-xl font-bold font-mono text-fuchsia-400 tracking-[0.2em]">CONTENT IDEAS</h1>
           </div>
           <p className="text-gray-600 text-[11px] font-mono tracking-[0.2em] ml-4">CREATIVE CONTENT PIPELINE</p>
         </div>
         <div className="flex items-center gap-3">
           {!loading && !error && data && (
-            <div className="text-fuchsia-400/50 text-[10px] font-mono border border-fuchsia-400/20 rounded px-3 py-1.5 tracking-widest">
-              {items.length} IDEAS
-            </div>
+            <div className="text-fuchsia-400/50 text-[10px] font-mono border border-fuchsia-400/20 rounded px-3 py-1.5 tracking-widest">{items.length} IDEAS</div>
           )}
-          <button
-            onClick={openModal}
-            className="text-[10px] font-mono tracking-widest px-4 py-1.5 border border-fuchsia-400/40 text-fuchsia-400 hover:bg-fuchsia-400/10 rounded transition-colors"
-          >
-            + CREATE IDEA
-          </button>
+          {canWrite && (
+            <button onClick={openCreate} className="text-[10px] font-mono tracking-widest px-4 py-1.5 border border-fuchsia-400/40 text-fuchsia-400 hover:bg-fuchsia-400/10 rounded transition-colors">
+              + CREATE IDEA
+            </button>
+          )}
         </div>
       </div>
 
-      {loading && (
-        <div className="flex justify-center py-24">
-          <LoadingSpinner text="LOADING CONTENT IDEAS..." />
-        </div>
-      )}
-
+      {loading && <div className="flex justify-center py-24"><LoadingSpinner text="LOADING CONTENT IDEAS..." /></div>}
       {error && <ErrorMessage message={error} onRetry={fetchData} />}
 
       {!loading && !error && data && (
@@ -154,52 +175,26 @@ export default function ContentIdeas() {
           {Object.keys(statusCounts).length > 0 && (
             <div className="flex flex-wrap gap-2">
               {Object.entries(statusCounts).map(([status, count]) => (
-                <div
-                  key={status}
-                  className={`text-[10px] font-mono border border-current/25 rounded px-3 py-1 tracking-widest ${STATUS_COLORS[status] ?? 'text-gray-500'}`}
-                >
+                <div key={status} className={`text-[10px] font-mono border border-current/25 rounded px-3 py-1 tracking-widest ${STATUS_COLORS[status] ?? 'text-gray-500'}`}>
                   {status.toUpperCase()} · {count}
                 </div>
               ))}
             </div>
           )}
-
           {items.length > 0 ? (
-            <DataTable data={items} color="cyan" />
+            <DataTable data={items} color="cyan" onEdit={canWrite ? openEdit : undefined} onDelete={canDelete ? setDeleteItem : undefined} />
           ) : (
-            <EmptyState
-              icon="◈"
-              title="No content signals available"
-              message="No content ideas have been added yet."
-              hint='Use the CREATE IDEA button above to log your first content idea.'
-              color="fuchsia"
-            />
+            <EmptyState icon="◈" title="No content signals available" message="No content ideas have been added yet." hint='Use the CREATE IDEA button above.' color="fuchsia" />
           )}
         </div>
       )}
 
-      {/* Create Content Idea Modal */}
-      <Modal
-        isOpen={modalOpen}
-        onClose={() => !submitting && setModalOpen(false)}
-        title="CREATE CONTENT IDEA"
-        subtitle="ADD TO CONTENT PIPELINE"
-        color="fuchsia"
+      <Modal isOpen={modalOpen} onClose={() => !submitting && setModalOpen(false)} title={editItem ? 'EDIT CONTENT IDEA' : 'CREATE CONTENT IDEA'} subtitle="CONTENT PIPELINE" color="fuchsia"
         footer={
           <>
-            <button
-              onClick={() => setModalOpen(false)}
-              disabled={submitting}
-              className="text-[10px] font-mono tracking-widest px-4 py-2 border border-white/10 text-gray-500 hover:text-gray-400 rounded transition-colors disabled:opacity-50"
-            >
-              CANCEL
-            </button>
-            <button
-              onClick={handleSubmit}
-              disabled={submitting}
-              className="text-[10px] font-mono tracking-widest px-5 py-2 border border-fuchsia-400/40 text-fuchsia-400 hover:bg-fuchsia-400/10 rounded transition-colors disabled:opacity-50"
-            >
-              {submitting ? 'SAVING...' : 'CREATE IDEA'}
+            <button onClick={() => setModalOpen(false)} disabled={submitting} className="text-[10px] font-mono tracking-widest px-4 py-2 border border-white/10 text-gray-500 hover:text-gray-400 rounded transition-colors disabled:opacity-50">CANCEL</button>
+            <button onClick={handleSubmit} disabled={submitting} className="text-[10px] font-mono tracking-widest px-5 py-2 border border-fuchsia-400/40 text-fuchsia-400 hover:bg-fuchsia-400/10 rounded transition-colors disabled:opacity-50">
+              {submitting ? 'SAVING...' : editItem ? 'SAVE CHANGES' : 'CREATE IDEA'}
             </button>
           </>
         }
@@ -218,11 +213,8 @@ export default function ContentIdeas() {
               <option value="live_script">LIVE SCRIPT</option>
             </Select>
           </Field>
-
           <div className="grid grid-cols-2 gap-4">
-            <Field label="Platform">
-              <Input value={form.platform} onChange={set('platform')} placeholder="e.g. Instagram, TikTok" />
-            </Field>
+            <Field label="Platform"><Input value={form.platform} onChange={set('platform')} placeholder="e.g. Instagram, TikTok" /></Field>
             <Field label="Status">
               <Select value={form.status} onChange={set('status')}>
                 <option value="">Select status...</option>
@@ -235,33 +227,28 @@ export default function ContentIdeas() {
               </Select>
             </Field>
           </div>
-
           <Field label="Linked Song" hint="Optional — link to a specific song">
             <Select value={form.song_id} onChange={set('song_id')}>
               <option value="">No song linked...</option>
-              {songList.map(s => (
-                <option key={s.id} value={s.id}>{s.title}</option>
-              ))}
+              {songList.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
             </Select>
           </Field>
-
-          <Field label="Hook">
-            <Input value={form.hook} onChange={set('hook')} placeholder="Opening hook or angle for this content" />
-          </Field>
-
-          <Field label="Caption">
-            <Textarea value={form.caption} onChange={set('caption')} placeholder="Post caption or script notes..." rows={3} />
-          </Field>
-
-          <Field label="Scheduled Date">
-            <Input value={form.scheduled_date} onChange={set('scheduled_date')} type="date" />
-          </Field>
+          <Field label="Hook"><Input value={form.hook} onChange={set('hook')} placeholder="Opening hook or angle for this content" /></Field>
+          <Field label="Caption"><Textarea value={form.caption} onChange={set('caption')} placeholder="Post caption or script notes..." rows={3} /></Field>
+          <Field label="Scheduled Date"><Input value={form.scheduled_date} onChange={set('scheduled_date')} type="date" /></Field>
         </div>
       </Modal>
 
-      {toast && (
-        <Toast message={toast.message} type={toast.type} onDismiss={() => setToast(null)} />
-      )}
+      <ConfirmModal
+        isOpen={!!deleteItem}
+        title="DELETE CONTENT IDEA"
+        message={`Delete this ${deleteItem?.content_type} idea?`}
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteItem(null)}
+        loading={deleting}
+      />
+
+      {toast && <Toast message={toast.message} type={toast.type} onDismiss={() => setToast(null)} />}
     </div>
   )
 }

@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { db } from '../../db';
 import { royalty_sources } from '../../db/schema';
+import { AppError } from '../../middleware/errorHandler';
 import type { CreateRoyaltyInput } from './royalties.schema';
 
 export const createRoyalty = async (input: CreateRoyaltyInput) => {
@@ -24,4 +25,10 @@ export const getRoyaltiesBySong = async (songId: string) => {
     .from(royalty_sources)
     .where(eq(royalty_sources.song_id, songId))
     .orderBy(royalty_sources.imported_at);
+};
+
+export const deleteRoyalty = async (id: string) => {
+  const [deleted] = await db.delete(royalty_sources).where(eq(royalty_sources.id, id)).returning();
+  if (!deleted) throw new AppError('Royalty source not found', 404);
+  return { deleted: true, id };
 };

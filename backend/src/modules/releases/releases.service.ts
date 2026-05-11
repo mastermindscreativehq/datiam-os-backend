@@ -34,6 +34,12 @@ export const updateRelease = async (id: string, input: UpdateReleaseInput) => {
   return updated;
 };
 
+export const deleteRelease = async (id: string) => {
+  const [deleted] = await db.delete(releases).where(eq(releases.id, id)).returning();
+  if (!deleted) throw new AppError('Release not found', 404);
+  return { deleted: true, id };
+};
+
 export const createReleaseTask = async (releaseId: string, input: CreateReleaseTaskInput) => {
   const [task] = await db
     .insert(release_tasks)

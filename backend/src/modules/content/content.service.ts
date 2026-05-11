@@ -22,3 +22,9 @@ export const updateContentIdea = async (id: string, input: UpdateContentIdeaInpu
   if (!updated) throw new AppError('Content idea not found', 404);
   return updated;
 };
+
+export const deleteContentIdea = async (id: string) => {
+  const [deleted] = await db.delete(content_ideas).where(eq(content_ideas.id, id)).returning();
+  if (!deleted) throw new AppError('Content idea not found', 404);
+  return { deleted: true, id };
+};

@@ -15,7 +15,7 @@ import { relations } from 'drizzle-orm';
 
 // ---- Enums ----
 
-export const userRoleEnum = pgEnum('user_role', ['owner', 'admin', 'team']);
+export const userRoleEnum = pgEnum('user_role', ['owner', 'admin', 'editor', 'team', 'viewer']);
 
 export const songReleaseStatusEnum = pgEnum('song_release_status', [
   'draft',
@@ -509,6 +509,29 @@ export const ai_recommendations = pgTable(
     entityIdx: index('ai_recs_entity_type_idx').on(t.entity_type),
   }),
 );
+
+export const activity_log = pgTable(
+  'activity_log',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    user_id: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
+    user_email: text('user_email').notNull(),
+    user_name: text('user_name'),
+    action: text('action').notNull(),
+    entity_type: text('entity_type').notNull(),
+    entity_id: text('entity_id'),
+    entity_name: text('entity_name'),
+    created_at: timestamp('created_at').defaultNow().notNull(),
+  },
+  (t) => ({
+    userIdx: index('activity_log_user_id_idx').on(t.user_id),
+    actionIdx: index('activity_log_action_idx').on(t.action),
+    entityTypeIdx: index('activity_log_entity_type_idx').on(t.entity_type),
+    createdAtIdx: index('activity_log_created_at_idx').on(t.created_at),
+  }),
+);
+
+export type ActivityLogEntry = typeof activity_log.$inferSelect;
 
 // ---- Relations ----
 

@@ -25,6 +25,7 @@ import signalsRouter from './modules/signals/signals.routes';
 import pipelineRouter from './modules/pipeline/pipeline.routes';
 import schedulerRouter from './modules/scheduler/scheduler.routes';
 import aiRouter from './modules/ai/ai.routes';
+import activityRouter from './modules/activity/activity.routes';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -90,6 +91,7 @@ app.use('/api/signals/content', signalsRouter);
 app.use('/api/pipeline', pipelineRouter);
 app.use('/api/scheduler/jobs', schedulerRouter);
 app.use('/api/ai/recommendations', aiRouter);
+app.use('/api/activity', activityRouter);
 
 app.use(errorHandler);
 
