@@ -3,6 +3,7 @@ import { env } from './config/env';
 import app from './app';
 import { startSchedulerWorker, stopSchedulerWorker } from './modules/scheduler/scheduler.worker';
 import { verifySchema } from './db/schemaVerifier';
+import { logActivity } from './lib/activityLogger';
 
 const port = parseInt(env.PORT, 10);
 
@@ -28,6 +29,17 @@ const server = app.listen(port, () => {
           missingTables: report.missingTables,
           missingColumns: report.missingColumns,
         }));
+        logActivity({
+          eventType: 'schema.drift_detected',
+          module: 'system',
+          title: 'Schema drift detected',
+          description: [
+            report.missingTables.length ? `Missing tables: ${report.missingTables.join(', ')}` : '',
+            report.missingColumns.length ? `Missing columns: ${report.missingColumns.map(c => `${c.table}.${c.column}`).join(', ')}` : '',
+          ].filter(Boolean).join('; '),
+          severity: 'critical',
+          metadata: { missingTables: report.missingTables, missingColumns: report.missingColumns },
+        });
       }
     })
     .catch(err => {

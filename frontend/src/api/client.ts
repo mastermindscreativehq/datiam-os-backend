@@ -69,6 +69,7 @@ export const dashboard = {
 // ── Activity ─────────────────────────────────────────────────────────────────
 export const activity = {
   recent: () => apiClient.get('/activity/recent'),
+  stats:  () => apiClient.get('/activity/stats'),
 }
 
 // ── Fan Intelligence ────────────────────────────────────────────────────────

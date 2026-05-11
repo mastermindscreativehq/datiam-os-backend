@@ -11,6 +11,7 @@ const NAV = [
   { to: '/royalty-sources',  label: 'ROYALTIES',     icon: '◆' },
   { to: '/content-ideas',    label: 'CONTENT IDEAS', icon: '✦' },
   { to: '/automation-runs',  label: 'AUTOMATION',    icon: '⬢' },
+  { to: '/activity',         label: 'ACTIVITY',      icon: '◈' },
 ]
 
 export default function Sidebar() {

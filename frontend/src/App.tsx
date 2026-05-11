@@ -10,6 +10,7 @@ import SyncPitches from './pages/SyncPitches'
 import RoyaltySources from './pages/RoyaltySources'
 import ContentIdeas from './pages/ContentIdeas'
 import AutomationRuns from './pages/AutomationRuns'
+import Activity from './pages/Activity'
 
 function App() {
   return (
@@ -27,6 +28,7 @@ function App() {
           <Route path="royalty-sources" element={<RoyaltySources />} />
           <Route path="content-ideas" element={<ContentIdeas />} />
           <Route path="automation-runs" element={<AutomationRuns />} />
+          <Route path="activity" element={<Activity />} />
         </Route>
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>

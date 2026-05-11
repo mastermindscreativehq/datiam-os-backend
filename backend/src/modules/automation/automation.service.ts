@@ -3,6 +3,7 @@ import { desc } from 'drizzle-orm';
 import { db } from '../../db';
 import { automation_runs } from '../../db/schema';
 import { AppError } from '../../middleware/errorHandler';
+import { logActivity } from '../../lib/activityLogger';
 import type { WebhookInput, CreateRunInput } from './automation.schema';
 
 export const receiveWebhook = async (input: WebhookInput, secret?: string) => {
@@ -20,6 +21,16 @@ export const receiveWebhook = async (input: WebhookInput, secret?: string) => {
       payload: input.payload ?? {},
     })
     .returning();
+
+  logActivity({
+    eventType: 'automation.run.started',
+    module: 'automation',
+    entityType: 'automation_run',
+    entityId: run.id,
+    title: `Automation started: ${input.workflow_name}`,
+    severity: 'info',
+    metadata: { source: input.source ?? 'n8n', runId: run.id },
+  });
 
   await db
     .update(automation_runs)
@@ -48,6 +59,20 @@ export const createAutomationRun = async (input: CreateRunInput) => {
       result: input.result ?? {},
     })
     .returning();
+
+  const isFailed = input.status === 'failed';
+  logActivity({
+    eventType: isFailed ? 'automation.run.failed' : 'automation.run.started',
+    module: 'automation',
+    entityType: 'automation_run',
+    entityId: run.id,
+    title: isFailed
+      ? `Automation failed: ${input.workflow_name}`
+      : `Automation run logged: ${input.workflow_name}`,
+    severity: isFailed ? 'error' : 'info',
+    metadata: { source: input.source, runId: run.id, status: input.status },
+  });
+
   return run;
 };
 

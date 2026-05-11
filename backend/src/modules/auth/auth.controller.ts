@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import * as authService from './auth.service';
 import { success } from '../../utils/response';
+import { logActivity } from '../../lib/activityLogger';
 
 export const register = async (
   req: Request,
@@ -22,8 +23,26 @@ export const login = async (
 ): Promise<void> => {
   try {
     const result = await authService.loginUser(req.body);
+    logActivity({
+      userId: result.user.id,
+      eventType: 'login.success',
+      module: 'auth',
+      entityType: 'user',
+      entityId: result.user.id,
+      title: `Login: ${result.user.email}`,
+      severity: 'info',
+      metadata: { requestId: req.requestId, email: result.user.email },
+    });
     success(res, result);
   } catch (err) {
+    logActivity({
+      eventType: 'login.failure',
+      module: 'auth',
+      entityType: 'user',
+      title: `Login failed: ${req.body?.email ?? 'unknown'}`,
+      severity: 'warning',
+      metadata: { requestId: req.requestId, email: req.body?.email },
+    });
     next(err);
   }
 };

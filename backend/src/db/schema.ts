@@ -522,12 +522,20 @@ export const activity_log = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     user_id: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
-    user_email: text('user_email').notNull(),
+    // Legacy columns — nullable for backwards compat with pre-v2 rows
+    user_email: text('user_email'),
     user_name: text('user_name'),
-    action: text('action').notNull(),
-    entity_type: text('entity_type').notNull(),
-    entity_id: text('entity_id'),
+    action: text('action'),
     entity_name: text('entity_name'),
+    // v2 columns
+    event_type: text('event_type'),
+    module: text('module'),
+    entity_type: text('entity_type'),
+    entity_id: text('entity_id'),
+    title: text('title'),
+    description: text('description'),
+    metadata: jsonb('metadata').$type<Record<string, unknown>>().default({}).notNull(),
+    severity: text('severity').default('info').notNull(),
     created_at: timestamp('created_at').defaultNow().notNull(),
   },
   (t) => ({
@@ -535,6 +543,9 @@ export const activity_log = pgTable(
     actionIdx: index('activity_log_action_idx').on(t.action),
     entityTypeIdx: index('activity_log_entity_type_idx').on(t.entity_type),
     createdAtIdx: index('activity_log_created_at_idx').on(t.created_at),
+    eventTypeIdx: index('activity_log_event_type_idx').on(t.event_type),
+    moduleIdx: index('activity_log_module_idx').on(t.module),
+    severityIdx: index('activity_log_severity_idx').on(t.severity),
   }),
 );
 
