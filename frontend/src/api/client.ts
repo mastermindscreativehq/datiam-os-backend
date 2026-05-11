@@ -62,7 +62,10 @@ export const fanIntelligence = {
 
 // ── Artists ─────────────────────────────────────────────────────────────────
 export const artists = {
-  list: () => apiClient.get('/artist'),
+  list:   () => apiClient.get('/artists'),
+  create: (body: Record<string, unknown>) => apiClient.post('/artists', body),
+  update: (id: string, body: Record<string, unknown>) => apiClient.patch(`/artists/${id}`, body),
+  remove: (id: string) => apiClient.delete(`/artists/${id}`),
 }
 
 // ── Catalog ─────────────────────────────────────────────────────────────────
