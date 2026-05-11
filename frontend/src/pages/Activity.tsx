@@ -194,7 +194,7 @@ export default function Activity() {
           {items.length === 0 ? (
             <div className="border border-[#00d4ff]/10 rounded p-12 text-center">
               <div className="text-[#00d4ff]/20 text-3xl mb-3">◈</div>
-              <div className="text-gray-600 text-[11px] font-mono tracking-widest">NO ACTIVITY YET</div>
+              <div className="text-gray-600 text-[11px] font-mono tracking-widest">NO REAL ACTIVITY RECORDED YET</div>
             </div>
           ) : (
             <div className="space-y-1">

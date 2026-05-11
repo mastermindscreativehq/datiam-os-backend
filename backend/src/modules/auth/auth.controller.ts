@@ -25,13 +25,16 @@ export const login = async (
     const result = await authService.loginUser(req.body);
     logActivity({
       userId: result.user.id,
+      userEmail: result.user.email,
       eventType: 'login.success',
       module: 'auth',
       entityType: 'user',
       entityId: result.user.id,
       title: `Login: ${result.user.email}`,
+      description: `Successful login for ${result.user.email}`,
       severity: 'info',
-      metadata: { requestId: req.requestId, email: result.user.email },
+      requestId: req.requestId,
+      metadata: { email: result.user.email },
     });
     success(res, result);
   } catch (err) {
@@ -40,8 +43,10 @@ export const login = async (
       module: 'auth',
       entityType: 'user',
       title: `Login failed: ${req.body?.email ?? 'unknown'}`,
+      description: `Failed login attempt for ${req.body?.email ?? 'unknown'}`,
       severity: 'warning',
-      metadata: { requestId: req.requestId, email: req.body?.email },
+      requestId: req.requestId,
+      metadata: { email: req.body?.email },
     });
     next(err);
   }

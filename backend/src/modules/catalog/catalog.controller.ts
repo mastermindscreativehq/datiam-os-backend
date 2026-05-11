@@ -1,12 +1,24 @@
 import { Request, Response, NextFunction } from 'express';
 import * as catalogService from './catalog.service';
-import { logActivity } from '../activity/activity.service';
+import { logActivity } from '../../lib/activityLogger';
 import { success } from '../../utils/response';
 
 export const createSong = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const song = await catalogService.createSong(req.body);
-    logActivity({ userId: req.user!.id, userEmail: req.user!.email, action: 'CREATE', entityType: 'song', entityId: song.id, entityName: song.title });
+    logActivity({
+      userId: req.user?.id,
+      userEmail: req.user?.email,
+      eventType: 'song.created',
+      module: 'catalog',
+      entityType: 'song',
+      entityId: song.id,
+      title: `Song created: ${song.title}`,
+      description: `Added "${song.title}" to the catalog`,
+      severity: 'info',
+      requestId: req.requestId,
+      metadata: { songId: song.id, title: song.title },
+    });
     success(res, song, 201);
   } catch (err) { next(err); }
 };
@@ -24,7 +36,19 @@ export const getSongById = async (req: Request, res: Response, next: NextFunctio
 export const updateSong = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const song = await catalogService.updateSong(req.params.id, req.body);
-    logActivity({ userId: req.user!.id, userEmail: req.user!.email, action: 'UPDATE', entityType: 'song', entityId: song.id, entityName: song.title });
+    logActivity({
+      userId: req.user?.id,
+      userEmail: req.user?.email,
+      eventType: 'song.updated',
+      module: 'catalog',
+      entityType: 'song',
+      entityId: song.id,
+      title: `Song updated: ${song.title}`,
+      description: `Updated catalog entry for "${song.title}"`,
+      severity: 'info',
+      requestId: req.requestId,
+      metadata: { songId: song.id, title: song.title },
+    });
     success(res, song);
   } catch (err) { next(err); }
 };
@@ -32,7 +56,19 @@ export const updateSong = async (req: Request, res: Response, next: NextFunction
 export const deleteSong = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const result = await catalogService.deleteSong(req.params.id);
-    logActivity({ userId: req.user!.id, userEmail: req.user!.email, action: 'DELETE', entityType: 'song', entityId: req.params.id });
+    logActivity({
+      userId: req.user?.id,
+      userEmail: req.user?.email,
+      eventType: 'song.deleted',
+      module: 'catalog',
+      entityType: 'song',
+      entityId: req.params.id,
+      title: `Song deleted`,
+      description: `Removed song ${req.params.id} from the catalog`,
+      severity: 'warning',
+      requestId: req.requestId,
+      metadata: { songId: req.params.id },
+    });
     success(res, result);
   } catch (err) { next(err); }
 };

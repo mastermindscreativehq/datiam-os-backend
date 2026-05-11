@@ -5,6 +5,8 @@ export type Severity = 'info' | 'warning' | 'error' | 'critical';
 
 export interface LogActivityInput {
   userId?: string;
+  userEmail?: string;
+  userName?: string;
   eventType: string;
   module: string;
   entityType?: string;
@@ -13,20 +15,25 @@ export interface LogActivityInput {
   description?: string;
   severity?: Severity;
   metadata?: Record<string, unknown>;
+  requestId?: string;
 }
 
 export const logActivity = (input: LogActivityInput): void => {
   const safeMetadata = (() => {
     try {
-      return input.metadata ? (JSON.parse(JSON.stringify(input.metadata)) as Record<string, unknown>) : {};
+      const base = input.metadata ? (JSON.parse(JSON.stringify(input.metadata)) as Record<string, unknown>) : {};
+      if (input.requestId) base.requestId = input.requestId;
+      return base;
     } catch {
-      return {};
+      return input.requestId ? { requestId: input.requestId } : {};
     }
   })();
 
   db.insert(activity_log)
     .values({
       user_id: input.userId,
+      user_email: input.userEmail,
+      user_name: input.userName,
       event_type: input.eventType,
       module: input.module,
       entity_type: input.entityType ?? input.module,

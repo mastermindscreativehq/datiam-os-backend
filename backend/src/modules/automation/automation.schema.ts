@@ -14,5 +14,11 @@ export const createRunSchema = z.object({
   result: z.record(z.unknown()).optional(),
 });
 
+export const updateRunSchema = z.object({
+  status: z.enum(['success', 'failed', 'running']),
+  result: z.record(z.unknown()).optional(),
+});
+
 export type WebhookInput = z.infer<typeof webhookSchema>;
 export type CreateRunInput = z.infer<typeof createRunSchema>;
+export type UpdateRunInput = z.infer<typeof updateRunSchema>;
