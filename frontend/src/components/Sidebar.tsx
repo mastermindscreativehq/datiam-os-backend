@@ -2,14 +2,15 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 
 const NAV = [
-  { to: '/dashboard',       label: 'OVERVIEW',      icon: '⬡' },
-  { to: '/fan-intelligence', label: 'FAN INTEL',    icon: '◈' },
-  { to: '/catalog',          label: 'CATALOG',      icon: '◉' },
-  { to: '/releases',         label: 'RELEASES',     icon: '◎' },
-  { to: '/sync-pitches',     label: 'SYNC PITCHES', icon: '◇' },
-  { to: '/royalty-sources',  label: 'ROYALTIES',    icon: '◆' },
-  { to: '/content-ideas',    label: 'CONTENT IDEAS',icon: '✦' },
-  { to: '/automation-runs',  label: 'AUTOMATION',   icon: '⬢' },
+  { to: '/dashboard',        label: 'OVERVIEW',      icon: '⬡' },
+  { to: '/artists',          label: 'ARTIST',        icon: '⬟' },
+  { to: '/fan-intelligence', label: 'FAN INTEL',     icon: '◈' },
+  { to: '/catalog',          label: 'CATALOG',       icon: '◉' },
+  { to: '/releases',         label: 'RELEASES',      icon: '◎' },
+  { to: '/sync-pitches',     label: 'SYNC PITCHES',  icon: '◇' },
+  { to: '/royalty-sources',  label: 'ROYALTIES',     icon: '◆' },
+  { to: '/content-ideas',    label: 'CONTENT IDEAS', icon: '✦' },
+  { to: '/automation-runs',  label: 'AUTOMATION',    icon: '⬢' },
 ]
 
 export default function Sidebar() {

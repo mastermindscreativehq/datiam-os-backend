@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Login from './pages/Login'
 import ProtectedLayout from './layouts/ProtectedLayout'
 import Dashboard from './pages/Dashboard'
+import Artists from './pages/Artists'
 import FanIntelligence from './pages/FanIntelligence'
 import Catalog from './pages/Catalog'
 import Releases from './pages/Releases'
@@ -18,6 +19,7 @@ function App() {
         <Route path="/" element={<ProtectedLayout />}>
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
+          <Route path="artists" element={<Artists />} />
           <Route path="fan-intelligence" element={<FanIntelligence />} />
           <Route path="catalog" element={<Catalog />} />
           <Route path="releases" element={<Releases />} />
