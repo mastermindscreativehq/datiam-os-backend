@@ -26,7 +26,13 @@
       "PowerShell(Get-ChildItem \"C:\\\\Users\\\\user\\\\datiam-os\" -File | Where-Object { $_.Name -match 'railway|nixpacks|Procfile' } | ForEach-Object { $_.Name })",
       "Bash(Find C:\\\\Users\\\\user\\\\datiam-os\\\\frontend\\\\src\\\\api *)",
       "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\user\\\\datiam-os\" -Depth 1 | Where-Object { $_.PSIsContainer -or $_.Name -match \"package\\\\.json|\\\\.env|tsconfig\" } | Select-Object -ExpandProperty FullName)",
-      "Bash(Sort-Object)"
+      "Bash(Sort-Object)",
+      "Bash(npx ts-node *)",
+      "Bash(curl -s http://localhost:4000/health/deep)",
+      "Bash(curl -s -H \"Authorization: Bearer test\" http://localhost:4000/api/songs)",
+      "Bash(netstat -ano)",
+      "Bash(curl *)",
+      "Bash(node *)"
     ]
   }
 }
