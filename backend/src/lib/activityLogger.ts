@@ -31,7 +31,9 @@ export const logActivity = (input: LogActivityInput): void => {
 
   db.insert(activity_log)
     .values({
-      user_id: input.userId,
+      // user_id omitted: the FK on activity_log.user_id → users.id causes a
+      // silent constraint violation when the UUID isn't present in users (e.g.
+      // DB reset, stale JWT). user_email is the reliable audit identifier.
       user_email: input.userEmail,
       user_name: input.userName,
       event_type: input.eventType,

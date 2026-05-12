@@ -49,17 +49,23 @@ export const updateProfile = async (
   try {
     const profile = await artistsService.updateProfile(req.params.id, req.body);
     logActivity({
-      userId: req.user?.id,
       userEmail: req.user?.email,
+      userName: req.user?.email,
       eventType: 'artist.updated',
       module: 'artists',
       entityType: 'artist_profile',
       entityId: profile.id,
-      title: `Artist updated: ${profile.stage_name}`,
-      description: `Updated profile for "${profile.stage_name}"`,
+      title: 'Artist profile updated',
+      description: profile.stage_name
+        ? `Updated profile for "${profile.stage_name}"`
+        : 'Updated artist profile',
       severity: 'info',
       requestId: req.requestId,
-      metadata: { artistId: profile.id, stageName: profile.stage_name },
+      metadata: {
+        artistId: profile.id,
+        stageName: profile.stage_name ?? null,
+        changedFields: Object.keys(req.body),
+      },
     });
     success(res, profile);
   } catch (err) {
