@@ -25,7 +25,8 @@
       "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\user\\\\datiam-os\\\\backend\\\\drizzle\" -Recurse -Force | ForEach-Object { $_.FullName })",
       "PowerShell(Get-ChildItem \"C:\\\\Users\\\\user\\\\datiam-os\" -File | Where-Object { $_.Name -match 'railway|nixpacks|Procfile' } | ForEach-Object { $_.Name })",
       "Bash(Find C:\\\\Users\\\\user\\\\datiam-os\\\\frontend\\\\src\\\\api *)",
-      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\user\\\\datiam-os\" -Depth 1 | Where-Object { $_.PSIsContainer -or $_.Name -match \"package\\\\.json|\\\\.env|tsconfig\" } | Select-Object -ExpandProperty FullName)"
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\user\\\\datiam-os\" -Depth 1 | Where-Object { $_.PSIsContainer -or $_.Name -match \"package\\\\.json|\\\\.env|tsconfig\" } | Select-Object -ExpandProperty FullName)",
+      "Bash(Sort-Object)"
     ]
   }
 }

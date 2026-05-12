@@ -64,6 +64,13 @@
       "when": 1778457600000,
       "tag": "0008_activity_log_full_alignment",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1747267200000,
+      "tag": "0009_music_core_v1",
+      "breakpoints": true
     }
   ]
 }

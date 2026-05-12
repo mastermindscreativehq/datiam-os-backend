@@ -10,6 +10,7 @@ import {
   pgEnum,
   date,
   index,
+  type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
@@ -175,6 +176,13 @@ export const recEntityTypeEnum = pgEnum('rec_entity_type', [
   'sync_pitch',
 ]);
 
+// Music Core v1 — release lifecycle status
+export const musicReleaseStatusEnum = pgEnum('music_release_status', [
+  'draft',
+  'scheduled',
+  'released',
+]);
+
 // ---- Tables ----
 
 export const users = pgTable('users', {
@@ -214,20 +222,41 @@ export const songs = pgTable(
     artist_id: uuid('artist_id')
       .notNull()
       .references(() => artist_profiles.id, { onDelete: 'cascade' }),
+    // Music Core v1 — release link (nullable; standalone songs have no release)
+    release_id: uuid('release_id').references((): AnyPgColumn => releases.id, { onDelete: 'set null' }),
+    // Core metadata
     title: text('title').notNull(),
+    slug: text('slug'),
+    genre: text('genre'),
+    bpm: integer('bpm'),
+    musical_key: text('musical_key'),
+    duration_seconds: integer('duration_seconds'),
+    lyrics: text('lyrics'),
+    // Media URLs
+    audio_url: text('audio_url'),
+    waveform_url: text('waveform_url'),
+    cover_art_url: text('cover_art_url'),
+    // Tagging
+    mood: text('mood'),
+    language: text('language'),
+    explicit: boolean('explicit').default(false),
+    track_number: integer('track_number'),
+    disk_number: integer('disk_number'),
+    isrc: text('isrc'),
+    release_status: songReleaseStatusEnum('release_status').default('draft').notNull(),
+    // AI intelligence scores (0.00–1.00)
+    energy_score: numeric('energy_score', { precision: 3, scale: 2 }),
+    emotion_score: numeric('emotion_score', { precision: 3, scale: 2 }),
+    viral_score: numeric('viral_score', { precision: 3, scale: 2 }),
+    commercial_score: numeric('commercial_score', { precision: 3, scale: 2 }),
+    spiritual_score: numeric('spiritual_score', { precision: 3, scale: 2 }),
+    // Legacy fields (kept for backwards compatibility)
     alternate_title: text('alternate_title'),
     version: text('version'),
-    isrc: text('isrc'),
-    bpm: integer('bpm'),
     key: text('key'),
-    genre: text('genre'),
-    mood: text('mood'),
     energy_level: integer('energy_level'),
-    explicit: boolean('explicit').default(false),
-    lyrics: text('lyrics'),
     master_owner: text('master_owner'),
     publishing_owner: text('publishing_owner'),
-    release_status: songReleaseStatusEnum('release_status').default('draft').notNull(),
     sync_ready: boolean('sync_ready').default(false),
     created_at: timestamp('created_at').defaultNow().notNull(),
     updated_at: timestamp('updated_at').defaultNow().notNull(),
@@ -235,6 +264,8 @@ export const songs = pgTable(
   (t) => ({
     artistIdx: index('songs_artist_id_idx').on(t.artist_id),
     statusIdx: index('songs_release_status_idx').on(t.release_status),
+    releaseIdx: index('songs_release_id_idx').on(t.release_id),
+    slugIdx: index('songs_slug_idx').on(t.slug),
   }),
 );
 
@@ -281,14 +312,21 @@ export const releases = pgTable(
   'releases',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    song_id: uuid('song_id')
-      .notNull()
-      .references(() => songs.id, { onDelete: 'cascade' }),
+    // Music Core v1 fields
+    artist_id: uuid('artist_id').references(() => artist_profiles.id, { onDelete: 'cascade' }),
     release_title: text('release_title').notNull(),
     release_type: releaseTypeEnum('release_type').notNull(),
-    upc: text('upc'),
-    distributor: text('distributor'),
+    slug: text('slug'),
+    music_status: musicReleaseStatusEnum('music_status').default('draft').notNull(),
+    genre: text('genre'),
     release_date: date('release_date'),
+    cover_art_url: text('cover_art_url'),
+    description: text('description'),
+    upc: text('upc'),
+    total_tracks: integer('total_tracks'),
+    // Legacy fields (song_id was the old single-song link; now nullable)
+    song_id: uuid('song_id').references(() => songs.id, { onDelete: 'cascade' }),
+    distributor: text('distributor'),
     pre_save_url: text('pre_save_url'),
     smart_link: text('smart_link'),
     spotify_url: text('spotify_url'),
@@ -303,6 +341,10 @@ export const releases = pgTable(
   (t) => ({
     songIdx: index('releases_song_id_idx').on(t.song_id),
     statusIdx: index('releases_status_idx').on(t.status),
+    artistIdx: index('releases_artist_id_idx').on(t.artist_id),
+    slugIdx: index('releases_slug_idx').on(t.slug),
+    releaseDateIdx: index('releases_release_date_idx').on(t.release_date),
+    musicStatusIdx: index('releases_music_status_idx').on(t.music_status),
   }),
 );
 
@@ -562,9 +604,12 @@ export const songsRelations = relations(songs, ({ one, many }) => ({
     fields: [songs.artist_id],
     references: [artist_profiles.id],
   }),
+  release: one(releases, {
+    fields: [songs.release_id],
+    references: [releases.id],
+  }),
   assets: many(song_assets),
   contributors: many(contributors),
-  releases: many(releases),
   royaltySources: many(royalty_sources),
   syncPitches: many(sync_pitches),
   contentIdeas: many(content_ideas),
@@ -585,10 +630,16 @@ export const contributorsRelations = relations(contributors, ({ one }) => ({
 }));
 
 export const releasesRelations = relations(releases, ({ one, many }) => ({
+  artist: one(artist_profiles, {
+    fields: [releases.artist_id],
+    references: [artist_profiles.id],
+  }),
+  // Legacy single-song link
   song: one(songs, {
     fields: [releases.song_id],
     references: [songs.id],
   }),
+  songs: many(songs),
   tasks: many(release_tasks),
 }));
 
@@ -673,3 +724,9 @@ export const schema_migrations = pgTable('schema_migrations', {
 });
 
 export type SchemaMigration = typeof schema_migrations.$inferSelect;
+
+// Music Core v1 inferred types
+export type MusicRelease = typeof releases.$inferSelect;
+export type NewMusicRelease = typeof releases.$inferInsert;
+export type MusicSong = typeof songs.$inferSelect;
+export type NewMusicSong = typeof songs.$inferInsert;

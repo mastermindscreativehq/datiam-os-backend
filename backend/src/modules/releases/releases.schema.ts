@@ -1,23 +1,22 @@
 import { z } from 'zod';
 
+const urlField = z.string().url().optional().or(z.literal('')).or(z.null());
+
 export const createReleaseSchema = z.object({
-  song_id: z.string().uuid(),
-  release_title: z.string().min(1),
-  release_type: z.enum(['single', 'ep', 'album']),
-  upc: z.string().optional(),
-  distributor: z.string().optional(),
+  artist_id: z.string().uuid(),
+  title: z.string().min(1).max(200),
+  slug: z.string().min(1).max(200).optional(),
+  type: z.enum(['single', 'ep', 'album']),
+  status: z.enum(['draft', 'scheduled', 'released']).default('draft'),
+  genre: z.string().optional(),
   release_date: z.string().optional(),
-  pre_save_url: z.string().url().optional().or(z.literal('')),
-  smart_link: z.string().url().optional().or(z.literal('')),
-  spotify_url: z.string().url().optional().or(z.literal('')),
-  apple_music_url: z.string().url().optional().or(z.literal('')),
-  audiomack_url: z.string().url().optional().or(z.literal('')),
-  boomplay_url: z.string().url().optional().or(z.literal('')),
-  youtube_url: z.string().url().optional().or(z.literal('')),
-  status: z.enum(['planning', 'submitted', 'approved', 'live']).optional(),
+  cover_art_url: urlField,
+  description: z.string().optional(),
+  upc: z.string().optional(),
+  total_tracks: z.number().int().positive().optional(),
 });
 
-export const updateReleaseSchema = createReleaseSchema.partial().omit({ song_id: true });
+export const updateReleaseSchema = createReleaseSchema.partial().omit({ artist_id: true });
 
 export const createReleaseTaskSchema = z.object({
   task_name: z.string().min(1),
