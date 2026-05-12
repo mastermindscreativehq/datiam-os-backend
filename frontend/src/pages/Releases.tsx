@@ -6,7 +6,7 @@ import ErrorMessage from '../components/ErrorMessage'
 import Modal, { Field, Input, Select } from '../components/Modal'
 import ConfirmModal from '../components/ConfirmModal'
 import Toast from '../components/Toast'
-import { releases, catalog, isCriticalError } from '../api/client'
+import { releases, artists, isCriticalError } from '../api/client'
 import { useAuthStore } from '../store/authStore'
 
 function normalise(raw: any): Record<string, unknown>[] {
@@ -17,22 +17,22 @@ function normalise(raw: any): Record<string, unknown>[] {
   return raw ? [raw] : []
 }
 
-interface SongOption { id: string; title: string }
+interface ArtistOption { id: string; stage_name: string }
 
+// Status values are music_status: draft → scheduled → released
 const STATUS_COLORS: Record<string, string> = {
-  planning:  'text-yellow-400',
-  submitted: 'text-[#00d4ff]',
-  approved:  'text-purple-400',
-  live:      'text-[#00ff41]',
+  draft:     'text-yellow-400',
+  scheduled: 'text-[#00d4ff]',
+  released:  'text-[#00ff41]',
 }
 
 const EMPTY_FORM = {
-  song_id: '',
-  release_title: '',
-  release_type: 'single' as 'single' | 'ep' | 'album',
+  title: '',
+  artist_id: '',
+  type: 'single' as 'single' | 'ep' | 'album',
   distributor: '',
   release_date: '',
-  status: '',
+  status: 'draft' as '' | 'draft' | 'scheduled' | 'released',
   upc: '',
 }
 
@@ -41,17 +41,17 @@ export default function Releases() {
   const canWrite  = ['owner', 'admin', 'editor', 'team'].includes(user?.role ?? '')
   const canDelete = ['owner', 'admin'].includes(user?.role ?? '')
 
-  const [data,       setData]       = useState<any>(null)
-  const [loading,    setLoading]    = useState(true)
-  const [error,      setError]      = useState('')
-  const [modalOpen,  setModalOpen]  = useState(false)
-  const [editItem,   setEditItem]   = useState<Record<string, unknown> | null>(null)
-  const [deleteItem, setDeleteItem] = useState<Record<string, unknown> | null>(null)
-  const [form,       setForm]       = useState(EMPTY_FORM)
-  const [submitting, setSubmitting] = useState(false)
-  const [deleting,   setDeleting]   = useState(false)
-  const [songList,   setSongList]   = useState<SongOption[]>([])
-  const [toast,      setToast]      = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  const [data,        setData]        = useState<any>(null)
+  const [loading,     setLoading]     = useState(true)
+  const [error,       setError]       = useState('')
+  const [modalOpen,   setModalOpen]   = useState(false)
+  const [editItem,    setEditItem]    = useState<Record<string, unknown> | null>(null)
+  const [deleteItem,  setDeleteItem]  = useState<Record<string, unknown> | null>(null)
+  const [form,        setForm]        = useState(EMPTY_FORM)
+  const [submitting,  setSubmitting]  = useState(false)
+  const [deleting,    setDeleting]    = useState(false)
+  const [artistList,  setArtistList]  = useState<ArtistOption[]>([])
+  const [toast,       setToast]       = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
   const fetchData = useCallback(async () => {
     setLoading(true); setError('')
@@ -66,47 +66,48 @@ export default function Releases() {
 
   useEffect(() => { fetchData() }, [fetchData])
 
-  const loadSongs = async () => {
+  const loadArtists = async () => {
     try {
-      const res = await catalog.songs()
-      const list = Array.isArray(res.data) ? res.data : (res.data?.songs ?? res.data?.data ?? [])
-      setSongList(list)
+      const res = await artists.list()
+      const list = Array.isArray(res.data) ? res.data : (res.data?.artists ?? res.data?.data ?? [])
+      setArtistList(list)
       return list
-    } catch { setSongList([]); return [] }
+    } catch { setArtistList([]); return [] }
   }
 
   const openCreate = async () => {
     setForm(EMPTY_FORM); setEditItem(null); setModalOpen(true)
-    const list = await loadSongs()
-    if (list.length === 1) setForm(f => ({ ...f, song_id: list[0].id }))
+    const list = await loadArtists()
+    if (list.length === 1) setForm(f => ({ ...f, artist_id: list[0].id }))
   }
 
   const openEdit = async (row: Record<string, unknown>) => {
     setEditItem(row)
     setForm({
-      song_id:       String(row.song_id ?? ''),
-      release_title: String(row.release_title ?? ''),
-      release_type:  (row.release_type as any) || 'single',
-      distributor:   String(row.distributor ?? ''),
-      release_date:  String(row.release_date ?? ''),
-      status:        String(row.status ?? ''),
-      upc:           String(row.upc ?? ''),
+      // Backend mapRelease() exposes `title` (aliased from release_title) and `type`
+      title:        String(row.title ?? row.release_title ?? ''),
+      artist_id:    String(row.artist_id ?? ''),
+      type:         ((row.type ?? row.release_type) as any) || 'single',
+      distributor:  String(row.distributor ?? ''),
+      release_date: String(row.release_date ?? ''),
+      // status is now music_status: draft | scheduled | released
+      status:       (String(row.status ?? 'draft') as any) || 'draft',
+      upc:          String(row.upc ?? ''),
     })
     setModalOpen(true)
-    await loadSongs()
+    await loadArtists()
   }
 
   const handleSubmit = async () => {
-    if (!form.release_title.trim()) { setToast({ message: 'Release title is required', type: 'error' }); return }
-    if (!form.song_id)              { setToast({ message: 'Song selection is required', type: 'error' }); return }
+    if (!form.title.trim()) { setToast({ message: 'Release title is required', type: 'error' }); return }
 
     setSubmitting(true)
     try {
       const body: Record<string, unknown> = {
-        song_id:       form.song_id,
-        release_title: form.release_title.trim(),
-        release_type:  form.release_type,
+        title: form.title.trim(),
+        type:  form.type,
       }
+      if (form.artist_id)    body.artist_id    = form.artist_id
       if (form.distributor)  body.distributor  = form.distributor.trim()
       if (form.release_date) body.release_date = form.release_date
       if (form.status)       body.status       = form.status
@@ -202,17 +203,17 @@ export default function Releases() {
       >
         <div className="space-y-4">
           <Field label="Release Title" required>
-            <Input value={form.release_title} onChange={set('release_title')} placeholder="Enter release title" autoFocus />
+            <Input value={form.title} onChange={set('title')} placeholder="Enter release title" autoFocus />
           </Field>
-          <Field label="Linked Song" required hint={songList.length === 0 ? 'No songs in catalog — create a song first' : undefined}>
-            <Select value={form.song_id} onChange={set('song_id')}>
-              <option value="">Select song...</option>
-              {songList.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
+          <Field label="Artist" hint={artistList.length === 0 ? 'No artist profile found — create one via the ARTIST page' : undefined}>
+            <Select value={form.artist_id} onChange={set('artist_id')}>
+              <option value="">Select artist (optional)...</option>
+              {artistList.map(a => <option key={a.id} value={a.id}>{a.stage_name || a.id}</option>)}
             </Select>
           </Field>
           <div className="grid grid-cols-2 gap-4">
             <Field label="Release Type" required>
-              <Select value={form.release_type} onChange={set('release_type')}>
+              <Select value={form.type} onChange={set('type')}>
                 <option value="single">SINGLE</option>
                 <option value="ep">EP</option>
                 <option value="album">ALBUM</option>
@@ -220,11 +221,9 @@ export default function Releases() {
             </Field>
             <Field label="Status">
               <Select value={form.status} onChange={set('status')}>
-                <option value="">Select status...</option>
-                <option value="planning">PLANNING</option>
-                <option value="submitted">SUBMITTED</option>
-                <option value="approved">APPROVED</option>
-                <option value="live">LIVE</option>
+                <option value="draft">DRAFT</option>
+                <option value="scheduled">SCHEDULED</option>
+                <option value="released">RELEASED</option>
               </Select>
             </Field>
           </div>
@@ -239,7 +238,7 @@ export default function Releases() {
       <ConfirmModal
         isOpen={!!deleteItem}
         title="DELETE RELEASE"
-        message={`Delete release "${deleteItem?.release_title}"? All linked tasks will also be removed.`}
+        message={`Delete release "${deleteItem?.title ?? deleteItem?.release_title}"? All linked tasks will also be removed.`}
         onConfirm={handleDelete}
         onCancel={() => setDeleteItem(null)}
         loading={deleting}

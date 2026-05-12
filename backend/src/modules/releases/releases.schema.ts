@@ -3,7 +3,8 @@ import { z } from 'zod';
 const urlField = z.string().url().optional().or(z.literal('')).or(z.null());
 
 export const createReleaseSchema = z.object({
-  artist_id: z.string().uuid(),
+  // artist_id is optional — releases can be created before an artist profile is linked
+  artist_id: z.string().uuid().optional(),
   title: z.string().min(1).max(200),
   slug: z.string().min(1).max(200).optional(),
   type: z.enum(['single', 'ep', 'album']),
@@ -14,6 +15,9 @@ export const createReleaseSchema = z.object({
   description: z.string().optional(),
   upc: z.string().optional(),
   total_tracks: z.number().int().positive().optional(),
+  // Legacy fields — kept for backward compat with old clients
+  song_id: z.string().uuid().nullable().optional(),
+  distributor: z.string().optional(),
 });
 
 export const updateReleaseSchema = createReleaseSchema.partial().omit({ artist_id: true });

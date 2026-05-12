@@ -12,12 +12,12 @@ export interface SchemaReport {
   missingColumns: ColumnCheck[];
 }
 
-const REQUIRED_TABLES = ['activity_log'];
+const REQUIRED_TABLES = ['activity_log', 'songs', 'releases'];
 
 const REQUIRED_COLUMNS: ColumnCheck[] = [
   { table: 'artist_profiles', column: 'genre' },
   { table: 'users', column: 'role' },
-  // activity_log — all canonical columns from schema.ts (fully aligned by migration 0008)
+  // activity_log — all canonical columns (aligned by migration 0008)
   { table: 'activity_log', column: 'user_id' },
   { table: 'activity_log', column: 'user_email' },
   { table: 'activity_log', column: 'user_name' },
@@ -32,6 +32,30 @@ const REQUIRED_COLUMNS: ColumnCheck[] = [
   { table: 'activity_log', column: 'metadata' },
   { table: 'activity_log', column: 'severity' },
   { table: 'activity_log', column: 'created_at' },
+  // songs — Music Core v1 columns (migration 0009)
+  { table: 'songs', column: 'release_id' },
+  { table: 'songs', column: 'slug' },
+  { table: 'songs', column: 'musical_key' },
+  { table: 'songs', column: 'duration_seconds' },
+  { table: 'songs', column: 'audio_url' },
+  { table: 'songs', column: 'waveform_url' },
+  { table: 'songs', column: 'cover_art_url' },
+  { table: 'songs', column: 'language' },
+  { table: 'songs', column: 'track_number' },
+  { table: 'songs', column: 'disk_number' },
+  { table: 'songs', column: 'energy_score' },
+  { table: 'songs', column: 'emotion_score' },
+  { table: 'songs', column: 'viral_score' },
+  { table: 'songs', column: 'commercial_score' },
+  { table: 'songs', column: 'spiritual_score' },
+  // releases — Music Core v1 columns (migration 0009)
+  { table: 'releases', column: 'artist_id' },
+  { table: 'releases', column: 'slug' },
+  { table: 'releases', column: 'music_status' },
+  { table: 'releases', column: 'genre' },
+  { table: 'releases', column: 'cover_art_url' },
+  { table: 'releases', column: 'description' },
+  { table: 'releases', column: 'total_tracks' },
 ];
 
 export async function verifySchema(): Promise<SchemaReport> {
