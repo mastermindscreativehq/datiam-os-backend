@@ -4,9 +4,10 @@ interface Props {
   maxRows?: number
   onEdit?: (row: Record<string, unknown>) => void
   onDelete?: (row: Record<string, unknown>) => void
+  onChecklist?: (row: Record<string, unknown>) => void
 }
 
-export default function DataTable({ data, color = 'green', maxRows = 25, onEdit, onDelete }: Props) {
+export default function DataTable({ data, color = 'green', maxRows = 25, onEdit, onDelete, onChecklist }: Props) {
   if (!data || data.length === 0) {
     return (
       <div className="text-gray-600 text-xs font-mono p-8 text-center border border-gray-800 rounded-lg">
@@ -15,7 +16,7 @@ export default function DataTable({ data, color = 'green', maxRows = 25, onEdit,
     )
   }
 
-  const hasActions = !!(onEdit || onDelete)
+  const hasActions = !!(onEdit || onDelete || onChecklist)
   const columns = Object.keys(data[0]).filter(c => c !== 'id' && c !== 'password_hash')
   const accentBorder = color === 'green' ? 'border-[#00ff41]/20' : 'border-[#00d4ff]/20'
   const accentText   = color === 'green' ? 'text-[#00ff41]/60'  : 'text-[#00d4ff]/60'
@@ -63,6 +64,14 @@ export default function DataTable({ data, color = 'green', maxRows = 25, onEdit,
                 {hasActions && (
                   <td className="px-4 py-3 text-right whitespace-nowrap">
                     <div className="flex items-center justify-end gap-2">
+                      {onChecklist && (
+                        <button
+                          onClick={() => onChecklist(row)}
+                          className="text-[10px] font-mono tracking-widest px-2.5 py-1 border border-[#00d4ff]/20 text-[#00d4ff]/60 hover:text-[#00d4ff] hover:border-[#00d4ff]/40 rounded transition-colors"
+                        >
+                          CHECKLIST
+                        </button>
+                      )}
                       {onEdit && (
                         <button
                           onClick={() => onEdit(row)}

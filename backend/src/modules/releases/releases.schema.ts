@@ -39,7 +39,24 @@ export const createReleaseTaskSchema = z.object({
 
 export const updateReleaseTaskSchema = createReleaseTaskSchema.partial();
 
+export const updateChecklistSchema = z.object({
+  lyrics_ready:       z.boolean().optional(),
+  cover_art_ready:    z.boolean().optional(),
+  mix_ready:          z.boolean().optional(),
+  master_ready:       z.boolean().optional(),
+  metadata_ready:     z.boolean().optional(),
+  isrc_ready:         z.boolean().optional(),
+  upc_ready:          z.boolean().optional(),
+  distributor_ready:  z.boolean().optional(),
+  release_date_ready: z.boolean().optional(),
+  promo_assets_ready: z.boolean().optional(),
+  sync_assets_ready:  z.boolean().optional(),
+  final_approval:     z.boolean().optional(),
+  notes:              z.string().nullable().optional(),
+});
+
 export type CreateReleaseInput = z.infer<typeof createReleaseSchema>;
 export type UpdateReleaseInput = z.infer<typeof updateReleaseSchema>;
 export type CreateReleaseTaskInput = z.infer<typeof createReleaseTaskSchema>;
 export type UpdateReleaseTaskInput = z.infer<typeof updateReleaseTaskSchema>;
+export type UpdateChecklistInput = z.infer<typeof updateChecklistSchema>;

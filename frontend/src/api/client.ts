@@ -97,10 +97,12 @@ export const catalog = {
 
 // ── Releases ────────────────────────────────────────────────────────────────
 export const releases = {
-  list:   () => apiClient.get('/releases'),
-  create: (body: Record<string, unknown>) => apiClient.post('/releases', body),
-  update: (id: string, body: Record<string, unknown>) => apiClient.patch(`/releases/${id}`, body),
-  remove: (id: string) => apiClient.delete(`/releases/${id}`),
+  list:            () => apiClient.get('/releases'),
+  create:          (body: Record<string, unknown>) => apiClient.post('/releases', body),
+  update:          (id: string, body: Record<string, unknown>) => apiClient.patch(`/releases/${id}`, body),
+  remove:          (id: string) => apiClient.delete(`/releases/${id}`),
+  getChecklist:    (id: string) => apiClient.get(`/releases/${id}/checklist`),
+  updateChecklist: (id: string, body: Record<string, unknown>) => apiClient.patch(`/releases/${id}/checklist`, body),
 }
 
 // ── Sync Pitches ────────────────────────────────────────────────────────────

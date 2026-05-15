@@ -7,6 +7,7 @@ import {
   updateReleaseSchema,
   createReleaseTaskSchema,
   updateReleaseTaskSchema,
+  updateChecklistSchema,
 } from './releases.schema';
 
 const canWrite = requireRole('owner', 'admin', 'editor', 'team');
@@ -24,6 +25,8 @@ releasesRouter.patch('/:id', canWrite, validate(updateReleaseSchema), releasesCo
 releasesRouter.delete('/:id', canDelete, releasesController.deleteRelease);
 releasesRouter.post('/:id/tasks', canWrite, validate(createReleaseTaskSchema), releasesController.createReleaseTask);
 releasesRouter.get('/:id/tasks', releasesController.getReleaseTasks);
+releasesRouter.get('/:id/checklist', releasesController.getChecklist);
+releasesRouter.patch('/:id/checklist', canWrite, validate(updateChecklistSchema), releasesController.updateChecklist);
 
 // Separate /api/release-tasks router for PATCH /api/release-tasks/:id
 export const releaseTasksRouter = Router();

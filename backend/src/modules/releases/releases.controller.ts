@@ -160,3 +160,46 @@ export const updateReleaseTask = async (
     next(err);
   }
 };
+
+export const getChecklist = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    success(res, await releasesService.getOrCreateChecklist(req.params.id));
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const updateChecklist = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const checklist = await releasesService.updateChecklist(req.params.id, req.body);
+    const release = await releasesService.getReleaseById(req.params.id);
+    logActivity({
+      userId: req.user?.id,
+      userEmail: req.user?.email,
+      eventType: 'release_checklist.updated',
+      module: 'releases',
+      entityType: 'release',
+      entityId: req.params.id,
+      title: 'Release checklist updated',
+      description: `Checklist updated for ${release.title}`,
+      severity: 'info',
+      requestId: req.requestId,
+      metadata: {
+        releaseId: req.params.id,
+        completion_percent: checklist.completion_percent,
+        readiness_status: checklist.readiness_status,
+      },
+    });
+    success(res, checklist);
+  } catch (err) {
+    next(err);
+  }
+};

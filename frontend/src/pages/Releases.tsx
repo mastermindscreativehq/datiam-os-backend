@@ -6,6 +6,7 @@ import ErrorMessage from '../components/ErrorMessage'
 import Modal, { Field, Input, Select } from '../components/Modal'
 import ConfirmModal from '../components/ConfirmModal'
 import Toast from '../components/Toast'
+import ReleaseChecklistModal from '../components/ReleaseChecklistModal'
 import { releases, artists, isCriticalError } from '../api/client'
 import { useAuthStore } from '../store/authStore'
 
@@ -41,17 +42,18 @@ export default function Releases() {
   const canWrite  = ['owner', 'admin', 'editor', 'team'].includes(user?.role ?? '')
   const canDelete = ['owner', 'admin'].includes(user?.role ?? '')
 
-  const [data,        setData]        = useState<any>(null)
-  const [loading,     setLoading]     = useState(true)
-  const [error,       setError]       = useState('')
-  const [modalOpen,   setModalOpen]   = useState(false)
-  const [editItem,    setEditItem]    = useState<Record<string, unknown> | null>(null)
-  const [deleteItem,  setDeleteItem]  = useState<Record<string, unknown> | null>(null)
-  const [form,        setForm]        = useState(EMPTY_FORM)
-  const [submitting,  setSubmitting]  = useState(false)
-  const [deleting,    setDeleting]    = useState(false)
-  const [artistList,  setArtistList]  = useState<ArtistOption[]>([])
-  const [toast,       setToast]       = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  const [data,           setData]           = useState<any>(null)
+  const [loading,        setLoading]        = useState(true)
+  const [error,          setError]          = useState('')
+  const [modalOpen,      setModalOpen]      = useState(false)
+  const [editItem,       setEditItem]       = useState<Record<string, unknown> | null>(null)
+  const [deleteItem,     setDeleteItem]     = useState<Record<string, unknown> | null>(null)
+  const [form,           setForm]           = useState(EMPTY_FORM)
+  const [submitting,     setSubmitting]     = useState(false)
+  const [deleting,       setDeleting]       = useState(false)
+  const [artistList,     setArtistList]     = useState<ArtistOption[]>([])
+  const [toast,          setToast]          = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  const [checklistItem,  setChecklistItem]  = useState<Record<string, unknown> | null>(null)
 
   const fetchData = useCallback(async () => {
     setLoading(true); setError('')
@@ -184,7 +186,13 @@ export default function Releases() {
             </div>
           )}
           {items.length > 0 ? (
-            <DataTable data={items} color="cyan" onEdit={canWrite ? openEdit : undefined} onDelete={canDelete ? setDeleteItem : undefined} />
+            <DataTable
+              data={items}
+              color="cyan"
+              onEdit={canWrite ? openEdit : undefined}
+              onDelete={canDelete ? setDeleteItem : undefined}
+              onChecklist={setChecklistItem}
+            />
           ) : (
             <EmptyState icon="◎" title="No releases added yet" message="Create a release draft to start managing your release pipeline." hint='Use the CREATE RELEASE button above.' color="cyan" />
           )}
@@ -245,6 +253,15 @@ export default function Releases() {
       />
 
       {toast && <Toast message={toast.message} type={toast.type} onDismiss={() => setToast(null)} />}
+
+      {checklistItem && (
+        <ReleaseChecklistModal
+          isOpen={!!checklistItem}
+          releaseId={String(checklistItem.id)}
+          releaseTitle={String(checklistItem.title ?? checklistItem.release_title ?? '')}
+          onClose={() => setChecklistItem(null)}
+        />
+      )}
     </div>
   )
 }

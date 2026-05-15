@@ -1,12 +1,13 @@
 import { eq, desc, and, type SQL } from 'drizzle-orm';
 import { db } from '../../db';
-import { releases, release_tasks } from '../../db/schema';
+import { releases, release_tasks, release_checklists } from '../../db/schema';
 import { AppError } from '../../middleware/errorHandler';
 import type {
   CreateReleaseInput,
   UpdateReleaseInput,
   CreateReleaseTaskInput,
   UpdateReleaseTaskInput,
+  UpdateChecklistInput,
 } from './releases.schema';
 
 const slugify = (str: string) =>
@@ -72,6 +73,41 @@ export const getReleaseById = async (id: string): Promise<MappedRelease> => {
   return mapRelease(release);
 };
 
+const CHECKLIST_BOOLEAN_FIELDS = [
+  'lyrics_ready',
+  'cover_art_ready',
+  'mix_ready',
+  'master_ready',
+  'metadata_ready',
+  'isrc_ready',
+  'upc_ready',
+  'distributor_ready',
+  'release_date_ready',
+  'promo_assets_ready',
+  'sync_assets_ready',
+  'final_approval',
+] as const;
+
+const GATE_FIELDS = [
+  'metadata_ready',
+  'cover_art_ready',
+  'mix_ready',
+  'master_ready',
+  'distributor_ready',
+  'release_date_ready',
+  'final_approval',
+] as const;
+
+function calcCompletion(row: Record<string, unknown>): { completion_percent: number; readiness_status: string } {
+  const total = CHECKLIST_BOOLEAN_FIELDS.length;
+  const done = CHECKLIST_BOOLEAN_FIELDS.filter(f => row[f] === true).length;
+  const pct = Math.round((done / total) * 100);
+  let readiness_status = 'not_ready';
+  if (pct === 100) readiness_status = 'ready_for_distribution';
+  else if (pct >= 60) readiness_status = 'almost_ready';
+  return { completion_percent: pct, readiness_status };
+}
+
 export const updateRelease = async (
   id: string,
   input: UpdateReleaseInput,
@@ -84,7 +120,30 @@ export const updateRelease = async (
   }
   if (slug !== undefined) patch.slug = slug;
   if (type !== undefined) patch.release_type = type;
-  if (status !== undefined) patch.music_status = status;
+  if (status !== undefined) {
+    // Gate: moving to scheduled or released requires checklist approval
+    if (status === 'scheduled' || status === 'released') {
+      const [checklist] = await db
+        .select()
+        .from(release_checklists)
+        .where(eq(release_checklists.release_id, id))
+        .limit(1);
+      if (!checklist) {
+        throw new AppError(
+          'Release is not ready for scheduling. Complete the required checklist first.',
+          400,
+        );
+      }
+      const missing = GATE_FIELDS.filter(f => !checklist[f]);
+      if (missing.length > 0) {
+        throw new AppError(
+          'Release is not ready for scheduling. Complete the required checklist first.',
+          400,
+        );
+      }
+    }
+    patch.music_status = status;
+  }
 
   const [updated] = await db
     .update(releases)
@@ -124,5 +183,46 @@ export const updateReleaseTask = async (id: string, input: UpdateReleaseTaskInpu
     .where(eq(release_tasks.id, id))
     .returning();
   if (!updated) throw new AppError('Task not found', 404);
+  return updated;
+};
+
+export const getOrCreateChecklist = async (releaseId: string) => {
+  // Verify release exists
+  const [release] = await db
+    .select()
+    .from(releases)
+    .where(eq(releases.id, releaseId))
+    .limit(1);
+  if (!release) throw new AppError('Release not found', 404);
+
+  const [existing] = await db
+    .select()
+    .from(release_checklists)
+    .where(eq(release_checklists.release_id, releaseId))
+    .limit(1);
+  if (existing) return existing;
+
+  const [created] = await db
+    .insert(release_checklists)
+    .values({ release_id: releaseId })
+    .returning();
+  return created;
+};
+
+export const updateChecklist = async (releaseId: string, input: UpdateChecklistInput) => {
+  // Ensure checklist row exists
+  await getOrCreateChecklist(releaseId);
+
+  const { completion_percent, readiness_status } = calcCompletion({
+    // Start from the persisted row, overlay with incoming changes
+    ...(await db.select().from(release_checklists).where(eq(release_checklists.release_id, releaseId)).limit(1))[0],
+    ...input,
+  });
+
+  const [updated] = await db
+    .update(release_checklists)
+    .set({ ...input, completion_percent, readiness_status, updated_at: new Date() })
+    .where(eq(release_checklists.release_id, releaseId))
+    .returning();
   return updated;
 };

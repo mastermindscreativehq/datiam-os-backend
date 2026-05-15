@@ -71,6 +71,13 @@
       "when": 1747267200000,
       "tag": "0009_music_core_v1",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1747353600000,
+      "tag": "0010_release_checklists",
+      "breakpoints": true
     }
   ]
 }

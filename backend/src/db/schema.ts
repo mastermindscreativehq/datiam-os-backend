@@ -348,6 +348,38 @@ export const releases = pgTable(
   }),
 );
 
+export const release_checklists = pgTable(
+  'release_checklists',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    release_id: uuid('release_id')
+      .notNull()
+      .references(() => releases.id, { onDelete: 'cascade' })
+      .unique(),
+    lyrics_ready: boolean('lyrics_ready').notNull().default(false),
+    cover_art_ready: boolean('cover_art_ready').notNull().default(false),
+    mix_ready: boolean('mix_ready').notNull().default(false),
+    master_ready: boolean('master_ready').notNull().default(false),
+    metadata_ready: boolean('metadata_ready').notNull().default(false),
+    isrc_ready: boolean('isrc_ready').notNull().default(false),
+    upc_ready: boolean('upc_ready').notNull().default(false),
+    distributor_ready: boolean('distributor_ready').notNull().default(false),
+    release_date_ready: boolean('release_date_ready').notNull().default(false),
+    promo_assets_ready: boolean('promo_assets_ready').notNull().default(false),
+    sync_assets_ready: boolean('sync_assets_ready').notNull().default(false),
+    final_approval: boolean('final_approval').notNull().default(false),
+    notes: text('notes'),
+    readiness_status: text('readiness_status').notNull().default('not_ready'),
+    completion_percent: integer('completion_percent').notNull().default(0),
+    created_at: timestamp('created_at').defaultNow().notNull(),
+    updated_at: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (t) => ({
+    releaseIdx: index('release_checklists_release_id_idx').on(t.release_id),
+    readinessIdx: index('release_checklists_readiness_idx').on(t.readiness_status),
+  }),
+);
+
 export const release_tasks = pgTable(
   'release_tasks',
   {
@@ -641,6 +673,17 @@ export const releasesRelations = relations(releases, ({ one, many }) => ({
   }),
   songs: many(songs),
   tasks: many(release_tasks),
+  checklist: one(release_checklists, {
+    fields: [releases.id],
+    references: [release_checklists.release_id],
+  }),
+}));
+
+export const releaseChecklistsRelations = relations(release_checklists, ({ one }) => ({
+  release: one(releases, {
+    fields: [release_checklists.release_id],
+    references: [releases.id],
+  }),
 }));
 
 export const releaseTasksRelations = relations(release_tasks, ({ one }) => ({
@@ -698,6 +741,8 @@ export type Release = typeof releases.$inferSelect;
 export type NewRelease = typeof releases.$inferInsert;
 export type ReleaseTask = typeof release_tasks.$inferSelect;
 export type NewReleaseTask = typeof release_tasks.$inferInsert;
+export type ReleaseChecklist = typeof release_checklists.$inferSelect;
+export type NewReleaseChecklist = typeof release_checklists.$inferInsert;
 export type RoyaltySource = typeof royalty_sources.$inferSelect;
 export type NewRoyaltySource = typeof royalty_sources.$inferInsert;
 export type SyncPitch = typeof sync_pitches.$inferSelect;
