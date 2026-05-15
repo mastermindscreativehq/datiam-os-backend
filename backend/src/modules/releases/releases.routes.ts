@@ -27,6 +27,7 @@ releasesRouter.post('/:id/tasks', canWrite, validate(createReleaseTaskSchema), r
 releasesRouter.get('/:id/tasks', releasesController.getReleaseTasks);
 releasesRouter.get('/:id/checklist', releasesController.getChecklist);
 releasesRouter.patch('/:id/checklist', canWrite, validate(updateChecklistSchema), releasesController.updateChecklist);
+releasesRouter.get('/:id/state', releasesController.getReleaseState);
 
 // Separate /api/release-tasks router for PATCH /api/release-tasks/:id
 export const releaseTasksRouter = Router();

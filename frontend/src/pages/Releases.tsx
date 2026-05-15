@@ -7,6 +7,7 @@ import Modal, { Field, Input, Select } from '../components/Modal'
 import ConfirmModal from '../components/ConfirmModal'
 import Toast from '../components/Toast'
 import ReleaseChecklistModal from '../components/ReleaseChecklistModal'
+import ReleaseStateBadge, { type ReleaseState } from '../components/ReleaseStateBadge'
 import { releases, artists, isCriticalError } from '../api/client'
 import { useAuthStore } from '../store/authStore'
 
@@ -20,7 +21,7 @@ function normalise(raw: any): Record<string, unknown>[] {
 
 interface ArtistOption { id: string; stage_name: string }
 
-// Status values are music_status: draft → scheduled → released
+// music_status colors (legacy display)
 const STATUS_COLORS: Record<string, string> = {
   draft:     'text-yellow-400',
   scheduled: 'text-[#00d4ff]',
@@ -148,6 +149,10 @@ export default function Releases() {
     const s = String(item.status ?? 'unknown').toLowerCase()
     acc[s] = (acc[s] || 0) + 1; return acc
   }, {})
+  const stateCounts = items.reduce<Record<string, number>>((acc, item: any) => {
+    const s = String(item.release_state ?? 'draft').toLowerCase()
+    acc[s] = (acc[s] || 0) + 1; return acc
+  }, {})
 
   return (
     <div>
@@ -176,13 +181,27 @@ export default function Releases() {
 
       {!loading && !error && data && (
         <div className="space-y-5">
-          {Object.keys(statusCounts).length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {Object.entries(statusCounts).map(([status, count]) => (
-                <div key={status} className={`text-[10px] font-mono border border-current/25 rounded px-3 py-1 tracking-widest ${STATUS_COLORS[status] ?? 'text-gray-500'}`}>
-                  {status.toUpperCase()} · {count}
+          {Object.keys(stateCounts).length > 0 && (
+            <div className="space-y-2">
+              <div className="flex flex-wrap gap-2 items-center">
+                <span className="text-[9px] font-mono text-gray-600 tracking-widest">RELEASE STATE</span>
+                {Object.entries(stateCounts).map(([state, count]) => (
+                  <div key={state} className="flex items-center gap-1.5">
+                    <ReleaseStateBadge state={state as ReleaseState} />
+                    <span className="text-[9px] font-mono text-gray-600">×{count}</span>
+                  </div>
+                ))}
+              </div>
+              {Object.keys(statusCounts).length > 0 && (
+                <div className="flex flex-wrap gap-2 items-center">
+                  <span className="text-[9px] font-mono text-gray-600 tracking-widest">PIPELINE</span>
+                  {Object.entries(statusCounts).map(([status, count]) => (
+                    <div key={status} className={`text-[9px] font-mono border border-current/25 rounded px-2 py-0.5 tracking-widest ${STATUS_COLORS[status] ?? 'text-gray-500'}`}>
+                      {status.toUpperCase()} · {count}
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
           )}
           {items.length > 0 ? (

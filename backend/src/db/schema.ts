@@ -183,6 +183,16 @@ export const musicReleaseStatusEnum = pgEnum('music_release_status', [
   'released',
 ]);
 
+// Release State Engine — computed lifecycle state
+export const releaseStateEnum = pgEnum('release_state', [
+  'draft',
+  'blocked',
+  'almost_ready',
+  'ready_for_distribution',
+  'scheduled',
+  'released',
+]);
+
 // ---- Tables ----
 
 export const users = pgTable('users', {
@@ -335,6 +345,7 @@ export const releases = pgTable(
     boomplay_url: text('boomplay_url'),
     youtube_url: text('youtube_url'),
     status: releasePublishStatusEnum('status').default('planning').notNull(),
+    release_state: releaseStateEnum('release_state').default('draft').notNull(),
     created_at: timestamp('created_at').defaultNow().notNull(),
     updated_at: timestamp('updated_at').defaultNow().notNull(),
   },
@@ -345,6 +356,7 @@ export const releases = pgTable(
     slugIdx: index('releases_slug_idx').on(t.slug),
     releaseDateIdx: index('releases_release_date_idx').on(t.release_date),
     musicStatusIdx: index('releases_music_status_idx').on(t.music_status),
+    releaseStateIdx: index('releases_release_state_idx').on(t.release_state),
   }),
 );
 

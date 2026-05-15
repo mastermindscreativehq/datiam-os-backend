@@ -1,5 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { releases as releasesApi } from '../api/client'
+import ReleaseStateBadge, { type ReleaseState } from './ReleaseStateBadge'
+import ReleaseReadinessMeter from './ReleaseReadinessMeter'
 
 interface ChecklistData {
   id: string
@@ -42,8 +44,6 @@ const ITEMS: ChecklistItem[] = [
   { key: 'sync_assets_ready',   label: 'Sync assets ready',        required: false },
 ]
 
-const REQUIRED_KEYS = ITEMS.filter(i => i.required).map(i => i.key)
-
 const STATUS_COLOR: Record<string, string> = {
   ready_for_distribution: 'text-[#00ff41]',
   almost_ready:           'text-yellow-400',
@@ -56,6 +56,14 @@ const STATUS_LABEL: Record<string, string> = {
   not_ready:              'NOT READY',
 }
 
+interface StateData {
+  release_state: ReleaseState
+  completion_percent: number
+  missing_gate_fields: string[]
+  is_schedulable: boolean
+  is_releasable: boolean
+}
+
 interface Props {
   isOpen: boolean
   releaseId: string
@@ -65,6 +73,7 @@ interface Props {
 
 export default function ReleaseChecklistModal({ isOpen, releaseId, releaseTitle, onClose }: Props) {
   const [checklist, setChecklist] = useState<ChecklistData | null>(null)
+  const [stateData, setStateData] = useState<StateData | null>(null)
   const [loading, setLoading]     = useState(false)
   const [saving,  setSaving]      = useState(false)
   const [notes,   setNotes]       = useState('')
@@ -74,9 +83,14 @@ export default function ReleaseChecklistModal({ isOpen, releaseId, releaseTitle,
   const load = useCallback(async () => {
     setLoading(true); setError('')
     try {
-      const res = await releasesApi.getChecklist(releaseId)
-      const data: ChecklistData = res.data?.data ?? res.data
+      const [checklistRes, stateRes] = await Promise.all([
+        releasesApi.getChecklist(releaseId),
+        releasesApi.getState(releaseId),
+      ])
+      const data: ChecklistData = checklistRes.data?.data ?? checklistRes.data
+      const state: StateData    = stateRes.data?.data ?? stateRes.data
       setChecklist(data)
+      setStateData(state)
       setNotes(data.notes ?? '')
     } catch {
       setError('Failed to load checklist.')
@@ -110,10 +124,15 @@ export default function ReleaseChecklistModal({ isOpen, releaseId, releaseTitle,
       for (const item of ITEMS) {
         body[item.key] = checklist[item.key]
       }
-      const res = await releasesApi.updateChecklist(releaseId, body)
-      const updated: ChecklistData = res.data?.data ?? res.data
+      const saveRes = await releasesApi.updateChecklist(releaseId, body)
+      const updated: ChecklistData = saveRes.data?.data ?? saveRes.data
       setChecklist(updated)
       setNotes(updated.notes ?? '')
+
+      // Refresh state after save
+      const freshState = await releasesApi.getState(releaseId)
+      setStateData(freshState.data?.data ?? freshState.data)
+
       setSaved(true)
       setTimeout(() => setSaved(false), 2500)
     } catch (err: any) {
@@ -124,10 +143,6 @@ export default function ReleaseChecklistModal({ isOpen, releaseId, releaseTitle,
   }
 
   if (!isOpen) return null
-
-  const missingRequired = checklist
-    ? REQUIRED_KEYS.filter(k => !checklist[k])
-    : []
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -168,40 +183,23 @@ export default function ReleaseChecklistModal({ isOpen, releaseId, releaseTitle,
 
           {!loading && checklist && (
             <>
-              {/* Status bar */}
-              <div className="flex items-center justify-between border border-white/5 rounded px-3 py-2.5 bg-white/[0.02]">
-                <div className="flex items-center gap-3">
-                  <div className="text-[10px] font-mono text-gray-500 tracking-widest">READINESS</div>
-                  <div className={`text-[10px] font-mono font-bold tracking-widest ${STATUS_COLOR[checklist.readiness_status] ?? 'text-gray-500'}`}>
-                    {STATUS_LABEL[checklist.readiness_status] ?? checklist.readiness_status.toUpperCase()}
+              {/* Release state + readiness meter */}
+              <div className="border border-white/5 rounded px-3 py-3 bg-white/[0.02] space-y-2">
+                {stateData ? (
+                  <ReleaseReadinessMeter
+                    state={stateData.release_state}
+                    completionPercent={stateData.completion_percent}
+                    missingGateFields={stateData.missing_gate_fields}
+                  />
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <div className={`text-[10px] font-mono font-bold tracking-widest ${STATUS_COLOR[checklist.readiness_status] ?? 'text-gray-500'}`}>
+                      {STATUS_LABEL[checklist.readiness_status] ?? checklist.readiness_status.toUpperCase()}
+                    </div>
+                    <div className="text-[10px] font-mono text-[#00d4ff] font-bold">{checklist.completion_percent}%</div>
                   </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-[10px] font-mono text-[#00d4ff] font-bold">{checklist.completion_percent}%</div>
-                  <div className="w-24 h-1 bg-white/10 rounded-full mt-1 overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all duration-500"
-                      style={{
-                        width: `${checklist.completion_percent}%`,
-                        background: checklist.completion_percent === 100 ? '#00ff41' : checklist.completion_percent >= 60 ? '#facc15' : '#00d4ff',
-                      }}
-                    />
-                  </div>
-                </div>
+                )}
               </div>
-
-              {/* Missing required items */}
-              {missingRequired.length > 0 && (
-                <div className="border border-yellow-500/20 rounded px-3 py-2 bg-yellow-500/5">
-                  <div className="text-[10px] font-mono text-yellow-400 tracking-widest mb-1">REQUIRED TO SCHEDULE</div>
-                  {missingRequired.map(k => {
-                    const item = ITEMS.find(i => i.key === k)!
-                    return (
-                      <div key={k} className="text-[10px] font-mono text-gray-500 tracking-wide">· {item.label}</div>
-                    )
-                  })}
-                </div>
-              )}
 
               {/* Checklist items — required first, then optional */}
               <div>

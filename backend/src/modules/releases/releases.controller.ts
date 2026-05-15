@@ -1,8 +1,87 @@
 import { Request, Response, NextFunction } from 'express';
 import * as releasesService from './releases.service';
 import type { ReleaseFilters } from './releases.service';
+import type { StateChange } from './releases.service';
 import { logActivity } from '../../lib/activityLogger';
 import { success } from '../../utils/response';
+
+function logStateChange(
+  req: Request,
+  releaseId: string,
+  releaseTitle: string,
+  stateChange: StateChange,
+) {
+  const { prev, next } = stateChange;
+
+  logActivity({
+    userId: req.user?.id,
+    userEmail: req.user?.email,
+    eventType: 'release.state_changed',
+    module: 'releases',
+    entityType: 'release',
+    entityId: releaseId,
+    title: `Release state changed: ${prev} → ${next}`,
+    description: `"${releaseTitle}" transitioned from ${prev} to ${next}`,
+    severity: next === 'blocked' ? 'warning' : 'info',
+    requestId: req.requestId,
+    metadata: { releaseId, prev, next },
+  });
+
+  if (next === 'ready_for_distribution') {
+    logActivity({
+      userId: req.user?.id,
+      userEmail: req.user?.email,
+      eventType: 'release.ready',
+      module: 'releases',
+      entityType: 'release',
+      entityId: releaseId,
+      title: `Release ready for distribution: ${releaseTitle}`,
+      severity: 'info',
+      requestId: req.requestId,
+      metadata: { releaseId },
+    });
+  } else if (next === 'blocked') {
+    logActivity({
+      userId: req.user?.id,
+      userEmail: req.user?.email,
+      eventType: 'release.blocked',
+      module: 'releases',
+      entityType: 'release',
+      entityId: releaseId,
+      title: `Release blocked: ${releaseTitle}`,
+      description: 'Required checklist items are incomplete',
+      severity: 'warning',
+      requestId: req.requestId,
+      metadata: { releaseId },
+    });
+  } else if (next === 'scheduled') {
+    logActivity({
+      userId: req.user?.id,
+      userEmail: req.user?.email,
+      eventType: 'release.scheduled',
+      module: 'releases',
+      entityType: 'release',
+      entityId: releaseId,
+      title: `Release scheduled: ${releaseTitle}`,
+      severity: 'info',
+      requestId: req.requestId,
+      metadata: { releaseId },
+    });
+  } else if (next === 'released') {
+    logActivity({
+      userId: req.user?.id,
+      userEmail: req.user?.email,
+      eventType: 'release.released',
+      module: 'releases',
+      entityType: 'release',
+      entityId: releaseId,
+      title: `Release is live: ${releaseTitle}`,
+      severity: 'info',
+      requestId: req.requestId,
+      metadata: { releaseId },
+    });
+  }
+}
 
 export const createRelease = async (
   req: Request,
@@ -73,7 +152,7 @@ export const updateRelease = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const release = await releasesService.updateRelease(req.params.id, req.body);
+    const { release, stateChange } = await releasesService.updateRelease(req.params.id, req.body);
     logActivity({
       userId: req.user?.id,
       userEmail: req.user?.email,
@@ -93,6 +172,7 @@ export const updateRelease = async (
         changedFields: Object.keys(req.body),
       },
     });
+    if (stateChange) logStateChange(req, release.id, release.title, stateChange);
     success(res, release);
   } catch (err) {
     next(err);
@@ -179,7 +259,7 @@ export const updateChecklist = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const checklist = await releasesService.updateChecklist(req.params.id, req.body);
+    const { checklist, stateChange } = await releasesService.updateChecklist(req.params.id, req.body);
     const release = await releasesService.getReleaseById(req.params.id);
     logActivity({
       userId: req.user?.id,
@@ -198,7 +278,20 @@ export const updateChecklist = async (
         readiness_status: checklist.readiness_status,
       },
     });
+    if (stateChange) logStateChange(req, release.id, release.title, stateChange);
     success(res, checklist);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getReleaseState = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    success(res, await releasesService.getReleaseState(req.params.id));
   } catch (err) {
     next(err);
   }

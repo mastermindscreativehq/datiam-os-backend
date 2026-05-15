@@ -103,6 +103,7 @@ export const releases = {
   remove:          (id: string) => apiClient.delete(`/releases/${id}`),
   getChecklist:    (id: string) => apiClient.get(`/releases/${id}/checklist`),
   updateChecklist: (id: string, body: Record<string, unknown>) => apiClient.patch(`/releases/${id}/checklist`, body),
+  getState:        (id: string) => apiClient.get(`/releases/${id}/state`),
 }
 
 // ── Sync Pitches ────────────────────────────────────────────────────────────

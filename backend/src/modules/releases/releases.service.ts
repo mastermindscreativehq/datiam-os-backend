@@ -2,6 +2,13 @@ import { eq, desc, and, type SQL } from 'drizzle-orm';
 import { db } from '../../db';
 import { releases, release_tasks, release_checklists } from '../../db/schema';
 import { AppError } from '../../middleware/errorHandler';
+import {
+  computeReleaseState,
+  enforceReleaseState,
+  getMissingGateFields,
+  type ReleaseState,
+  type ChecklistSnapshot,
+} from './releaseStateEngine';
 import type {
   CreateReleaseInput,
   UpdateReleaseInput,
@@ -13,7 +20,6 @@ import type {
 const slugify = (str: string) =>
   str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
-// Maps DB row → Music Core v1 API shape
 function mapRelease(r: typeof releases.$inferSelect) {
   return {
     ...r,
@@ -24,6 +30,40 @@ function mapRelease(r: typeof releases.$inferSelect) {
 }
 
 export type MappedRelease = ReturnType<typeof mapRelease>;
+
+export interface StateChange {
+  prev: ReleaseState;
+  next: ReleaseState;
+}
+
+// Recomputes and persists release_state; returns the change if state actually changed.
+async function syncReleaseState(releaseId: string): Promise<StateChange | null> {
+  const [release] = await db
+    .select({ id: releases.id, release_date: releases.release_date, release_state: releases.release_state })
+    .from(releases)
+    .where(eq(releases.id, releaseId))
+    .limit(1);
+  if (!release) return null;
+
+  const [checklist] = await db
+    .select()
+    .from(release_checklists)
+    .where(eq(release_checklists.release_id, releaseId))
+    .limit(1);
+
+  const snapshot: ChecklistSnapshot | null = checklist ?? null;
+  const next = computeReleaseState({ release_date: release.release_date }, snapshot);
+  const prev = release.release_state as ReleaseState;
+
+  if (next === prev) return null;
+
+  await db
+    .update(releases)
+    .set({ release_state: next, updated_at: new Date() })
+    .where(eq(releases.id, releaseId));
+
+  return { prev, next };
+}
 
 export const createRelease = async (input: CreateReleaseInput): Promise<MappedRelease> => {
   const { title, type, status, slug, ...rest } = input;
@@ -88,16 +128,6 @@ const CHECKLIST_BOOLEAN_FIELDS = [
   'final_approval',
 ] as const;
 
-const GATE_FIELDS = [
-  'metadata_ready',
-  'cover_art_ready',
-  'mix_ready',
-  'master_ready',
-  'distributor_ready',
-  'release_date_ready',
-  'final_approval',
-] as const;
-
 function calcCompletion(row: Record<string, unknown>): { completion_percent: number; readiness_status: string } {
   const total = CHECKLIST_BOOLEAN_FIELDS.length;
   const done = CHECKLIST_BOOLEAN_FIELDS.filter(f => row[f] === true).length;
@@ -111,7 +141,7 @@ function calcCompletion(row: Record<string, unknown>): { completion_percent: num
 export const updateRelease = async (
   id: string,
   input: UpdateReleaseInput,
-): Promise<MappedRelease> => {
+): Promise<{ release: MappedRelease; stateChange: StateChange | null }> => {
   const { title, type, status, slug, ...rest } = input;
   const patch: Record<string, unknown> = { ...rest, updated_at: new Date() };
   if (title !== undefined) {
@@ -120,27 +150,26 @@ export const updateRelease = async (
   }
   if (slug !== undefined) patch.slug = slug;
   if (type !== undefined) patch.release_type = type;
+
   if (status !== undefined) {
-    // Gate: moving to scheduled or released requires checklist approval
     if (status === 'scheduled' || status === 'released') {
       const [checklist] = await db
         .select()
         .from(release_checklists)
         .where(eq(release_checklists.release_id, id))
         .limit(1);
-      if (!checklist) {
-        throw new AppError(
-          'Release is not ready for scheduling. Complete the required checklist first.',
-          400,
-        );
-      }
-      const missing = GATE_FIELDS.filter(f => !checklist[f]);
-      if (missing.length > 0) {
-        throw new AppError(
-          'Release is not ready for scheduling. Complete the required checklist first.',
-          400,
-        );
-      }
+
+      const [existing] = await db
+        .select({ release_date: releases.release_date })
+        .from(releases)
+        .where(eq(releases.id, id))
+        .limit(1);
+
+      const releaseSnap = {
+        release_date: (rest as { release_date?: string }).release_date ?? existing?.release_date ?? null,
+      };
+
+      enforceReleaseState(status, releaseSnap, checklist ?? null);
     }
     patch.music_status = status;
   }
@@ -151,7 +180,9 @@ export const updateRelease = async (
     .where(eq(releases.id, id))
     .returning();
   if (!updated) throw new AppError('Release not found', 404);
-  return mapRelease(updated);
+
+  const stateChange = await syncReleaseState(id);
+  return { release: mapRelease(updated), stateChange };
 };
 
 export const deleteRelease = async (id: string): Promise<{ deleted: boolean; id: string }> => {
@@ -187,7 +218,6 @@ export const updateReleaseTask = async (id: string, input: UpdateReleaseTaskInpu
 };
 
 export const getOrCreateChecklist = async (releaseId: string) => {
-  // Verify release exists
   const [release] = await db
     .select()
     .from(releases)
@@ -209,20 +239,56 @@ export const getOrCreateChecklist = async (releaseId: string) => {
   return created;
 };
 
-export const updateChecklist = async (releaseId: string, input: UpdateChecklistInput) => {
-  // Ensure checklist row exists
+export const updateChecklist = async (
+  releaseId: string,
+  input: UpdateChecklistInput,
+): Promise<{ checklist: typeof release_checklists.$inferSelect; stateChange: StateChange | null }> => {
   await getOrCreateChecklist(releaseId);
 
-  const { completion_percent, readiness_status } = calcCompletion({
-    // Start from the persisted row, overlay with incoming changes
-    ...(await db.select().from(release_checklists).where(eq(release_checklists.release_id, releaseId)).limit(1))[0],
-    ...input,
-  });
+  const [persisted] = await db
+    .select()
+    .from(release_checklists)
+    .where(eq(release_checklists.release_id, releaseId))
+    .limit(1);
+
+  const merged = { ...persisted, ...input };
+  const { completion_percent, readiness_status } = calcCompletion(merged);
 
   const [updated] = await db
     .update(release_checklists)
     .set({ ...input, completion_percent, readiness_status, updated_at: new Date() })
     .where(eq(release_checklists.release_id, releaseId))
     .returning();
-  return updated;
+
+  const stateChange = await syncReleaseState(releaseId);
+  return { checklist: updated, stateChange };
+};
+
+export const getReleaseState = async (releaseId: string) => {
+  const [release] = await db
+    .select({ id: releases.id, release_date: releases.release_date, release_state: releases.release_state })
+    .from(releases)
+    .where(eq(releases.id, releaseId))
+    .limit(1);
+  if (!release) throw new AppError('Release not found', 404);
+
+  const [checklist] = await db
+    .select()
+    .from(release_checklists)
+    .where(eq(release_checklists.release_id, releaseId))
+    .limit(1);
+
+  const snapshot: ChecklistSnapshot | null = checklist ?? null;
+  const computed = computeReleaseState({ release_date: release.release_date }, snapshot);
+  const missing = getMissingGateFields(snapshot);
+
+  return {
+    release_state: computed,
+    persisted_state: release.release_state,
+    completion_percent: checklist?.completion_percent ?? 0,
+    readiness_status: checklist?.readiness_status ?? 'not_ready',
+    missing_gate_fields: missing,
+    is_schedulable: missing.length === 0 && !!release.release_date,
+    is_releasable: missing.length === 0,
+  };
 };
