@@ -12,6 +12,7 @@ const NAV = [
   { to: '/content-ideas',    label: 'CONTENT IDEAS', icon: '✦' },
   { to: '/automation-runs',      label: 'AUTOMATION',    icon: '⬢' },
   { to: '/music-intelligence',   label: 'MUSIC INTEL',   icon: '◆' },
+  { to: '/sonic-world',          label: 'SONIC WORLD',   icon: '◉' },
   { to: '/activity',             label: 'ACTIVITY',      icon: '◈' },
 ]
 

@@ -12,6 +12,7 @@ import ContentIdeas from './pages/ContentIdeas'
 import AutomationRuns from './pages/AutomationRuns'
 import Activity from './pages/Activity'
 import MusicIntelligence from './pages/MusicIntelligence'
+import SonicWorld from './pages/SonicWorld'
 
 function App() {
   return (
@@ -31,6 +32,7 @@ function App() {
           <Route path="automation-runs" element={<AutomationRuns />} />
           <Route path="activity" element={<Activity />} />
           <Route path="music-intelligence" element={<MusicIntelligence />} />
+          <Route path="sonic-world" element={<SonicWorld />} />
         </Route>
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>

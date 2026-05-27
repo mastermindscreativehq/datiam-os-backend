@@ -136,6 +136,18 @@ export const automationRuns = {
   remove: (id: string) => apiClient.delete(`/automation/runs/${id}`),
 }
 
+// ── Sonic World Engine ───────────────────────────────────────────────────────
+export const sonicWorld = {
+  generate:             (body: { session_id: string; artist_id: string }) =>
+                          apiClient.post('/sonic-world/generate', body),
+  getLatestBlueprint:   (sessionId: string) =>
+                          apiClient.get(`/sonic-world/blueprints/${sessionId}`),
+  getBlueprintHistory:  (sessionId: string) =>
+                          apiClient.get(`/sonic-world/blueprints/${sessionId}/history`),
+  dashboard:            (artistId?: string) =>
+                          apiClient.get('/sonic-world/dashboard', { params: artistId ? { artist_id: artistId } : {} }),
+}
+
 // ── Music Intelligence ───────────────────────────────────────────────────────
 export const musicIntelligence = {
   dashboard:           (artistId?: string) => apiClient.get('/music-intelligence/dashboard', { params: artistId ? { artist_id: artistId } : {} }),

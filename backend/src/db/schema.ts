@@ -914,3 +914,81 @@ export type MusicRelease = typeof releases.$inferSelect;
 export type NewMusicRelease = typeof releases.$inferInsert;
 export type MusicSong = typeof songs.$inferSelect;
 export type NewMusicSong = typeof songs.$inferInsert;
+
+// ---- Sonic World Engine ----
+
+export const sonic_world_blueprints = pgTable(
+  'sonic_world_blueprints',
+  {
+    id:                        uuid('id').primaryKey().defaultRandom(),
+    session_id:                uuid('session_id').notNull().references(() => creative_sessions.id, { onDelete: 'cascade' }),
+    artist_id:                 uuid('artist_id').notNull().references(() => artist_profiles.id, { onDelete: 'cascade' }),
+    // Genre DNA
+    primary_genre:             text('primary_genre').notNull(),
+    secondary_genre:           text('secondary_genre').notNull(),
+    rhythm_influence:          text('rhythm_influence').notNull(),
+    sonic_fusion_identity:     text('sonic_fusion_identity').notNull(),
+    // Instrumentation
+    drum_style:                text('drum_style').notNull(),
+    percussion_textures:       text('percussion_textures').notNull(),
+    bass_character:            text('bass_character').notNull(),
+    melodic_instruments:       text('melodic_instruments').notNull(),
+    ambient_layers:            text('ambient_layers').notNull(),
+    organic_synthetic_ratio:   text('organic_synthetic_ratio').notNull(),
+    // Vocal Architecture
+    vocal_texture:             text('vocal_texture').notNull(),
+    cadence_energy:            text('cadence_energy').notNull(),
+    harmony_behavior:          text('harmony_behavior').notNull(),
+    emotional_intensity:       text('emotional_intensity').notNull(),
+    vocal_atmosphere:          text('vocal_atmosphere').notNull(),
+    // Cinematic Environment
+    visual_sonic_atmosphere:   text('visual_sonic_atmosphere').notNull(),
+    emotional_weather:         text('emotional_weather').notNull(),
+    scene_energy:              text('scene_energy').notNull(),
+    cinematic_references:      text('cinematic_references').notNull(),
+    // Rhythm Intelligence
+    bpm:                       integer('bpm').notNull(),
+    groove_behavior:           text('groove_behavior').notNull(),
+    movement_energy:           text('movement_energy').notNull(),
+    percussion_complexity:     text('percussion_complexity').notNull(),
+    swing_characteristics:     text('swing_characteristics').notNull(),
+    // Harmonic Emotion System
+    musical_key:               text('musical_key').notNull(),
+    scale:                     text('scale').notNull(),
+    chord_behavior:            text('chord_behavior').notNull(),
+    emotional_progression:     text('emotional_progression').notNull(),
+    tension_release_behavior:  text('tension_release_behavior').notNull(),
+    // Hook Strategy
+    hook_intensity:            text('hook_intensity').notNull(),
+    chant_potential:           text('chant_potential').notNull(),
+    replayability:             text('replayability').notNull(),
+    anthem_potential:          text('anthem_potential').notNull(),
+    crowd_engagement_energy:   text('crowd_engagement_energy').notNull(),
+    // Production Density (0-100)
+    cinematic_density:         integer('cinematic_density').notNull().default(50),
+    spiritual_intensity:       integer('spiritual_intensity').notNull().default(50),
+    emotional_rawness:         integer('emotional_rawness').notNull().default(50),
+    commercial_accessibility:  integer('commercial_accessibility').notNull().default(50),
+    darkness_vs_hope:          integer('darkness_vs_hope').notNull().default(50),
+    underground_vs_mainstream: integer('underground_vs_mainstream').notNull().default(50),
+    organic_vs_synthetic:      integer('organic_vs_synthetic').notNull().default(50),
+    // Assembly
+    producer_brief:            text('producer_brief').notNull(),
+    coherence_score:           numeric('coherence_score', { precision: 4, scale: 2 }).notNull().default('0.85'),
+    engine_version:            text('engine_version').notNull().default('sw-v1'),
+    created_at:                timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    sessionIdx:   index('sw_blueprints_session_id_idx').on(t.session_id),
+    artistIdx:    index('sw_blueprints_artist_id_idx').on(t.artist_id),
+    createdAtIdx: index('sw_blueprints_created_at_idx').on(t.created_at),
+  }),
+);
+
+export const sonicWorldBlueprintsRelations = relations(sonic_world_blueprints, ({ one }) => ({
+  session: one(creative_sessions, { fields: [sonic_world_blueprints.session_id], references: [creative_sessions.id] }),
+  artist:  one(artist_profiles,   { fields: [sonic_world_blueprints.artist_id],  references: [artist_profiles.id] }),
+}));
+
+export type SonicWorldBlueprint = typeof sonic_world_blueprints.$inferSelect;
+export type NewSonicWorldBlueprint = typeof sonic_world_blueprints.$inferInsert;

@@ -29,6 +29,7 @@ import pipelineRouter from './modules/pipeline/pipeline.routes';
 import schedulerRouter from './modules/scheduler/scheduler.routes';
 import aiRouter from './modules/ai/ai.routes';
 import musicIntelligenceRouter from './modules/music-intelligence/music-intelligence.routes';
+import sonicWorldRouter from './modules/sonic-world/sonic-world.routes';
 import activityRouter from './modules/activity/activity.routes';
 import migrationsRouter from './modules/system/migrations.routes';
 import { verifySchema } from './db/schemaVerifier';
@@ -135,6 +136,7 @@ app.use('/api/pipeline', pipelineRouter);
 app.use('/api/scheduler/jobs', schedulerRouter);
 app.use('/api/ai/recommendations', aiRouter);
 app.use('/api/music-intelligence', musicIntelligenceRouter);
+app.use('/api/sonic-world', sonicWorldRouter);
 app.use('/api/activity', activityRouter);
 
 // ---- System Routes ----
