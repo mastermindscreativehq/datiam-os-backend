@@ -8,8 +8,63 @@ import {
 import { AppError } from '../../middleware/errorHandler';
 import { logActivity } from '../../lib/activityLogger';
 import { computeSonicWorld } from './sonic-world-engine';
+import type { SonicWorldOutput } from './sonic-world-engine';
 import type { SonicWorldInput, EmotionType, IntentionType, TransformationType } from './sonic-world.types';
 import type { GenerateBlueprintInput } from './sonic-world.schema';
+
+const DEFAULT_SONIC_BLUEPRINT: SonicWorldOutput = {
+  primary_genre:             'Contemporary R&B',
+  secondary_genre:           'Soul Fusion',
+  rhythm_influence:          'neo-soul groove',
+  sonic_fusion_identity:     'eclectic soul-driven sound world',
+  drum_style:                'mid-tempo trap with brushed snare',
+  percussion_textures:       'subtle layered percussion',
+  bass_character:            'warm melodic bass',
+  melodic_instruments:       'piano and keys',
+  ambient_layers:            'soft synth pads',
+  organic_synthetic_ratio:   '50% organic / 50% synthetic',
+  vocal_texture:             'smooth and expressive',
+  cadence_energy:            'flowing mid-tempo delivery',
+  harmony_behavior:          'gentle background harmonies',
+  emotional_intensity:       'controlled emotional range',
+  vocal_atmosphere:          'intimate and present',
+  visual_sonic_atmosphere:   'cinematic urban landscape',
+  emotional_weather:         'overcast with moments of light',
+  scene_energy:              'steady and introspective',
+  cinematic_references:      'contemporary cinematic palette',
+  bpm:                       90,
+  groove_behavior:           'steady mid-tempo pocket',
+  movement_energy:           'subtle body sway',
+  percussion_complexity:     'moderate layered complexity',
+  swing_characteristics:     'slight humanized swing',
+  musical_key:               'C',
+  scale:                     'Minor',
+  chord_behavior:            'i–VII–VI–VII with melodic movement',
+  emotional_progression:     'builds gradually with emotional arc',
+  tension_release_behavior:  'measured tension with chorus release',
+  hook_intensity:            'memorable and accessible',
+  chant_potential:           'moderate singalong potential',
+  replayability:             'high emotional attachment replay value',
+  anthem_potential:          'community resonance with replay depth',
+  crowd_engagement_energy:   'connected audience energy',
+  cinematic_density:         50,
+  spiritual_intensity:       50,
+  emotional_rawness:         50,
+  commercial_accessibility:  50,
+  darkness_vs_hope:          50,
+  underground_vs_mainstream: 50,
+  organic_vs_synthetic:      50,
+  producer_brief:            'A soulful mid-tempo production with balanced instrumentation and emotional depth.',
+  coherence_score:           0.85,
+};
+
+function mergeWithDefaults(output: SonicWorldOutput): SonicWorldOutput {
+  const result: Record<string, unknown> = {};
+  for (const key of Object.keys(DEFAULT_SONIC_BLUEPRINT) as (keyof SonicWorldOutput)[]) {
+    result[key] = output[key] != null ? output[key] : DEFAULT_SONIC_BLUEPRINT[key];
+  }
+  return result as unknown as SonicWorldOutput;
+}
 
 export const generateBlueprint = async (
   input: GenerateBlueprintInput,
@@ -52,7 +107,7 @@ export const generateBlueprint = async (
     hook_intensity:          phase1.hook_intensity,
   };
 
-  const output = computeSonicWorld(sonicInput);
+  const output = mergeWithDefaults(computeSonicWorld(sonicInput));
 
   const [blueprint] = await db
     .insert(sonic_world_blueprints)
