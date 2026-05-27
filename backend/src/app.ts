@@ -28,6 +28,7 @@ import signalsRouter from './modules/signals/signals.routes';
 import pipelineRouter from './modules/pipeline/pipeline.routes';
 import schedulerRouter from './modules/scheduler/scheduler.routes';
 import aiRouter from './modules/ai/ai.routes';
+import musicIntelligenceRouter from './modules/music-intelligence/music-intelligence.routes';
 import activityRouter from './modules/activity/activity.routes';
 import migrationsRouter from './modules/system/migrations.routes';
 import { verifySchema } from './db/schemaVerifier';
@@ -133,6 +134,7 @@ app.use('/api/signals/content', signalsRouter);
 app.use('/api/pipeline', pipelineRouter);
 app.use('/api/scheduler/jobs', schedulerRouter);
 app.use('/api/ai/recommendations', aiRouter);
+app.use('/api/music-intelligence', musicIntelligenceRouter);
 app.use('/api/activity', activityRouter);
 
 // ---- System Routes ----

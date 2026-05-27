@@ -32,7 +32,19 @@
       "Bash(curl -s -H \"Authorization: Bearer test\" http://localhost:4000/api/songs)",
       "Bash(netstat -ano)",
       "Bash(curl *)",
-      "Bash(node *)"
+      "Bash(node *)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\user\\\\datiam-os\" -Force | Select-Object Name, @{Name='Type'; Expression={if \\($_.PSIsContainer\\) {'Directory'} else {'File'}}} | Format-Table -AutoSize)",
+      "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")",
+      "Bash(xargs grep -l \"guard\\\\|gate\\\\|permission\\\\|check.*status\")",
+      "Bash(grep -E \"\\\\.sql$\")",
+      "PowerShell(cd C:\\\\Users\\\\user\\\\datiam-os\\\\backend; $env:NODE_ENV=\"production\"; npx tsx src/scripts/runMigration.ts 2>&1 | Select-Object -First 40)",
+      "Bash(Select-Object Name, PSIsContainer)",
+      "Bash(xargs -I {} basename {})",
+      "PowerShell(Set-Location C:\\\\Users\\\\user\\\\datiam-os\\\\backend; $out = npx tsc --noEmit 2>&1 | Out-String; if \\($out.Trim\\(\\)\\) { $out } else { \"BACKEND: 0 errors\" })",
+      "PowerShell(Set-Location C:\\\\Users\\\\user\\\\datiam-os\\\\frontend; $out = npx tsc --noEmit 2>&1 | Out-String; if \\($out.Trim\\(\\)\\) { $out } else { \"FRONTEND: 0 errors\" })",
+      "Bash(git check-ignore *)",
+      "Bash(grep -v \"\\\\.example\\\\|# \\\\|//.*key\\\\|apiKey.*:\\\\|artist_id\\\\|musical_key\\\\|preferred_key\\\\|engine_version\\\\|event_type\")",
+      "Bash(python3 -c ' *)"
     ]
   }
 }

@@ -135,3 +135,15 @@ export const automationRuns = {
   create: (body: Record<string, unknown>) => apiClient.post('/automation/runs', body),
   remove: (id: string) => apiClient.delete(`/automation/runs/${id}`),
 }
+
+// ── Music Intelligence ───────────────────────────────────────────────────────
+export const musicIntelligence = {
+  dashboard:           (artistId?: string) => apiClient.get('/music-intelligence/dashboard', { params: artistId ? { artist_id: artistId } : {} }),
+  memory:              (artistId: string)  => apiClient.get('/music-intelligence/memory', { params: { artist_id: artistId } }),
+  listSessions:        (artistId?: string) => apiClient.get('/music-intelligence/sessions', { params: artistId ? { artist_id: artistId } : {} }),
+  createSession:       (body: Record<string, unknown>) => apiClient.post('/music-intelligence/sessions', body),
+  getSession:          (id: string)        => apiClient.get(`/music-intelligence/sessions/${id}`),
+  updateSession:       (id: string, body: Record<string, unknown>) => apiClient.patch(`/music-intelligence/sessions/${id}`, body),
+  deleteSession:       (id: string)        => apiClient.delete(`/music-intelligence/sessions/${id}`),
+  regenerateBlueprint: (id: string)        => apiClient.post(`/music-intelligence/sessions/${id}/blueprint`),
+}

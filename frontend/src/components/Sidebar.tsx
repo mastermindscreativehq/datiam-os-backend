@@ -10,8 +10,9 @@ const NAV = [
   { to: '/sync-pitches',     label: 'SYNC PITCHES',  icon: '◇' },
   { to: '/royalty-sources',  label: 'ROYALTIES',     icon: '◆' },
   { to: '/content-ideas',    label: 'CONTENT IDEAS', icon: '✦' },
-  { to: '/automation-runs',  label: 'AUTOMATION',    icon: '⬢' },
-  { to: '/activity',         label: 'ACTIVITY',      icon: '◈' },
+  { to: '/automation-runs',      label: 'AUTOMATION',    icon: '⬢' },
+  { to: '/music-intelligence',   label: 'MUSIC INTEL',   icon: '◆' },
+  { to: '/activity',             label: 'ACTIVITY',      icon: '◈' },
 ]
 
 export default function Sidebar() {

@@ -730,6 +730,133 @@ export const fanEventsRelations = relations(fan_events, ({ one }) => ({
   }),
 }));
 
+// ---- Music Intelligence — Enums ----
+
+export const emotionTypeEnum = pgEnum('emotion_type', [
+  'grief', 'trauma', 'rage', 'joy', 'melancholy', 'euphoria',
+  'anxiety', 'longing', 'triumph', 'nostalgia', 'peace', 'defiance',
+]);
+
+export const intentionTypeEnum = pgEnum('intention_type', [
+  'heal_listener', 'inspire_action', 'create_nostalgia', 'deliver_message',
+  'uplift_spirit', 'provoke_thought', 'celebrate_truth', 'process_pain',
+]);
+
+export const transformationTypeEnum = pgEnum('transformation_type', [
+  'from_pain_to_peace', 'from_stagnation_to_momentum', 'from_confusion_to_clarity',
+  'from_isolation_to_belonging', 'from_fear_to_courage', 'from_grief_to_acceptance',
+  'from_doubt_to_conviction', 'from_chaos_to_order',
+]);
+
+export const sessionStatusEnum = pgEnum('session_status', ['draft', 'active', 'completed']);
+
+// ---- Music Intelligence — Tables ----
+
+export const creative_sessions = pgTable(
+  'creative_sessions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    artist_id: uuid('artist_id').references(() => artist_profiles.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    emotion: emotionTypeEnum('emotion').notNull(),
+    intention: intentionTypeEnum('intention').notNull(),
+    story: text('story'),
+    listener_transformation: transformationTypeEnum('listener_transformation').notNull(),
+    status: sessionStatusEnum('status').default('active').notNull(),
+    created_at: timestamp('created_at').defaultNow().notNull(),
+    updated_at: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (t) => ({
+    artistIdx:  index('creative_sessions_artist_id_idx').on(t.artist_id),
+    emotionIdx: index('creative_sessions_emotion_idx').on(t.emotion),
+    statusIdx:  index('creative_sessions_status_idx').on(t.status),
+  }),
+);
+
+export const song_blueprints = pgTable(
+  'song_blueprints',
+  {
+    id:              uuid('id').primaryKey().defaultRandom(),
+    session_id:      uuid('session_id').notNull().references(() => creative_sessions.id, { onDelete: 'cascade' }),
+    artist_id:       uuid('artist_id').references(() => artist_profiles.id, { onDelete: 'cascade' }),
+    bpm:             integer('bpm').notNull(),
+    musical_key:     text('musical_key').notNull(),
+    scale:           text('scale').notNull(),
+    atmosphere:      text('atmosphere').notNull(),
+    cadence_energy:  text('cadence_energy').notNull(),
+    chord_direction: text('chord_direction').notNull(),
+    vocal_energy:    text('vocal_energy').notNull(),
+    hook_intensity:  text('hook_intensity').notNull(),
+    engine_version:  text('engine_version').default('v1').notNull(),
+    created_at:      timestamp('created_at').defaultNow().notNull(),
+  },
+  (t) => ({
+    sessionIdx: index('song_blueprints_session_id_idx').on(t.session_id),
+    artistIdx:  index('song_blueprints_artist_id_idx').on(t.artist_id),
+  }),
+);
+
+export const emotional_profiles = pgTable(
+  'emotional_profiles',
+  {
+    id:                      uuid('id').primaryKey().defaultRandom(),
+    artist_id:               uuid('artist_id').references(() => artist_profiles.id, { onDelete: 'cascade' }),
+    session_id:              uuid('session_id').references(() => creative_sessions.id, { onDelete: 'cascade' }),
+    emotion:                 emotionTypeEnum('emotion').notNull(),
+    intention:               intentionTypeEnum('intention').notNull(),
+    story:                   text('story'),
+    listener_transformation: transformationTypeEnum('listener_transformation').notNull(),
+    created_at:              timestamp('created_at').defaultNow().notNull(),
+  },
+  (t) => ({
+    artistIdx:  index('emotional_profiles_artist_id_idx').on(t.artist_id),
+    emotionIdx: index('emotional_profiles_emotion_idx').on(t.emotion),
+    sessionIdx: index('emotional_profiles_session_id_idx').on(t.session_id),
+  }),
+);
+
+export const artist_memory = pgTable(
+  'artist_memory',
+  {
+    id:               uuid('id').primaryKey().defaultRandom(),
+    artist_id:        uuid('artist_id').notNull().unique().references(() => artist_profiles.id, { onDelete: 'cascade' }),
+    dominant_emotion: emotionTypeEnum('dominant_emotion'),
+    recurring_themes: jsonb('recurring_themes').$type<string[]>().default([]).notNull(),
+    preferred_keys:   jsonb('preferred_keys').$type<string[]>().default([]).notNull(),
+    avg_bpm_min:      integer('avg_bpm_min'),
+    avg_bpm_max:      integer('avg_bpm_max'),
+    session_count:    integer('session_count').default(0).notNull(),
+    last_session_at:  timestamp('last_session_at'),
+    created_at:       timestamp('created_at').defaultNow().notNull(),
+    updated_at:       timestamp('updated_at').defaultNow().notNull(),
+  },
+  (t) => ({
+    artistIdx: index('artist_memory_artist_id_idx').on(t.artist_id),
+  }),
+);
+
+// ---- Music Intelligence — Relations ----
+
+export const creativeSessionsRelations = relations(creative_sessions, ({ one, many }) => ({
+  artist:            one(artist_profiles, { fields: [creative_sessions.artist_id], references: [artist_profiles.id] }),
+  blueprints:        many(song_blueprints),
+  emotional_profile: one(emotional_profiles, { fields: [creative_sessions.id], references: [emotional_profiles.session_id] }),
+}));
+
+export const songBlueprintsRelations = relations(song_blueprints, ({ one }) => ({
+  session: one(creative_sessions, { fields: [song_blueprints.session_id], references: [creative_sessions.id] }),
+  artist:  one(artist_profiles, { fields: [song_blueprints.artist_id], references: [artist_profiles.id] }),
+}));
+
+export const emotionalProfilesRelations = relations(emotional_profiles, ({ one }) => ({
+  session: one(creative_sessions, { fields: [emotional_profiles.session_id], references: [creative_sessions.id] }),
+  artist:  one(artist_profiles, { fields: [emotional_profiles.artist_id], references: [artist_profiles.id] }),
+}));
+
+export const artistMemoryRelations = relations(artist_memory, ({ one }) => ({
+  artist: one(artist_profiles, { fields: [artist_memory.artist_id], references: [artist_profiles.id] }),
+}));
+
 export const contentIdeasRelations = relations(content_ideas, ({ one }) => ({
   song: one(songs, {
     fields: [content_ideas.song_id],
