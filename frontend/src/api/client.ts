@@ -148,6 +148,116 @@ export const sonicWorld = {
                           apiClient.get('/sonic-world/dashboard', { params: artistId ? { artist_id: artistId } : {} }),
 }
 
+// ── Sonic Memory Engine (Phase 3) ────────────────────────────────────────────
+export const sonicMemory = {
+  // Preferences
+  recordPreference:        (body: { blueprint_id: string; artist_id: string; preference_type: string; metadata?: Record<string, unknown> }) =>
+                             apiClient.post('/sonic-world/preferences', body),
+  removePreference:        (id: string) =>
+                             apiClient.delete(`/sonic-world/preferences/${id}`),
+  getBlueprintPreferences: (blueprintId: string) =>
+                             apiClient.get(`/sonic-world/preferences/blueprint/${blueprintId}`),
+  getArtistPreferences:    (artistId: string) =>
+                             apiClient.get(`/sonic-world/preferences/artist/${artistId}`),
+  // Pattern analysis
+  analyzePatterns:         (artistId: string) =>
+                             apiClient.post(`/sonic-world/patterns/${artistId}/analyze`),
+  getPatterns:             (artistId: string) =>
+                             apiClient.get(`/sonic-world/patterns/${artistId}`),
+  // Artist profile
+  getProfile:              (artistId: string) =>
+                             apiClient.get(`/sonic-world/profile/${artistId}`),
+  // Rankings
+  getRankings:             (artistId: string) =>
+                             apiClient.get(`/sonic-world/rankings/${artistId}`),
+  // Analytics & timeline
+  getAnalytics:            (artistId: string) =>
+                             apiClient.get(`/sonic-world/analytics/${artistId}`),
+  getTimeline:             (artistId: string) =>
+                             apiClient.get(`/sonic-world/timeline/${artistId}`),
+}
+
+// ── Sonic Director Engine (Phase 4) ─────────────────────────────────────────
+export const sonicDirector = {
+  // Director recommendations
+  generate:             (artistId: string) =>
+                          apiClient.post(`/sonic-world/director/${artistId}/generate`),
+  getRecommendations:   (artistId: string) =>
+                          apiClient.get(`/sonic-world/director/${artistId}`),
+  getEvolutionMap:      (artistId: string) =>
+                          apiClient.get(`/sonic-world/evolution-map/${artistId}`),
+  // Missions
+  activateMission:      (artistId: string, mission_type: string) =>
+                          apiClient.post(`/sonic-world/missions/${artistId}/activate`, { mission_type }),
+  getMissions:          (artistId: string) =>
+                          apiClient.get(`/sonic-world/missions/${artistId}`),
+  updateProgress:       (artistId: string) =>
+                          apiClient.post(`/sonic-world/missions/${artistId}/progress`),
+  abandonMission:       (missionId: string) =>
+                          apiClient.delete(`/sonic-world/missions/${missionId}/abandon`),
+  // Gap analysis
+  runGapAnalysis:       (artistId: string) =>
+                          apiClient.post(`/sonic-world/gap-analysis/${artistId}/run`),
+  getGapAnalysis:       (artistId: string) =>
+                          apiClient.get(`/sonic-world/gap-analysis/${artistId}`),
+  // Release simulator
+  simulateRelease:      (blueprintId: string, artist_id: string) =>
+                          apiClient.post(`/sonic-world/simulate/${blueprintId}`, { artist_id }),
+  getSimulation:        (blueprintId: string) =>
+                          apiClient.get(`/sonic-world/simulate/${blueprintId}`),
+  getArtistSimulations: (artistId: string) =>
+                          apiClient.get(`/sonic-world/simulations/${artistId}`),
+}
+
+// ── Sonic Execution Engine (Phase 5) ────────────────────────────────────────
+export const sonicExecution = {
+  // Execution Plans
+  createPlan:          (artistId: string, body: Record<string, unknown>) =>
+                         apiClient.post(`/sonic-world/execution/${artistId}/plans`, body),
+  acceptRecommendation:(artistId: string, recommendation_id: string, category: string) =>
+                         apiClient.post(`/sonic-world/execution/${artistId}/accept-recommendation`, { recommendation_id, category }),
+  getPlans:            (artistId: string) =>
+                         apiClient.get(`/sonic-world/execution/${artistId}/plans`),
+  getPlanDetails:      (planId: string) =>
+                         apiClient.get(`/sonic-world/execution/plans/${planId}`),
+  updatePlanStatus:    (planId: string, status: string) =>
+                         apiClient.patch(`/sonic-world/execution/plans/${planId}/status`, { status }),
+  updateTask:          (planId: string, task_id: string, status: string) =>
+                         apiClient.patch(`/sonic-world/execution/plans/${planId}/tasks`, { task_id, status }),
+  completeMilestone:   (planId: string, milestoneId: string) =>
+                         apiClient.post(`/sonic-world/execution/plans/${planId}/milestones/${milestoneId}/complete`),
+  addCheckpoint:       (planId: string, notes: string, data_snapshot?: Record<string, unknown>) =>
+                         apiClient.post(`/sonic-world/execution/plans/${planId}/checkpoints`, { notes, data_snapshot }),
+
+  // Session Mode
+  diagnose:            (artistId: string, window?: number, session_id?: string) =>
+                         apiClient.post(`/sonic-world/session-mode/${artistId}/diagnose`, {}, { params: { window, session_id } }),
+  getLatestDiagnostic: (artistId: string) =>
+                         apiClient.get(`/sonic-world/session-mode/${artistId}/latest`),
+  getDiagnosticHistory:(artistId: string, limit?: number) =>
+                         apiClient.get(`/sonic-world/session-mode/${artistId}/history`, { params: { limit } }),
+
+  // Event Bus
+  getEvents:           (artistId: string, event_type?: string, limit?: number) =>
+                         apiClient.get(`/sonic-world/events/${artistId}`, { params: { event_type, limit } }),
+
+  // Queue Management
+  enqueueJob:          (artistId: string, job_type: string, payload: Record<string, unknown>) =>
+                         apiClient.post(`/sonic-world/queue/${artistId}/enqueue`, { job_type, payload }),
+  getQueueJobs:        (artistId: string, limit?: number) =>
+                         apiClient.get(`/sonic-world/queue/${artistId}/jobs`, { params: { limit } }),
+
+  // Platform Ingestion
+  getPipelineStatus:   () =>
+                         apiClient.get('/sonic-world/platform/pipeline-status'),
+  ingestSignal:        (artistId: string, body: Record<string, unknown>) =>
+                         apiClient.post(`/sonic-world/platform/${artistId}/signals`, body),
+  getSignals:          (artistId: string, params?: Record<string, unknown>) =>
+                         apiClient.get(`/sonic-world/platform/${artistId}/signals`, { params }),
+  getPlatformSummary:  (artistId: string) =>
+                         apiClient.get(`/sonic-world/platform/${artistId}/summary`),
+}
+
 // ── Music Intelligence ───────────────────────────────────────────────────────
 export const musicIntelligence = {
   dashboard:           (artistId?: string) => apiClient.get('/music-intelligence/dashboard', { params: artistId ? { artist_id: artistId } : {} }),

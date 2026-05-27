@@ -1,13 +1,15 @@
 import { useState, useEffect, useCallback } from 'react'
 import { artists, musicIntelligence, sonicWorld } from '../api/client'
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
 interface ArtistData  { id: string; stage_name: string }
 interface SessionData {
   id: string; name: string; emotion: string; intention: string;
   listener_transformation: string; status: string; created_at: string;
 }
-interface SWBlueprint {
-  id: string; session_id: string; artist_id: string;
+
+interface SWBlueprintFields {
   primary_genre: string; secondary_genre: string; rhythm_influence: string; sonic_fusion_identity: string;
   drum_style: string; percussion_textures: string; bass_character: string; melodic_instruments: string;
   ambient_layers: string; organic_synthetic_ratio: string;
@@ -24,8 +26,27 @@ interface SWBlueprint {
   commercial_accessibility: number; darkness_vs_hope: number;
   underground_vs_mainstream: number; organic_vs_synthetic: number;
   producer_brief: string; coherence_score: string | number;
-  engine_version: string; created_at: string;
 }
+
+interface ValidationWarning { field: string; issue: string; value?: unknown }
+interface ValidationReport {
+  is_valid: boolean; warning_count: number; warnings: ValidationWarning[]; checked_at: string;
+}
+
+interface SWBlueprint extends SWBlueprintFields {
+  id: string; session_id: string; artist_id: string;
+  engine_version: string; created_at: string;
+  // Stabilization fields
+  repaired_generation:  SWBlueprintFields | null;
+  raw_generation:       SWBlueprintFields | null;
+  validation_report:    ValidationReport | null;
+  confidence_score:     string | number | null;
+  repair_count:         number | null;
+  fallback_used:        boolean | null;
+  generation_quality:   'excellent' | 'good' | 'fair' | 'poor' | null;
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const EMOTION_COLORS: Record<string, string> = {
   grief: '#64748b', trauma: '#7c3aed', rage: '#ef4444', joy: '#f59e0b',
@@ -34,12 +55,18 @@ const EMOTION_COLORS: Record<string, string> = {
   peace: '#10b981', defiance: '#8b5cf6',
 }
 
+const QUALITY_COLORS: Record<string, string> = {
+  excellent: '#00ff41', good: '#00d4ff', fair: '#eab308', poor: '#ef4444',
+}
+
 function coherenceColor(score: number): string {
   if (score >= 0.85) return '#00ff41'
   if (score >= 0.70) return '#00d4ff'
   if (score >= 0.55) return '#eab308'
   return '#ef4444'
 }
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
 
 function Field({ label, value }: { label: string; value: string }) {
   return (
@@ -88,15 +115,17 @@ function DensityBar({
   )
 }
 
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
 export default function SonicWorld() {
-  const [artistList, setArtistList]       = useState<ArtistData[]>([])
-  const [sessionList, setSessionList]     = useState<SessionData[]>([])
+  const [artistList, setArtistList]         = useState<ArtistData[]>([])
+  const [sessionList, setSessionList]       = useState<SessionData[]>([])
   const [selectedArtist, setSelectedArtist] = useState('')
   const [selectedSession, setSelectedSession] = useState('')
-  const [blueprint, setBlueprint]         = useState<SWBlueprint | null>(null)
-  const [loading, setLoading]             = useState(false)
+  const [blueprint, setBlueprint]           = useState<SWBlueprint | null>(null)
+  const [loading, setLoading]               = useState(false)
   const [blueprintLoading, setBlueprintLoading] = useState(false)
-  const [error, setError]                 = useState('')
+  const [error, setError]                   = useState('')
 
   useEffect(() => {
     artists.list().then(r => setArtistList(r.data?.data ?? []))
@@ -139,7 +168,14 @@ export default function SonicWorld() {
   }
 
   const selectedSessionData = sessionList.find(s => s.id === selectedSession)
-  const coherenceScore = blueprint ? parseFloat(String(blueprint.coherence_score)) : 0
+  const coherenceScore      = blueprint ? parseFloat(String(blueprint.coherence_score)) : 0
+
+  // Always render from repaired_generation when available; fall back to flat fields for legacy records
+  const bp: SWBlueprintFields = blueprint?.repaired_generation ?? blueprint ?? ({} as SWBlueprintFields)
+
+  const qualityColor = blueprint?.generation_quality
+    ? (QUALITY_COLORS[blueprint.generation_quality] ?? '#888')
+    : '#888'
 
   return (
     <div className="min-h-screen bg-[#050505] text-white p-6 pb-12">
@@ -265,28 +301,28 @@ export default function SonicWorld() {
         </div>
       )}
 
-      {/* Blueprint Display */}
+      {/* Blueprint Display — all fields sourced from repaired_generation */}
       {blueprint && !blueprintLoading && (
         <div className="space-y-4">
 
           {/* Row 1: Genre DNA + Rhythm Intelligence */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <Panel title="GENRE DNA" color="#00d4ff">
-              <Field label="Primary Genre"   value={blueprint.primary_genre} />
-              <Field label="Secondary Genre" value={blueprint.secondary_genre} />
-              <Field label="Rhythm Influence" value={blueprint.rhythm_influence} />
-              <Field label="Sonic Fusion Identity" value={blueprint.sonic_fusion_identity} />
+              <Field label="Primary Genre"         value={bp.primary_genre} />
+              <Field label="Secondary Genre"       value={bp.secondary_genre} />
+              <Field label="Rhythm Influence"      value={bp.rhythm_influence} />
+              <Field label="Sonic Fusion Identity" value={bp.sonic_fusion_identity} />
             </Panel>
 
             <Panel title="RHYTHM INTELLIGENCE" color="#00ff41">
               <div className="flex items-center gap-3 mb-1">
-                <div className="text-3xl font-mono font-bold text-[#00ff41]">{blueprint.bpm}</div>
+                <div className="text-3xl font-mono font-bold text-[#00ff41]">{bp.bpm}</div>
                 <div className="text-[9px] font-mono text-gray-600 tracking-widest">BPM</div>
               </div>
-              <Field label="Groove Behavior"        value={blueprint.groove_behavior} />
-              <Field label="Movement Energy"        value={blueprint.movement_energy} />
-              <Field label="Percussion Complexity"  value={blueprint.percussion_complexity} />
-              <Field label="Swing Characteristics"  value={blueprint.swing_characteristics} />
+              <Field label="Groove Behavior"       value={bp.groove_behavior} />
+              <Field label="Movement Energy"       value={bp.movement_energy} />
+              <Field label="Percussion Complexity" value={bp.percussion_complexity} />
+              <Field label="Swing Characteristics" value={bp.swing_characteristics} />
             </Panel>
           </div>
 
@@ -296,74 +332,74 @@ export default function SonicWorld() {
               <div className="flex gap-3 mb-1">
                 <div>
                   <div className="text-[9px] font-mono text-gray-600 mb-0.5">KEY</div>
-                  <div className="text-sm font-mono font-bold text-[#a855f7]">{blueprint.musical_key}</div>
+                  <div className="text-sm font-mono font-bold text-[#a855f7]">{bp.musical_key}</div>
                 </div>
                 <div>
                   <div className="text-[9px] font-mono text-gray-600 mb-0.5">SCALE</div>
-                  <div className="text-sm font-mono text-gray-300">{blueprint.scale}</div>
+                  <div className="text-sm font-mono text-gray-300">{bp.scale}</div>
                 </div>
               </div>
-              <Field label="Chord Behavior"           value={blueprint.chord_behavior} />
-              <Field label="Emotional Progression"    value={blueprint.emotional_progression} />
-              <Field label="Tension / Release"        value={blueprint.tension_release_behavior} />
+              <Field label="Chord Behavior"        value={bp.chord_behavior} />
+              <Field label="Emotional Progression" value={bp.emotional_progression} />
+              <Field label="Tension / Release"     value={bp.tension_release_behavior} />
             </Panel>
 
             <Panel title="CINEMATIC ENVIRONMENT" color="#f59e0b">
-              <Field label="Visual Sonic Atmosphere"  value={blueprint.visual_sonic_atmosphere} />
-              <Field label="Emotional Weather"        value={blueprint.emotional_weather} />
-              <Field label="Scene Energy"             value={blueprint.scene_energy} />
-              <Field label="Cinematic References"     value={blueprint.cinematic_references} />
+              <Field label="Visual Sonic Atmosphere" value={bp.visual_sonic_atmosphere} />
+              <Field label="Emotional Weather"       value={bp.emotional_weather} />
+              <Field label="Scene Energy"            value={bp.scene_energy} />
+              <Field label="Cinematic References"    value={bp.cinematic_references} />
             </Panel>
           </div>
 
           {/* Row 3: Instrumentation + Vocal */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <Panel title="INSTRUMENTATION ARCHITECTURE" color="#06b6d4">
-              <Field label="Drum Style"            value={blueprint.drum_style} />
-              <Field label="Percussion Textures"   value={blueprint.percussion_textures} />
-              <Field label="Bass Character"        value={blueprint.bass_character} />
-              <Field label="Melodic Instruments"   value={blueprint.melodic_instruments} />
-              <Field label="Ambient Layers"        value={blueprint.ambient_layers} />
+              <Field label="Drum Style"          value={bp.drum_style} />
+              <Field label="Percussion Textures" value={bp.percussion_textures} />
+              <Field label="Bass Character"      value={bp.bass_character} />
+              <Field label="Melodic Instruments" value={bp.melodic_instruments} />
+              <Field label="Ambient Layers"      value={bp.ambient_layers} />
               <div className="pt-1 border-t border-[#06b6d4]/10">
                 <div className="text-[9px] font-mono text-gray-600 tracking-[0.15em] mb-0.5">ORGANIC / SYNTHETIC RATIO</div>
-                <div className="text-[11px] font-mono font-bold text-[#06b6d4]">{blueprint.organic_synthetic_ratio}</div>
+                <div className="text-[11px] font-mono font-bold text-[#06b6d4]">{bp.organic_synthetic_ratio}</div>
               </div>
             </Panel>
 
             <Panel title="VOCAL ARCHITECTURE" color="#ec4899">
-              <Field label="Vocal Texture"         value={blueprint.vocal_texture} />
-              <Field label="Cadence Energy"        value={blueprint.cadence_energy} />
-              <Field label="Harmony Behavior"      value={blueprint.harmony_behavior} />
-              <Field label="Emotional Intensity"   value={blueprint.emotional_intensity} />
-              <Field label="Vocal Atmosphere"      value={blueprint.vocal_atmosphere} />
+              <Field label="Vocal Texture"       value={bp.vocal_texture} />
+              <Field label="Cadence Energy"      value={bp.cadence_energy} />
+              <Field label="Harmony Behavior"    value={bp.harmony_behavior} />
+              <Field label="Emotional Intensity" value={bp.emotional_intensity} />
+              <Field label="Vocal Atmosphere"    value={bp.vocal_atmosphere} />
             </Panel>
           </div>
 
           {/* Row 4: Hook Strategy */}
           <Panel title="HOOK STRATEGY" color="#eab308">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <Field label="Hook Intensity"         value={blueprint.hook_intensity} />
-              <Field label="Chant Potential"        value={blueprint.chant_potential} />
-              <Field label="Replayability"          value={blueprint.replayability} />
-              <Field label="Anthem Potential"       value={blueprint.anthem_potential} />
-              <Field label="Crowd Engagement"       value={blueprint.crowd_engagement_energy} />
+              <Field label="Hook Intensity"    value={bp.hook_intensity} />
+              <Field label="Chant Potential"   value={bp.chant_potential} />
+              <Field label="Replayability"     value={bp.replayability} />
+              <Field label="Anthem Potential"  value={bp.anthem_potential} />
+              <Field label="Crowd Engagement"  value={bp.crowd_engagement_energy} />
             </div>
           </Panel>
 
           {/* Row 5: Production Density */}
           <Panel title="PRODUCTION DENSITY SYSTEM" color="#8b5cf6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
-              <DensityBar label="Cinematic Density"       value={blueprint.cinematic_density}        leftLabel="Minimal"       rightLabel="Epic Orchestra" color="#a855f7" />
-              <DensityBar label="Spiritual Intensity"     value={blueprint.spiritual_intensity}       leftLabel="Secular"       rightLabel="Deeply Spiritual" color="#f59e0b" />
-              <DensityBar label="Emotional Rawness"       value={blueprint.emotional_rawness}         leftLabel="Polished"      rightLabel="Completely Raw" color="#ef4444" />
-              <DensityBar label="Commercial Access"       value={blueprint.commercial_accessibility}  leftLabel="Underground"   rightLabel="Top 40" color="#00d4ff" />
-              <DensityBar label="Darkness vs Hope"        value={blueprint.darkness_vs_hope}          leftLabel="Pure Darkness" rightLabel="Pure Hope" color="#10b981" />
-              <DensityBar label="Underground vs Mainstream" value={blueprint.underground_vs_mainstream} leftLabel="Underground" rightLabel="Mainstream" color="#06b6d4" />
-              <DensityBar label="Organic vs Synthetic"   value={blueprint.organic_vs_synthetic}      leftLabel="Fully Organic" rightLabel="Fully Synthetic" color="#ec4899" />
+              <DensityBar label="Cinematic Density"         value={bp.cinematic_density}        leftLabel="Minimal"       rightLabel="Epic Orchestra"    color="#a855f7" />
+              <DensityBar label="Spiritual Intensity"       value={bp.spiritual_intensity}       leftLabel="Secular"       rightLabel="Deeply Spiritual"  color="#f59e0b" />
+              <DensityBar label="Emotional Rawness"         value={bp.emotional_rawness}         leftLabel="Polished"      rightLabel="Completely Raw"    color="#ef4444" />
+              <DensityBar label="Commercial Access"         value={bp.commercial_accessibility}  leftLabel="Underground"   rightLabel="Top 40"            color="#00d4ff" />
+              <DensityBar label="Darkness vs Hope"          value={bp.darkness_vs_hope}          leftLabel="Pure Darkness" rightLabel="Pure Hope"         color="#10b981" />
+              <DensityBar label="Underground vs Mainstream" value={bp.underground_vs_mainstream} leftLabel="Underground"   rightLabel="Mainstream"        color="#06b6d4" />
+              <DensityBar label="Organic vs Synthetic"      value={bp.organic_vs_synthetic}      leftLabel="Fully Organic" rightLabel="Fully Synthetic"   color="#ec4899" />
             </div>
           </Panel>
 
-          {/* Row 6: Producer Brief + Coherence */}
+          {/* Row 6: Producer Brief + Coherence + Quality */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             {/* Producer Brief */}
             <div className="lg:col-span-2 bg-[#080808] border border-[#00d4ff]/15 rounded-lg p-5"
@@ -373,29 +409,35 @@ export default function SonicWorld() {
                 <div className="text-[10px] font-mono font-bold text-[#00d4ff] tracking-[0.25em]">PRODUCER BRIEFING</div>
               </div>
               <p className="text-[12px] font-mono text-gray-300 leading-relaxed">
-                {blueprint.producer_brief}
+                {bp.producer_brief}
               </p>
-              <div className="mt-4 pt-3 border-t border-[#00d4ff]/10 flex items-center gap-3">
+              <div className="mt-4 pt-3 border-t border-[#00d4ff]/10 flex items-center gap-3 flex-wrap">
                 <span className="text-[9px] font-mono text-gray-700 tracking-widest">ENGINE</span>
                 <span className="text-[9px] font-mono text-gray-600">{blueprint.engine_version}</span>
                 <span className="text-[9px] font-mono text-gray-700 tracking-widest ml-2">GENERATED</span>
                 <span className="text-[9px] font-mono text-gray-600">
                   {new Date(blueprint.created_at).toLocaleDateString()}
                 </span>
+                {blueprint.repair_count != null && blueprint.repair_count > 0 && (
+                  <>
+                    <span className="text-[9px] font-mono text-gray-700 tracking-widest ml-2">REPAIRS</span>
+                    <span className="text-[9px] font-mono text-yellow-600">{blueprint.repair_count}</span>
+                  </>
+                )}
               </div>
             </div>
 
-            {/* Coherence Score */}
-            <div className="bg-[#080808] border border-[#00ff41]/15 rounded-lg p-5 flex flex-col items-center justify-center"
+            {/* Coherence + Quality */}
+            <div className="bg-[#080808] border border-[#00ff41]/15 rounded-lg p-5 flex flex-col items-center justify-center gap-3"
                  style={{ boxShadow: 'inset 0 0 0 1px #00ff410a' }}>
-              <div className="text-[9px] font-mono text-gray-600 tracking-[0.25em] mb-3">COHERENCE SCORE</div>
+              <div className="text-[9px] font-mono text-gray-600 tracking-[0.25em]">COHERENCE SCORE</div>
               <div
-                className="text-5xl font-mono font-bold mb-1 tabular-nums"
+                className="text-5xl font-mono font-bold tabular-nums"
                 style={{ color: coherenceColor(coherenceScore) }}
               >
                 {(coherenceScore * 100).toFixed(0)}
               </div>
-              <div className="text-[9px] font-mono text-gray-700 mb-4">/ 100</div>
+              <div className="text-[9px] font-mono text-gray-700">/ 100</div>
               <div className="w-full h-1 bg-[#111] rounded-full overflow-hidden">
                 <div
                   className="h-full rounded-full transition-all duration-700"
@@ -405,13 +447,31 @@ export default function SonicWorld() {
                   }}
                 />
               </div>
-              <div className="mt-3 text-[9px] font-mono text-center"
+              <div className="text-[9px] font-mono text-center"
                    style={{ color: coherenceColor(coherenceScore) }}>
                 {coherenceScore >= 0.85 ? 'HIGHLY COHERENT'
                  : coherenceScore >= 0.70 ? 'COHERENT'
                  : coherenceScore >= 0.55 ? 'MODERATE'
                  : 'LOW COHERENCE'}
               </div>
+
+              {/* Generation quality badge */}
+              {blueprint.generation_quality && (
+                <div className="mt-1 pt-3 border-t border-white/5 w-full text-center">
+                  <div className="text-[9px] font-mono text-gray-600 tracking-[0.2em] mb-1">GENERATION QUALITY</div>
+                  <div
+                    className="text-[10px] font-mono font-bold tracking-[0.15em] uppercase"
+                    style={{ color: qualityColor }}
+                  >
+                    {blueprint.generation_quality}
+                  </div>
+                  {blueprint.confidence_score != null && (
+                    <div className="text-[9px] font-mono text-gray-700 mt-0.5">
+                      {(parseFloat(String(blueprint.confidence_score)) * 100).toFixed(0)}% confidence
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 

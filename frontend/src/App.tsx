@@ -13,6 +13,9 @@ import AutomationRuns from './pages/AutomationRuns'
 import Activity from './pages/Activity'
 import MusicIntelligence from './pages/MusicIntelligence'
 import SonicWorld from './pages/SonicWorld'
+import SonicMemory from './pages/SonicMemory'
+import SonicDirector from './pages/SonicDirector'
+import SonicExecution from './pages/SonicExecution'
 
 function App() {
   return (
@@ -33,6 +36,9 @@ function App() {
           <Route path="activity" element={<Activity />} />
           <Route path="music-intelligence" element={<MusicIntelligence />} />
           <Route path="sonic-world" element={<SonicWorld />} />
+          <Route path="sonic-memory" element={<SonicMemory />} />
+          <Route path="sonic-director" element={<SonicDirector />} />
+          <Route path="sonic-execution" element={<SonicExecution />} />
         </Route>
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>

@@ -47,7 +47,13 @@
       "Bash(python3 -c ' *)",
       "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\user\\\\datiam-os\" -Directory | Where-Object { $_.Name -notmatch '^\\(node_modules|dist|\\\\.git\\)$' } | Select-Object Name)",
       "PowerShell(Get-ChildItem \"C:\\\\Users\\\\user\\\\datiam-os\\\\docs\" | Select-Object Name, @{N='KB';E={[math]::Round\\($_.Length/1KB,1\\)}})",
-      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\user\\\\datiam-os\" -Depth 2)"
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\user\\\\datiam-os\" -Depth 2)",
+      "PowerShell(git *)",
+      "Bash(Select-Object -ExpandProperty Name)",
+      "PowerShell(cd C:\\\\Users\\\\user\\\\datiam-os\\\\backend; npx tsc --noEmit 2>&1; Write-Host \"BACKEND_EXIT:$LASTEXITCODE\")",
+      "PowerShell(cd C:\\\\Users\\\\user\\\\datiam-os\\\\frontend; npx tsc --noEmit 2>&1; Write-Host \"FRONTEND_EXIT:$LASTEXITCODE\")",
+      "PowerShell(cd C:\\\\Users\\\\user\\\\datiam-os\\\\frontend; npx tsc --noEmit 2>&1; Write-Host \"EXIT:$LASTEXITCODE\")",
+      "PowerShell(Get-Content *)"
     ]
   }
 }

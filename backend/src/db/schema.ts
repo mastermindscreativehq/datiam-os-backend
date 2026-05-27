@@ -975,7 +975,16 @@ export const sonic_world_blueprints = pgTable(
     // Assembly
     producer_brief:            text('producer_brief').notNull(),
     coherence_score:           numeric('coherence_score', { precision: 4, scale: 2 }).notNull().default('0.85'),
-    engine_version:            text('engine_version').notNull().default('sw-v1'),
+    engine_version:            text('engine_version').notNull().default('sw-v2'),
+    // Stabilization audit trail
+    raw_generation:            jsonb('raw_generation'),
+    repaired_generation:       jsonb('repaired_generation'),
+    validation_report:         jsonb('validation_report'),
+    // Generation metadata
+    confidence_score:          numeric('confidence_score', { precision: 4, scale: 2 }).notNull().default('1.00'),
+    repair_count:              integer('repair_count').notNull().default(0),
+    fallback_used:             boolean('fallback_used').notNull().default(false),
+    generation_quality:        text('generation_quality').notNull().default('excellent'),
     created_at:                timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => ({
@@ -992,3 +1001,485 @@ export const sonicWorldBlueprintsRelations = relations(sonic_world_blueprints, (
 
 export type SonicWorldBlueprint = typeof sonic_world_blueprints.$inferSelect;
 export type NewSonicWorldBlueprint = typeof sonic_world_blueprints.$inferInsert;
+
+// ---- Sonic Memory Engine (Phase 3) ----
+
+export const sonic_memory = pgTable(
+  'sonic_memory',
+  {
+    id:                          uuid('id').primaryKey().defaultRandom(),
+    blueprint_id:                uuid('blueprint_id').notNull().unique().references(() => sonic_world_blueprints.id, { onDelete: 'cascade' }),
+    artist_id:                   uuid('artist_id').notNull().references(() => artist_profiles.id, { onDelete: 'cascade' }),
+    emotion_at_generation:       text('emotion_at_generation').notNull().default(''),
+    intention_at_generation:     text('intention_at_generation').notNull().default(''),
+    bpm:                         integer('bpm').notNull().default(90),
+    musical_key:                 text('musical_key').notNull().default('C'),
+    scale:                       text('scale').notNull().default('Minor'),
+    primary_genre:               text('primary_genre').notNull().default(''),
+    secondary_genre:             text('secondary_genre').notNull().default(''),
+    cinematic_density:           integer('cinematic_density').notNull().default(50),
+    spiritual_intensity:         integer('spiritual_intensity').notNull().default(50),
+    emotional_rawness:           integer('emotional_rawness').notNull().default(50),
+    commercial_accessibility:    integer('commercial_accessibility').notNull().default(50),
+    darkness_vs_hope:            integer('darkness_vs_hope').notNull().default(50),
+    underground_vs_mainstream:   integer('underground_vs_mainstream').notNull().default(50),
+    organic_vs_synthetic:        integer('organic_vs_synthetic').notNull().default(50),
+    coherence_score:             numeric('coherence_score', { precision: 4, scale: 2 }).notNull().default('0.85'),
+    confidence_score:            numeric('confidence_score', { precision: 4, scale: 2 }).notNull().default('1.00'),
+    generation_quality:          text('generation_quality').notNull().default('excellent'),
+    emotional_intensity_score:   numeric('emotional_intensity_score', { precision: 4, scale: 2 }).notNull().default('0.50'),
+    commercial_potential_score:  numeric('commercial_potential_score', { precision: 4, scale: 2 }).notNull().default('0.50'),
+    spiritual_alignment_score:   numeric('spiritual_alignment_score', { precision: 4, scale: 2 }).notNull().default('0.50'),
+    replayability_score:         numeric('replayability_score', { precision: 4, scale: 2 }).notNull().default('0.50'),
+    memory_vector:               jsonb('memory_vector'),
+    rl_weight:                   numeric('rl_weight', { precision: 4, scale: 2 }).notNull().default('1.00'),
+    ingested_at:                 timestamp('ingested_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    blueprintIdx: index('sonic_memory_blueprint_id_idx').on(t.blueprint_id),
+    artistIdx:    index('sonic_memory_artist_id_idx').on(t.artist_id),
+    ingestedIdx:  index('sonic_memory_ingested_at_idx').on(t.ingested_at),
+  }),
+);
+
+export const sonicMemoryRelations = relations(sonic_memory, ({ one }) => ({
+  blueprint: one(sonic_world_blueprints, { fields: [sonic_memory.blueprint_id], references: [sonic_world_blueprints.id] }),
+  artist:    one(artist_profiles,        { fields: [sonic_memory.artist_id],    references: [artist_profiles.id] }),
+}));
+
+export type SonicMemory = typeof sonic_memory.$inferSelect;
+export type NewSonicMemory = typeof sonic_memory.$inferInsert;
+
+export const sonic_preferences = pgTable(
+  'sonic_preferences',
+  {
+    id:              uuid('id').primaryKey().defaultRandom(),
+    blueprint_id:    uuid('blueprint_id').notNull().references(() => sonic_world_blueprints.id, { onDelete: 'cascade' }),
+    artist_id:       uuid('artist_id').notNull().references(() => artist_profiles.id, { onDelete: 'cascade' }),
+    preference_type: text('preference_type').notNull(),
+    metadata:        jsonb('metadata'),
+    created_at:      timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    blueprintIdx: index('sonic_preferences_blueprint_id_idx').on(t.blueprint_id),
+    artistIdx:    index('sonic_preferences_artist_id_idx').on(t.artist_id),
+    typeIdx:      index('sonic_preferences_type_idx').on(t.preference_type),
+  }),
+);
+
+export const sonicPreferencesRelations = relations(sonic_preferences, ({ one }) => ({
+  blueprint: one(sonic_world_blueprints, { fields: [sonic_preferences.blueprint_id], references: [sonic_world_blueprints.id] }),
+  artist:    one(artist_profiles,        { fields: [sonic_preferences.artist_id],    references: [artist_profiles.id] }),
+}));
+
+export type SonicPreference = typeof sonic_preferences.$inferSelect;
+export type NewSonicPreference = typeof sonic_preferences.$inferInsert;
+
+export const sonic_patterns = pgTable(
+  'sonic_patterns',
+  {
+    id:                           uuid('id').primaryKey().defaultRandom(),
+    artist_id:                    uuid('artist_id').notNull().unique().references(() => artist_profiles.id, { onDelete: 'cascade' }),
+    bpm_distribution:             jsonb('bpm_distribution'),
+    key_distribution:             jsonb('key_distribution'),
+    scale_distribution:           jsonb('scale_distribution'),
+    emotion_tendencies:           jsonb('emotion_tendencies'),
+    commercial_tendencies:        jsonb('commercial_tendencies'),
+    atmospheric_patterns:         jsonb('atmospheric_patterns'),
+    vocal_architecture_trends:    jsonb('vocal_architecture_trends'),
+    dominant_emotion:             text('dominant_emotion'),
+    dominant_key:                 text('dominant_key'),
+    dominant_scale:               text('dominant_scale'),
+    dominant_genre:               text('dominant_genre'),
+    avg_bpm:                      numeric('avg_bpm', { precision: 6, scale: 2 }),
+    avg_coherence:                numeric('avg_coherence', { precision: 4, scale: 2 }),
+    avg_commercial_accessibility: numeric('avg_commercial_accessibility', { precision: 4, scale: 2 }),
+    avg_spiritual_intensity:      numeric('avg_spiritual_intensity', { precision: 4, scale: 2 }),
+    avg_emotional_rawness:        numeric('avg_emotional_rawness', { precision: 4, scale: 2 }),
+    total_blueprints_analyzed:    integer('total_blueprints_analyzed').notNull().default(0),
+    last_analyzed_at:             timestamp('last_analyzed_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    artistIdx: index('sonic_patterns_artist_id_idx').on(t.artist_id),
+  }),
+);
+
+export const sonicPatternsRelations = relations(sonic_patterns, ({ one }) => ({
+  artist: one(artist_profiles, { fields: [sonic_patterns.artist_id], references: [artist_profiles.id] }),
+}));
+
+export type SonicPattern = typeof sonic_patterns.$inferSelect;
+export type NewSonicPattern = typeof sonic_patterns.$inferInsert;
+
+export const sonic_artist_profiles = pgTable(
+  'sonic_artist_profiles',
+  {
+    id:                             uuid('id').primaryKey().defaultRandom(),
+    artist_id:                      uuid('artist_id').notNull().unique().references(() => artist_profiles.id, { onDelete: 'cascade' }),
+    profile_summary:                text('profile_summary').notNull().default(''),
+    sonic_identity_tags:            jsonb('sonic_identity_tags'),
+    dominant_genres:                jsonb('dominant_genres'),
+    evolution_stage:                text('evolution_stage').notNull().default('emerging'),
+    strongest_coherence_id:         uuid('strongest_coherence_id').references(() => sonic_world_blueprints.id, { onDelete: 'set null' }),
+    highest_emotional_intensity_id: uuid('highest_emotional_intensity_id').references(() => sonic_world_blueprints.id, { onDelete: 'set null' }),
+    highest_commercial_id:          uuid('highest_commercial_id').references(() => sonic_world_blueprints.id, { onDelete: 'set null' }),
+    most_spiritual_id:              uuid('most_spiritual_id').references(() => sonic_world_blueprints.id, { onDelete: 'set null' }),
+    most_replayable_id:             uuid('most_replayable_id').references(() => sonic_world_blueprints.id, { onDelete: 'set null' }),
+    computed_at:                    timestamp('computed_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    artistIdx: index('sonic_artist_profiles_artist_id_idx').on(t.artist_id),
+  }),
+);
+
+export const sonicArtistProfilesRelations = relations(sonic_artist_profiles, ({ one }) => ({
+  artist: one(artist_profiles, { fields: [sonic_artist_profiles.artist_id], references: [artist_profiles.id] }),
+}));
+
+export type SonicArtistProfile = typeof sonic_artist_profiles.$inferSelect;
+export type NewSonicArtistProfile = typeof sonic_artist_profiles.$inferInsert;
+
+// ---- Sonic Director Engine (Phase 4) ----
+
+export const sonic_director_recommendations = pgTable(
+  'sonic_director_recommendations',
+  {
+    id:                   uuid('id').primaryKey().defaultRandom(),
+    artist_id:            uuid('artist_id').notNull().references(() => artist_profiles.id, { onDelete: 'cascade' }),
+    recommendation_type:  text('recommendation_type').notNull(),
+    title:                text('title').notNull().default(''),
+    description:          text('description').notNull().default(''),
+    rationale:            text('rationale').notNull().default(''),
+    confidence_score:     numeric('confidence_score', { precision: 4, scale: 2 }).notNull().default('0.75'),
+    priority_rank:        integer('priority_rank').notNull().default(1),
+    target_emotion:       text('target_emotion'),
+    target_bpm_min:       integer('target_bpm_min'),
+    target_bpm_max:       integer('target_bpm_max'),
+    target_key:           text('target_key'),
+    target_scale:         text('target_scale'),
+    target_genre:         text('target_genre'),
+    direction_parameters: jsonb('direction_parameters'),
+    based_on_count:       integer('based_on_count').notNull().default(0),
+    rl_metadata:          jsonb('rl_metadata'),
+    generated_at:             timestamp('generated_at', { withTimezone: true }).defaultNow().notNull(),
+    recommendation_version:   text('recommendation_version').notNull().default('rec-v1'),
+    accepted:                 boolean('accepted').notNull().default(false),
+    accepted_at:              timestamp('accepted_at', { withTimezone: true }),
+  },
+  (t) => ({
+    artistIdx:      index('sonic_director_recs_artist_id_idx').on(t.artist_id),
+    typeIdx:        index('sonic_director_recs_type_idx').on(t.recommendation_type),
+    generatedAtIdx: index('sonic_director_recs_generated_at_idx').on(t.generated_at),
+  }),
+);
+
+export const sonicDirectorRecommendationsRelations = relations(sonic_director_recommendations, ({ one }) => ({
+  artist: one(artist_profiles, { fields: [sonic_director_recommendations.artist_id], references: [artist_profiles.id] }),
+}));
+
+export type SonicDirectorRecommendation    = typeof sonic_director_recommendations.$inferSelect;
+export type NewSonicDirectorRecommendation = typeof sonic_director_recommendations.$inferInsert;
+
+export const sonic_missions = pgTable(
+  'sonic_missions',
+  {
+    id:                       uuid('id').primaryKey().defaultRandom(),
+    artist_id:                uuid('artist_id').notNull().references(() => artist_profiles.id, { onDelete: 'cascade' }),
+    mission_type:             text('mission_type').notNull(),
+    title:                    text('title').notNull().default(''),
+    description:              text('description').notNull().default(''),
+    status:                   text('status').notNull().default('active'),
+    start_score:              numeric('start_score', { precision: 5, scale: 2 }).notNull().default('0'),
+    current_score:            numeric('current_score', { precision: 5, scale: 2 }).notNull().default('0'),
+    target_score:             numeric('target_score', { precision: 5, scale: 2 }).notNull().default('75'),
+    progress_percentage:      numeric('progress_percentage', { precision: 5, scale: 2 }).notNull().default('0'),
+    blueprint_count_at_start: integer('blueprint_count_at_start').notNull().default(0),
+    blueprint_milestones:     jsonb('blueprint_milestones'),
+    mission_parameters:       jsonb('mission_parameters'),
+    created_at:               timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updated_at:               timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+    completed_at:             timestamp('completed_at', { withTimezone: true }),
+    scoring_version:          text('scoring_version').notNull().default('scoring-v1'),
+  },
+  (t) => ({
+    artistIdx: index('sonic_missions_artist_id_idx').on(t.artist_id),
+    statusIdx: index('sonic_missions_status_idx').on(t.status),
+    typeIdx:   index('sonic_missions_type_idx').on(t.mission_type),
+  }),
+);
+
+export const sonicMissionsRelations = relations(sonic_missions, ({ one }) => ({
+  artist: one(artist_profiles, { fields: [sonic_missions.artist_id], references: [artist_profiles.id] }),
+}));
+
+export type SonicMission    = typeof sonic_missions.$inferSelect;
+export type NewSonicMission = typeof sonic_missions.$inferInsert;
+
+export const sonic_gap_analysis = pgTable(
+  'sonic_gap_analysis',
+  {
+    id:                        uuid('id').primaryKey().defaultRandom(),
+    artist_id:                 uuid('artist_id').notNull().unique().references(() => artist_profiles.id, { onDelete: 'cascade' }),
+    underexplored_emotions:    jsonb('underexplored_emotions'),
+    overused_bpm_ranges:       jsonb('overused_bpm_ranges'),
+    repetitive_atmospheres:    jsonb('repetitive_atmospheres'),
+    harmonic_stagnation:       jsonb('harmonic_stagnation'),
+    gap_score:                 numeric('gap_score', { precision: 4, scale: 2 }).notNull().default('0'),
+    total_blueprints_analyzed: integer('total_blueprints_analyzed').notNull().default(0),
+    analyzed_at:               timestamp('analyzed_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    artistIdx: index('sonic_gap_analysis_artist_id_idx').on(t.artist_id),
+  }),
+);
+
+export const sonicGapAnalysisRelations = relations(sonic_gap_analysis, ({ one }) => ({
+  artist: one(artist_profiles, { fields: [sonic_gap_analysis.artist_id], references: [artist_profiles.id] }),
+}));
+
+export type SonicGapAnalysis    = typeof sonic_gap_analysis.$inferSelect;
+export type NewSonicGapAnalysis = typeof sonic_gap_analysis.$inferInsert;
+
+export const sonic_release_simulations = pgTable(
+  'sonic_release_simulations',
+  {
+    id:                       uuid('id').primaryKey().defaultRandom(),
+    blueprint_id:             uuid('blueprint_id').notNull().unique().references(() => sonic_world_blueprints.id, { onDelete: 'cascade' }),
+    artist_id:                uuid('artist_id').notNull().references(() => artist_profiles.id, { onDelete: 'cascade' }),
+    commercial_score:         numeric('commercial_score', { precision: 5, scale: 2 }).notNull().default('0'),
+    sync_score:               numeric('sync_score', { precision: 5, scale: 2 }).notNull().default('0'),
+    crowd_energy:             numeric('crowd_energy', { precision: 5, scale: 2 }).notNull().default('0'),
+    replayability_prediction: numeric('replayability_prediction', { precision: 5, scale: 2 }).notNull().default('0'),
+    emotional_stickiness:     numeric('emotional_stickiness', { precision: 5, scale: 2 }).notNull().default('0'),
+    cinematic_potential:      numeric('cinematic_potential', { precision: 5, scale: 2 }).notNull().default('0'),
+    overall_release_score:    numeric('overall_release_score', { precision: 5, scale: 2 }).notNull().default('0'),
+    sync_tags:                jsonb('sync_tags'),
+    producer_compatibility:   jsonb('producer_compatibility'),
+    simulation_notes:         text('simulation_notes').notNull().default(''),
+    confidence_score:         numeric('confidence_score', { precision: 4, scale: 2 }).notNull().default('0.80'),
+    rl_metadata:              jsonb('rl_metadata'),
+    algorithm_version:        text('algorithm_version').notNull().default('sim-v1'),
+    simulated_at:             timestamp('simulated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    blueprintIdx: index('sonic_release_sims_blueprint_id_idx').on(t.blueprint_id),
+    artistIdx:    index('sonic_release_sims_artist_id_idx').on(t.artist_id),
+  }),
+);
+
+export const sonicReleaseSimulationsRelations = relations(sonic_release_simulations, ({ one }) => ({
+  blueprint: one(sonic_world_blueprints, { fields: [sonic_release_simulations.blueprint_id], references: [sonic_world_blueprints.id] }),
+  artist:    one(artist_profiles,        { fields: [sonic_release_simulations.artist_id],    references: [artist_profiles.id] }),
+}));
+
+export type SonicReleaseSimulation    = typeof sonic_release_simulations.$inferSelect;
+export type NewSonicReleaseSimulation = typeof sonic_release_simulations.$inferInsert;
+
+// ---- Phase 5: Execution Engine ----
+
+export const sonic_execution_plans = pgTable(
+  'sonic_execution_plans',
+  {
+    id:                 uuid('id').primaryKey().defaultRandom(),
+    artist_id:          uuid('artist_id').notNull().references(() => artist_profiles.id, { onDelete: 'cascade' }),
+    recommendation_id:  uuid('recommendation_id').references(() => sonic_director_recommendations.id, { onDelete: 'set null' }),
+    mission_id:         uuid('mission_id').references(() => sonic_missions.id, { onDelete: 'set null' }),
+    category:           text('category').notNull(),
+    title:              text('title').notNull().default(''),
+    objective:          text('objective').notNull().default(''),
+    production_tasks:   jsonb('production_tasks'),
+    timeline_days:      integer('timeline_days').notNull().default(14),
+    status:             text('status').notNull().default('pending'),
+    completion_score:   numeric('completion_score', { precision: 4, scale: 2 }).notNull().default('0'),
+    scoring_version:    text('scoring_version').notNull().default('scoring-v1'),
+    algorithm_version:  text('algorithm_version').notNull().default('exec-v1'),
+    created_at:         timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updated_at:         timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+    completed_at:       timestamp('completed_at', { withTimezone: true }),
+  },
+  (t) => ({
+    artistIdx:  index('sonic_exec_plans_artist_id_idx').on(t.artist_id),
+    statusIdx:  index('sonic_exec_plans_status_idx').on(t.status),
+    categoryIdx: index('sonic_exec_plans_category_idx').on(t.category),
+    recIdx:     index('sonic_exec_plans_rec_id_idx').on(t.recommendation_id),
+  }),
+);
+
+export const sonicExecutionPlansRelations = relations(sonic_execution_plans, ({ one, many }) => ({
+  artist:         one(artist_profiles,              { fields: [sonic_execution_plans.artist_id],         references: [artist_profiles.id] }),
+  recommendation: one(sonic_director_recommendations, { fields: [sonic_execution_plans.recommendation_id], references: [sonic_director_recommendations.id] }),
+  mission:        one(sonic_missions,               { fields: [sonic_execution_plans.mission_id],        references: [sonic_missions.id] }),
+  milestones:     many(sonic_execution_milestones),
+  checkpoints:    many(sonic_execution_checkpoints),
+}));
+
+export type SonicExecutionPlan    = typeof sonic_execution_plans.$inferSelect;
+export type NewSonicExecutionPlan = typeof sonic_execution_plans.$inferInsert;
+
+export const sonic_execution_milestones = pgTable(
+  'sonic_execution_milestones',
+  {
+    id:                   uuid('id').primaryKey().defaultRandom(),
+    plan_id:              uuid('plan_id').notNull().references(() => sonic_execution_plans.id, { onDelete: 'cascade' }),
+    artist_id:            uuid('artist_id').notNull().references(() => artist_profiles.id, { onDelete: 'cascade' }),
+    title:                text('title').notNull().default(''),
+    description:          text('description').notNull().default(''),
+    target_day:           integer('target_day').notNull().default(7),
+    completion_criteria:  jsonb('completion_criteria'),
+    status:               text('status').notNull().default('pending'),
+    completed_at:         timestamp('completed_at', { withTimezone: true }),
+    created_at:           timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    planIdx:   index('sonic_exec_milestones_plan_id_idx').on(t.plan_id),
+    statusIdx: index('sonic_exec_milestones_status_idx').on(t.status),
+  }),
+);
+
+export const sonicExecutionMilestonesRelations = relations(sonic_execution_milestones, ({ one }) => ({
+  plan:   one(sonic_execution_plans, { fields: [sonic_execution_milestones.plan_id],   references: [sonic_execution_plans.id] }),
+  artist: one(artist_profiles,       { fields: [sonic_execution_milestones.artist_id], references: [artist_profiles.id] }),
+}));
+
+export type SonicExecutionMilestone    = typeof sonic_execution_milestones.$inferSelect;
+export type NewSonicExecutionMilestone = typeof sonic_execution_milestones.$inferInsert;
+
+export const sonic_execution_checkpoints = pgTable(
+  'sonic_execution_checkpoints',
+  {
+    id:                   uuid('id').primaryKey().defaultRandom(),
+    plan_id:              uuid('plan_id').notNull().references(() => sonic_execution_plans.id, { onDelete: 'cascade' }),
+    milestone_id:         uuid('milestone_id').references(() => sonic_execution_milestones.id, { onDelete: 'set null' }),
+    checkpoint_type:      text('checkpoint_type').notNull().default('manual'),
+    data_snapshot:        jsonb('data_snapshot'),
+    score_at_checkpoint:  numeric('score_at_checkpoint', { precision: 4, scale: 2 }).notNull().default('0'),
+    notes:                text('notes').notNull().default(''),
+    created_at:           timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    planIdx: index('sonic_exec_checkpoints_plan_id_idx').on(t.plan_id),
+  }),
+);
+
+export const sonicExecutionCheckpointsRelations = relations(sonic_execution_checkpoints, ({ one }) => ({
+  plan:      one(sonic_execution_plans,       { fields: [sonic_execution_checkpoints.plan_id],      references: [sonic_execution_plans.id] }),
+  milestone: one(sonic_execution_milestones,  { fields: [sonic_execution_checkpoints.milestone_id], references: [sonic_execution_milestones.id] }),
+}));
+
+export type SonicExecutionCheckpoint    = typeof sonic_execution_checkpoints.$inferSelect;
+export type NewSonicExecutionCheckpoint = typeof sonic_execution_checkpoints.$inferInsert;
+
+export const sonic_session_diagnostics = pgTable(
+  'sonic_session_diagnostics',
+  {
+    id:                            uuid('id').primaryKey().defaultRandom(),
+    artist_id:                     uuid('artist_id').notNull().references(() => artist_profiles.id, { onDelete: 'cascade' }),
+    session_id:                    uuid('session_id').references(() => creative_sessions.id, { onDelete: 'set null' }),
+    stagnation_detected:           boolean('stagnation_detected').notNull().default(false),
+    over_density_detected:         boolean('over_density_detected').notNull().default(false),
+    emotional_flatness_detected:   boolean('emotional_flatness_detected').notNull().default(false),
+    harmonic_repetition_detected:  boolean('harmonic_repetition_detected').notNull().default(false),
+    weak_transitions_detected:     boolean('weak_transitions_detected').notNull().default(false),
+    diagnostic_score:              numeric('diagnostic_score', { precision: 4, scale: 2 }).notNull().default('1.00'),
+    recommendations:               jsonb('recommendations'),
+    blueprint_window_size:         integer('blueprint_window_size').notNull().default(10),
+    analyzed_at:                   timestamp('analyzed_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    artistIdx:     index('sonic_session_diagnostics_artist_id_idx').on(t.artist_id),
+    analyzedAtIdx: index('sonic_session_diagnostics_analyzed_at_idx').on(t.analyzed_at),
+  }),
+);
+
+export const sonicSessionDiagnosticsRelations = relations(sonic_session_diagnostics, ({ one }) => ({
+  artist: one(artist_profiles,    { fields: [sonic_session_diagnostics.artist_id],  references: [artist_profiles.id] }),
+  session: one(creative_sessions, { fields: [sonic_session_diagnostics.session_id], references: [creative_sessions.id] }),
+}));
+
+export type SonicSessionDiagnostic    = typeof sonic_session_diagnostics.$inferSelect;
+export type NewSonicSessionDiagnostic = typeof sonic_session_diagnostics.$inferInsert;
+
+export const sonic_events = pgTable(
+  'sonic_events',
+  {
+    id:           uuid('id').primaryKey().defaultRandom(),
+    artist_id:    uuid('artist_id').references(() => artist_profiles.id, { onDelete: 'set null' }),
+    event_type:   text('event_type').notNull(),
+    payload:      jsonb('payload'),
+    processed:    boolean('processed').notNull().default(false),
+    processed_at: timestamp('processed_at', { withTimezone: true }),
+    created_at:   timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    artistIdx:    index('sonic_events_artist_id_idx').on(t.artist_id),
+    eventTypeIdx: index('sonic_events_event_type_idx').on(t.event_type),
+    processedIdx: index('sonic_events_processed_idx').on(t.processed),
+    createdAtIdx: index('sonic_events_created_at_idx').on(t.created_at),
+  }),
+);
+
+export const sonicEventsRelations = relations(sonic_events, ({ one }) => ({
+  artist: one(artist_profiles, { fields: [sonic_events.artist_id], references: [artist_profiles.id] }),
+}));
+
+export type SonicEvent    = typeof sonic_events.$inferSelect;
+export type NewSonicEvent = typeof sonic_events.$inferInsert;
+
+export const sonic_queue_jobs = pgTable(
+  'sonic_queue_jobs',
+  {
+    id:           uuid('id').primaryKey().defaultRandom(),
+    queue_name:   text('queue_name').notNull(),
+    job_id:       text('job_id'),
+    job_type:     text('job_type').notNull(),
+    artist_id:    uuid('artist_id').references(() => artist_profiles.id, { onDelete: 'set null' }),
+    payload:      jsonb('payload'),
+    status:       text('status').notNull().default('pending'),
+    attempts:     integer('attempts').notNull().default(0),
+    error:        text('error'),
+    created_at:   timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    completed_at: timestamp('completed_at', { withTimezone: true }),
+  },
+  (t) => ({
+    queueIdx:     index('sonic_queue_jobs_queue_name_idx').on(t.queue_name),
+    statusIdx:    index('sonic_queue_jobs_status_idx').on(t.status),
+    artistIdx:    index('sonic_queue_jobs_artist_id_idx').on(t.artist_id),
+    createdAtIdx: index('sonic_queue_jobs_created_at_idx').on(t.created_at),
+  }),
+);
+
+export const sonicQueueJobsRelations = relations(sonic_queue_jobs, ({ one }) => ({
+  artist: one(artist_profiles, { fields: [sonic_queue_jobs.artist_id], references: [artist_profiles.id] }),
+}));
+
+export type SonicQueueJob    = typeof sonic_queue_jobs.$inferSelect;
+export type NewSonicQueueJob = typeof sonic_queue_jobs.$inferInsert;
+
+export const platform_ingestion_signals = pgTable(
+  'platform_ingestion_signals',
+  {
+    id:          uuid('id').primaryKey().defaultRandom(),
+    artist_id:   uuid('artist_id').notNull().references(() => artist_profiles.id, { onDelete: 'cascade' }),
+    platform:    text('platform').notNull(),
+    signal_type: text('signal_type').notNull(),
+    track_id:    text('track_id'),
+    track_title: text('track_title'),
+    value:       numeric('value', { precision: 12, scale: 4 }).notNull().default('0'),
+    recorded_at: timestamp('recorded_at', { withTimezone: true }).defaultNow().notNull(),
+    ingested_at: timestamp('ingested_at', { withTimezone: true }).defaultNow().notNull(),
+    metadata:    jsonb('metadata'),
+  },
+  (t) => ({
+    artistIdx:     index('platform_signals_artist_id_idx').on(t.artist_id),
+    platformIdx:   index('platform_signals_platform_idx').on(t.platform),
+    signalTypeIdx: index('platform_signals_signal_type_idx').on(t.signal_type),
+    recordedAtIdx: index('platform_signals_recorded_at_idx').on(t.recorded_at),
+  }),
+);
+
+export const platformIngestionSignalsRelations = relations(platform_ingestion_signals, ({ one }) => ({
+  artist: one(artist_profiles, { fields: [platform_ingestion_signals.artist_id], references: [artist_profiles.id] }),
+}));
+
+export type PlatformIngestionSignal    = typeof platform_ingestion_signals.$inferSelect;
+export type NewPlatformIngestionSignal = typeof platform_ingestion_signals.$inferInsert;

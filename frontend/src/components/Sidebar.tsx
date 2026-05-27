@@ -13,7 +13,10 @@ const NAV = [
   { to: '/automation-runs',      label: 'AUTOMATION',    icon: '⬢' },
   { to: '/music-intelligence',   label: 'MUSIC INTEL',   icon: '◆' },
   { to: '/sonic-world',          label: 'SONIC WORLD',   icon: '◉' },
-  { to: '/activity',             label: 'ACTIVITY',      icon: '◈' },
+  { to: '/sonic-memory',         label: 'SONIC MEMORY',  icon: '◈' },
+  { to: '/sonic-director',       label: 'SONIC DIRECTOR',   icon: '◆' },
+  { to: '/sonic-execution',      label: 'EXECUTION ENGINE', icon: '⬡' },
+  { to: '/activity',             label: 'ACTIVITY',         icon: '◈' },
 ]
 
 export default function Sidebar() {

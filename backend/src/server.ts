@@ -6,6 +6,7 @@ import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import { env } from './config/env';
 import app from './app';
 import { startSchedulerWorker, stopSchedulerWorker } from './modules/scheduler/scheduler.worker';
+import { startSonicWorkers, stopSonicWorkers } from './modules/sonic-world/sonic-queue-workers';
 import { verifySchema } from './db/schemaVerifier';
 import { logActivity } from './lib/activityLogger';
 
@@ -43,6 +44,12 @@ async function main(): Promise<void> {
       console.warn('[Scheduler] Worker failed to start (non-fatal):', err);
     }
 
+    try {
+      startSonicWorkers();
+    } catch (err) {
+      console.warn('[SonicQueue] Workers failed to start (non-fatal):', err);
+    }
+
     verifySchema()
       .then(report => {
         if (report.healthy) {
@@ -78,12 +85,12 @@ async function main(): Promise<void> {
   process.on('SIGTERM', () => {
     console.log('SIGTERM received. Shutting down gracefully...');
     stopSchedulerWorker();
-    server.close(() => process.exit(0));
+    void stopSonicWorkers().finally(() => server.close(() => process.exit(0)));
   });
 
   process.on('SIGINT', () => {
     stopSchedulerWorker();
-    server.close(() => process.exit(0));
+    void stopSonicWorkers().finally(() => server.close(() => process.exit(0)));
   });
 }
 

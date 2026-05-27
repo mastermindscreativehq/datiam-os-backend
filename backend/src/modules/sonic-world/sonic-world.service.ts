@@ -4,67 +4,22 @@ import {
   creative_sessions,
   song_blueprints,
   sonic_world_blueprints,
+  sonic_preferences,
 } from '../../db/schema';
 import { AppError } from '../../middleware/errorHandler';
 import { logActivity } from '../../lib/activityLogger';
 import { computeSonicWorld } from './sonic-world-engine';
-import type { SonicWorldOutput } from './sonic-world-engine';
+import { stabilizeSonicWorld } from './sonic-world-stabilizer';
+import { sonicWorldOutputSchema } from './sonic-world.schema';
+import {
+  logRepairEvent,
+  logFallbackUsage,
+  logFailedGeneration,
+  logValidationWarning,
+} from './sonic-world-logger';
+import { ingestBlueprintMemory } from './sonic-memory.service';
 import type { SonicWorldInput, EmotionType, IntentionType, TransformationType } from './sonic-world.types';
-import type { GenerateBlueprintInput } from './sonic-world.schema';
-
-const DEFAULT_SONIC_BLUEPRINT: SonicWorldOutput = {
-  primary_genre:             'Contemporary R&B',
-  secondary_genre:           'Soul Fusion',
-  rhythm_influence:          'neo-soul groove',
-  sonic_fusion_identity:     'eclectic soul-driven sound world',
-  drum_style:                'mid-tempo trap with brushed snare',
-  percussion_textures:       'subtle layered percussion',
-  bass_character:            'warm melodic bass',
-  melodic_instruments:       'piano and keys',
-  ambient_layers:            'soft synth pads',
-  organic_synthetic_ratio:   '50% organic / 50% synthetic',
-  vocal_texture:             'smooth and expressive',
-  cadence_energy:            'flowing mid-tempo delivery',
-  harmony_behavior:          'gentle background harmonies',
-  emotional_intensity:       'controlled emotional range',
-  vocal_atmosphere:          'intimate and present',
-  visual_sonic_atmosphere:   'cinematic urban landscape',
-  emotional_weather:         'overcast with moments of light',
-  scene_energy:              'steady and introspective',
-  cinematic_references:      'contemporary cinematic palette',
-  bpm:                       90,
-  groove_behavior:           'steady mid-tempo pocket',
-  movement_energy:           'subtle body sway',
-  percussion_complexity:     'moderate layered complexity',
-  swing_characteristics:     'slight humanized swing',
-  musical_key:               'C',
-  scale:                     'Minor',
-  chord_behavior:            'i–VII–VI–VII with melodic movement',
-  emotional_progression:     'builds gradually with emotional arc',
-  tension_release_behavior:  'measured tension with chorus release',
-  hook_intensity:            'memorable and accessible',
-  chant_potential:           'moderate singalong potential',
-  replayability:             'high emotional attachment replay value',
-  anthem_potential:          'community resonance with replay depth',
-  crowd_engagement_energy:   'connected audience energy',
-  cinematic_density:         50,
-  spiritual_intensity:       50,
-  emotional_rawness:         50,
-  commercial_accessibility:  50,
-  darkness_vs_hope:          50,
-  underground_vs_mainstream: 50,
-  organic_vs_synthetic:      50,
-  producer_brief:            'A soulful mid-tempo production with balanced instrumentation and emotional depth.',
-  coherence_score:           0.85,
-};
-
-function mergeWithDefaults(output: SonicWorldOutput): SonicWorldOutput {
-  const result: Record<string, unknown> = {};
-  for (const key of Object.keys(DEFAULT_SONIC_BLUEPRINT) as (keyof SonicWorldOutput)[]) {
-    result[key] = output[key] != null ? output[key] : DEFAULT_SONIC_BLUEPRINT[key];
-  }
-  return result as unknown as SonicWorldOutput;
-}
+import type { GenerateBlueprintInput, RecordPreferenceInput } from './sonic-world.schema';
 
 export const generateBlueprint = async (
   input: GenerateBlueprintInput,
@@ -107,68 +62,166 @@ export const generateBlueprint = async (
     hook_intensity:          phase1.hook_intensity,
   };
 
-  const output = mergeWithDefaults(computeSonicWorld(sonicInput));
+  // ── Compute + Stabilize ────────────────────────────────────────────────────
+  let stabilized: ReturnType<typeof stabilizeSonicWorld>;
+  try {
+    const raw = computeSonicWorld(sonicInput);
+    stabilized = stabilizeSonicWorld(raw);
+  } catch (err) {
+    logFailedGeneration({
+      sessionId: input.session_id,
+      artistId:  input.artist_id,
+      error:     err instanceof Error ? err.message : String(err),
+      userEmail,
+    });
+    throw err;
+  }
 
+  const { raw_generation, repaired_generation, validation_report, metadata } = stabilized;
+
+  // ── Zod validation before insert ──────────────────────────────────────────
+  const zodResult = sonicWorldOutputSchema.safeParse(repaired_generation);
+  if (!zodResult.success) {
+    logValidationWarning({
+      blueprintId: '(pre-insert)',
+      sessionId:   input.session_id,
+      warningCount: zodResult.error.errors.length,
+      warnings: zodResult.error.errors.map(e => ({
+        field: e.path.join('.'),
+        issue: e.message,
+      })),
+    });
+  }
+
+  // ── Log validation warnings ────────────────────────────────────────────────
+  if (validation_report.warning_count > 0) {
+    logValidationWarning({
+      blueprintId: '(pre-insert)',
+      sessionId:   input.session_id,
+      warningCount: validation_report.warning_count,
+      warnings: validation_report.warnings.map(w => ({
+        field: w.field,
+        issue: w.issue,
+        value: w.value,
+      })),
+    });
+  }
+
+  const o = repaired_generation;
+
+  // ── DB Insert ──────────────────────────────────────────────────────────────
   const [blueprint] = await db
     .insert(sonic_world_blueprints)
     .values({
       session_id:                input.session_id,
       artist_id:                 input.artist_id,
-      primary_genre:             output.primary_genre,
-      secondary_genre:           output.secondary_genre,
-      rhythm_influence:          output.rhythm_influence,
-      sonic_fusion_identity:     output.sonic_fusion_identity,
-      drum_style:                output.drum_style,
-      percussion_textures:       output.percussion_textures,
-      bass_character:            output.bass_character,
-      melodic_instruments:       output.melodic_instruments,
-      ambient_layers:            output.ambient_layers,
-      organic_synthetic_ratio:   output.organic_synthetic_ratio,
-      vocal_texture:             output.vocal_texture,
-      cadence_energy:            output.cadence_energy,
-      harmony_behavior:          output.harmony_behavior,
-      emotional_intensity:       output.emotional_intensity,
-      vocal_atmosphere:          output.vocal_atmosphere,
-      visual_sonic_atmosphere:   output.visual_sonic_atmosphere,
-      emotional_weather:         output.emotional_weather,
-      scene_energy:              output.scene_energy,
-      cinematic_references:      output.cinematic_references,
-      bpm:                       output.bpm,
-      groove_behavior:           output.groove_behavior,
-      movement_energy:           output.movement_energy,
-      percussion_complexity:     output.percussion_complexity,
-      swing_characteristics:     output.swing_characteristics,
-      musical_key:               output.musical_key,
-      scale:                     output.scale,
-      chord_behavior:            output.chord_behavior,
-      emotional_progression:     output.emotional_progression,
-      tension_release_behavior:  output.tension_release_behavior,
-      hook_intensity:            output.hook_intensity,
-      chant_potential:           output.chant_potential,
-      replayability:             output.replayability,
-      anthem_potential:          output.anthem_potential,
-      crowd_engagement_energy:   output.crowd_engagement_energy,
-      cinematic_density:         output.cinematic_density,
-      spiritual_intensity:       output.spiritual_intensity,
-      emotional_rawness:         output.emotional_rawness,
-      commercial_accessibility:  output.commercial_accessibility,
-      darkness_vs_hope:          output.darkness_vs_hope,
-      underground_vs_mainstream: output.underground_vs_mainstream,
-      organic_vs_synthetic:      output.organic_vs_synthetic,
-      producer_brief:            output.producer_brief,
-      coherence_score:           String(output.coherence_score),
-      engine_version:            'sw-v1',
+      // Genre DNA
+      primary_genre:             o.primary_genre,
+      secondary_genre:           o.secondary_genre,
+      rhythm_influence:          o.rhythm_influence,
+      sonic_fusion_identity:     o.sonic_fusion_identity,
+      // Instrumentation
+      drum_style:                o.drum_style,
+      percussion_textures:       o.percussion_textures,
+      bass_character:            o.bass_character,
+      melodic_instruments:       o.melodic_instruments,
+      ambient_layers:            o.ambient_layers,
+      organic_synthetic_ratio:   o.organic_synthetic_ratio,
+      // Vocal Architecture
+      vocal_texture:             o.vocal_texture,
+      cadence_energy:            o.cadence_energy,
+      harmony_behavior:          o.harmony_behavior,
+      emotional_intensity:       o.emotional_intensity,
+      vocal_atmosphere:          o.vocal_atmosphere,
+      // Cinematic Environment
+      visual_sonic_atmosphere:   o.visual_sonic_atmosphere,
+      emotional_weather:         o.emotional_weather,
+      scene_energy:              o.scene_energy,
+      cinematic_references:      o.cinematic_references,
+      // Rhythm Intelligence
+      bpm:                       o.bpm,
+      groove_behavior:           o.groove_behavior,
+      movement_energy:           o.movement_energy,
+      percussion_complexity:     o.percussion_complexity,
+      swing_characteristics:     o.swing_characteristics,
+      // Harmonic Emotion System
+      musical_key:               o.musical_key,
+      scale:                     o.scale,
+      chord_behavior:            o.chord_behavior,
+      emotional_progression:     o.emotional_progression,
+      tension_release_behavior:  o.tension_release_behavior,
+      // Hook Strategy
+      hook_intensity:            o.hook_intensity,
+      chant_potential:           o.chant_potential,
+      replayability:             o.replayability,
+      anthem_potential:          o.anthem_potential,
+      crowd_engagement_energy:   o.crowd_engagement_energy,
+      // Production Density
+      cinematic_density:         o.cinematic_density,
+      spiritual_intensity:       o.spiritual_intensity,
+      emotional_rawness:         o.emotional_rawness,
+      commercial_accessibility:  o.commercial_accessibility,
+      darkness_vs_hope:          o.darkness_vs_hope,
+      underground_vs_mainstream: o.underground_vs_mainstream,
+      organic_vs_synthetic:      o.organic_vs_synthetic,
+      // Assembly
+      producer_brief:            o.producer_brief,
+      coherence_score:           String(o.coherence_score),
+      engine_version:            'sw-v2',
+      // Stabilization audit
+      raw_generation:            raw_generation as unknown as Record<string, unknown>,
+      repaired_generation:       repaired_generation as unknown as Record<string, unknown>,
+      validation_report:         validation_report as unknown as Record<string, unknown>,
+      confidence_score:          String(metadata.confidence_score),
+      repair_count:              metadata.repair_count,
+      fallback_used:             metadata.fallback_used,
+      generation_quality:        metadata.generation_quality,
     })
     .returning();
 
+  // ── Post-insert logs ───────────────────────────────────────────────────────
+  if (metadata.repair_count > 0) {
+    const repairedFields = validation_report.warnings.map(w => w.field as string);
+    logRepairEvent({
+      blueprintId:    blueprint.id,
+      sessionId:      input.session_id,
+      repairCount:    metadata.repair_count,
+      repairedFields,
+      sessionName:    session.name,
+      userEmail,
+    });
+  }
+
+  if (metadata.fallback_used) {
+    const fallbackFields = validation_report.warnings
+      .filter(w => w.issue === 'null_or_undefined' || w.issue === 'empty_string')
+      .map(w => w.field as string);
+    logFallbackUsage({
+      blueprintId:    blueprint.id,
+      sessionId:      input.session_id,
+      affectedFields: fallbackFields,
+      userEmail,
+    });
+  }
+
   logActivity({
     userEmail,
-    eventType:  'sonic_world_generated',
-    module:     'sonic-world',
-    entityType: 'sonic_world_blueprint',
-    entityId:   blueprint.id,
-    title:      `Sonic World generated: ${session.name}`,
-    description: `Genre: ${output.primary_genre} · BPM: ${output.bpm}`,
+    eventType:   'sonic_world_generated',
+    module:      'sonic-world',
+    entityType:  'sonic_world_blueprint',
+    entityId:    blueprint.id,
+    title:       `Sonic World generated: ${session.name}`,
+    description: `Genre: ${o.primary_genre} · BPM: ${o.bpm} · Quality: ${metadata.generation_quality}`,
+    metadata: {
+      confidence_score:    metadata.confidence_score,
+      repair_count:        metadata.repair_count,
+      generation_quality:  metadata.generation_quality,
+    },
+  });
+
+  // ── Memory ingestion (non-blocking) ──────────────────────────────────────────
+  ingestBlueprintMemory(blueprint, session.emotion, session.intention).catch((err) => {
+    console.error('[SonicWorld:Memory] ingestion failed for blueprint', blueprint.id, err);
   });
 
   return { session, phase1_blueprint: phase1, sonic_world_blueprint: blueprint };
@@ -194,6 +247,56 @@ export const getBlueprintHistory = async (sessionId: string, limit = 20) => {
     .limit(Math.min(limit, 50));
 };
 
+export const recordPreference = async (input: RecordPreferenceInput, userEmail?: string) => {
+  const [pref] = await db
+    .insert(sonic_preferences)
+    .values({
+      blueprint_id:    input.blueprint_id,
+      artist_id:       input.artist_id,
+      preference_type: input.preference_type,
+      metadata:        (input.metadata ?? {}) as Record<string, unknown>,
+    })
+    .returning();
+
+  logActivity({
+    userEmail,
+    eventType:   `sonic_world_${input.preference_type}`,
+    module:      'sonic-world',
+    entityType:  'sonic_world_blueprint',
+    entityId:    input.blueprint_id,
+    title:       `Blueprint ${input.preference_type}`,
+    description: `Preference recorded: ${input.preference_type}`,
+    metadata:    { preference_type: input.preference_type },
+  });
+
+  return pref;
+};
+
+export const removePreference = async (id: string) => {
+  const [deleted] = await db
+    .delete(sonic_preferences)
+    .where(eq(sonic_preferences.id, id))
+    .returning();
+  if (!deleted) throw new AppError('Preference not found', 404);
+  return deleted;
+};
+
+export const getBlueprintPreferences = async (blueprintId: string) => {
+  return db
+    .select()
+    .from(sonic_preferences)
+    .where(eq(sonic_preferences.blueprint_id, blueprintId))
+    .orderBy(desc(sonic_preferences.created_at));
+};
+
+export const getArtistPreferences = async (artistId: string) => {
+  return db
+    .select()
+    .from(sonic_preferences)
+    .where(eq(sonic_preferences.artist_id, artistId))
+    .orderBy(desc(sonic_preferences.created_at));
+};
+
 export const getDashboard = async (artistId?: string) => {
   const totalQuery = artistId
     ? db.select({ total: count() }).from(sonic_world_blueprints)
@@ -214,7 +317,7 @@ export const getDashboard = async (artistId?: string) => {
   const recent = await recentQuery;
 
   return {
-    blueprint_count: Number(blueprintCount),
+    blueprint_count:   Number(blueprintCount),
     recent_blueprints: recent,
   };
 };
