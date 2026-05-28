@@ -79,40 +79,32 @@ export const generateBlueprint = async (
 
   const { raw_generation, repaired_generation, validation_report, metadata } = stabilized;
 
-  // ── Zod validation before insert ──────────────────────────────────────────
+  // ── Zod validation — must pass before any DB write ───────────────────────
   const zodResult = sonicWorldOutputSchema.safeParse(repaired_generation);
   if (!zodResult.success) {
-    logValidationWarning({
-      blueprintId: '(pre-insert)',
-      sessionId:   input.session_id,
-      warningCount: zodResult.error.errors.length,
-      warnings: zodResult.error.errors.map(e => ({
-        field: e.path.join('.'),
-        issue: e.message,
-      })),
-    });
-  }
-
-  // ── Log validation warnings ────────────────────────────────────────────────
-  if (validation_report.warning_count > 0) {
-    logValidationWarning({
-      blueprintId: '(pre-insert)',
-      sessionId:   input.session_id,
-      warningCount: validation_report.warning_count,
-      warnings: validation_report.warnings.map(w => ({
-        field: w.field,
-        issue: w.issue,
-        value: w.value,
-      })),
-    });
+    const fields = zodResult.error.errors
+      .map(e => `${e.path.join('.')}: ${e.message}`)
+      .join('; ');
+    console.error(
+      JSON.stringify({
+        event:      'sonic_world_zod_failure',
+        session_id: input.session_id,
+        artist_id:  input.artist_id,
+        fields,
+      }),
+    );
+    throw new AppError(`Blueprint failed post-repair validation: ${fields}`, 500);
   }
 
   const o = repaired_generation;
 
   // ── DB Insert ──────────────────────────────────────────────────────────────
-  const [blueprint] = await db
-    .insert(sonic_world_blueprints)
-    .values({
+  // eslint-disable-next-line prefer-const
+  let blueprint!: typeof sonic_world_blueprints.$inferSelect;
+  try {
+    const rows = await db
+      .insert(sonic_world_blueprints)
+      .values({
       session_id:                input.session_id,
       artist_id:                 input.artist_id,
       // Genre DNA
@@ -178,8 +170,34 @@ export const generateBlueprint = async (
       generation_quality:        metadata.generation_quality,
     })
     .returning();
+    blueprint = rows[0];
+  } catch (dbErr) {
+    const msg = dbErr instanceof Error ? dbErr.message : String(dbErr);
+    console.error(
+      JSON.stringify({
+        event:      'sonic_world_db_insert_failed',
+        session_id: input.session_id,
+        artist_id:  input.artist_id,
+        error:      msg,
+      }),
+    );
+    throw new AppError(`Blueprint DB insert failed: ${msg}`, 500);
+  }
 
   // ── Post-insert logs ───────────────────────────────────────────────────────
+  if (validation_report.warning_count > 0) {
+    logValidationWarning({
+      blueprintId:  blueprint.id,
+      sessionId:    input.session_id,
+      warningCount: validation_report.warning_count,
+      warnings: validation_report.warnings.map(w => ({
+        field: w.field,
+        issue: w.issue,
+        value: w.value,
+      })),
+    });
+  }
+
   if (metadata.repair_count > 0) {
     const repairedFields = validation_report.warnings.map(w => w.field as string);
     logRepairEvent({

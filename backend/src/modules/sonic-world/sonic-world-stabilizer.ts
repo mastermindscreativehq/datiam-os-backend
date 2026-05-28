@@ -233,6 +233,15 @@ export function stabilizeSonicWorld(raw: SonicWorldOutput): StabilizationResult 
     }
   }
 
+  // Repair musical_key: extract bare key letter from AI output like "C Major", "C#m", "Cm"
+  const currentKey = repaired.musical_key as string;
+  if (currentKey && !MUSICAL_KEY_PATTERN.test(currentKey)) {
+    const extracted = currentKey.match(/^([A-G][#b]?)/)?.[1] ?? null;
+    repaired.musical_key = extracted ?? (FIELD_FALLBACKS.musical_key as string);
+    repair_count++;
+    if (!extracted) fallback_used = true;
+  }
+
   // Repair BPM
   const rawBpm = raw.bpm;
   if (rawBpm == null || isNaN(rawBpm) || rawBpm < 40 || rawBpm > 300) {

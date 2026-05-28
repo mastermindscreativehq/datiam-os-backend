@@ -53,7 +53,9 @@
       "PowerShell(cd C:\\\\Users\\\\user\\\\datiam-os\\\\backend; npx tsc --noEmit 2>&1; Write-Host \"BACKEND_EXIT:$LASTEXITCODE\")",
       "PowerShell(cd C:\\\\Users\\\\user\\\\datiam-os\\\\frontend; npx tsc --noEmit 2>&1; Write-Host \"FRONTEND_EXIT:$LASTEXITCODE\")",
       "PowerShell(cd C:\\\\Users\\\\user\\\\datiam-os\\\\frontend; npx tsc --noEmit 2>&1; Write-Host \"EXIT:$LASTEXITCODE\")",
-      "PowerShell(Get-Content *)"
+      "PowerShell(Get-Content *)",
+      "Bash(Get-ChildItem \"C:\\\\Users\\\\user\\\\datiam-os\\\\backend\\\\drizzle\\\\*.sql\")",
+      "Bash(Sort-Object Name)"
     ]
   }
 }

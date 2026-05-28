@@ -99,6 +99,13 @@
       "when": 1779886232525,
       "tag": "0013_worried_bloodscream",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1780358400000,
+      "tag": "0018_sonic_world_full_repair",
+      "breakpoints": true
     }
   ]
 }
