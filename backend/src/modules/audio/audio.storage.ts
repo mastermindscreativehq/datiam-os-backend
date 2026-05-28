@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import WebSocket from 'ws';
 import { AppError } from '../../middleware/errorHandler';
 
 const BUCKET = process.env.SUPABASE_STORAGE_BUCKET ?? 'audio-uploads';
@@ -7,7 +8,8 @@ function getSupabase() {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) throw new AppError('Supabase storage not configured', 500, 'STORAGE_UNCONFIGURED');
-  return createClient(url, key);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return createClient(url, key, { realtime: { transport: WebSocket as any } });
 }
 
 export async function uploadAudioFile(

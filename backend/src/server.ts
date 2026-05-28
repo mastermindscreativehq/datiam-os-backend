@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import './lib/node-websocket';
 import path from 'path';
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
