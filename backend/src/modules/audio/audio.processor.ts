@@ -2,9 +2,27 @@ import ffmpeg from 'fluent-ffmpeg';
 import os from 'os';
 import path from 'path';
 import fs from 'fs';
+import { execFileSync } from 'child_process';
 
-ffmpeg.setFfmpegPath('/usr/bin/ffmpeg');
-ffmpeg.setFfprobePath('/usr/bin/ffprobe');
+const ffmpegBin = process.env.FFMPEG_PATH || 'ffmpeg';
+const ffprobeBin = process.env.FFPROBE_PATH || 'ffprobe';
+
+ffmpeg.setFfmpegPath(ffmpegBin);
+ffmpeg.setFfprobePath(ffprobeBin);
+
+export function verifyFfmpegBinaries(): void {
+  console.log(`[AudioProcessor] ffmpeg  → ${ffmpegBin}`);
+  console.log(`[AudioProcessor] ffprobe → ${ffprobeBin}`);
+
+  for (const [label, bin] of [['ffmpeg', ffmpegBin], ['ffprobe', ffprobeBin]] as [string, string][]) {
+    try {
+      execFileSync(bin, ['-version'], { stdio: 'pipe' });
+      console.log(`[AudioProcessor] ${label}: OK`);
+    } catch {
+      console.error(`[AudioProcessor] ${label}: NOT FOUND — set ${label.toUpperCase()}_PATH env var to point to the binary`);
+    }
+  }
+}
 
 export interface AudioMetadata {
   duration_seconds: number;

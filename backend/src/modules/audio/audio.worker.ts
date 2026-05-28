@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm';
 import { db } from '../../db';
 import { audio_jobs } from '../../db/schema';
 import { getRedisConnection } from '../../queues';
-import { processAudioFromUrl } from './audio.processor';
+import { processAudioFromUrl, verifyFfmpegBinaries } from './audio.processor';
 import { runAISonicAnalysis } from './audio.ai';
 import {
   getUpload,
@@ -56,6 +56,8 @@ async function processJob(job: Job): Promise<void> {
 }
 
 export function startAudioWorker(): void {
+  verifyFfmpegBinaries();
+
   const conn = getRedisConnection();
   if (!conn) {
     console.log('[AudioWorker] Redis not configured — worker not started (graceful degradation)');
