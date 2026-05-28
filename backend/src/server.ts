@@ -7,6 +7,7 @@ import { env } from './config/env';
 import app from './app';
 import { startSchedulerWorker, stopSchedulerWorker } from './modules/scheduler/scheduler.worker';
 import { startSonicWorkers, stopSonicWorkers } from './modules/sonic-world/sonic-queue-workers';
+import { startAudioWorker, stopAudioWorker } from './modules/audio/audio.worker';
 import { verifySchema } from './db/schemaVerifier';
 import { logActivity } from './lib/activityLogger';
 
@@ -50,6 +51,12 @@ async function main(): Promise<void> {
       console.warn('[SonicQueue] Workers failed to start (non-fatal):', err);
     }
 
+    try {
+      startAudioWorker();
+    } catch (err) {
+      console.warn('[AudioWorker] Worker failed to start (non-fatal):', err);
+    }
+
     verifySchema()
       .then(report => {
         if (report.healthy) {
@@ -85,12 +92,14 @@ async function main(): Promise<void> {
   process.on('SIGTERM', () => {
     console.log('SIGTERM received. Shutting down gracefully...');
     stopSchedulerWorker();
-    void stopSonicWorkers().finally(() => server.close(() => process.exit(0)));
+    void Promise.allSettled([stopSonicWorkers(), stopAudioWorker()])
+      .finally(() => server.close(() => process.exit(0)));
   });
 
   process.on('SIGINT', () => {
     stopSchedulerWorker();
-    void stopSonicWorkers().finally(() => server.close(() => process.exit(0)));
+    void Promise.allSettled([stopSonicWorkers(), stopAudioWorker()])
+      .finally(() => server.close(() => process.exit(0)));
   });
 }
 

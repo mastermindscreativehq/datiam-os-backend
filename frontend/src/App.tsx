@@ -16,6 +16,7 @@ import SonicWorld from './pages/SonicWorld'
 import SonicMemory from './pages/SonicMemory'
 import SonicDirector from './pages/SonicDirector'
 import SonicExecution from './pages/SonicExecution'
+import AudioUpload from './pages/AudioUpload'
 
 function App() {
   return (
@@ -39,6 +40,7 @@ function App() {
           <Route path="sonic-memory" element={<SonicMemory />} />
           <Route path="sonic-director" element={<SonicDirector />} />
           <Route path="sonic-execution" element={<SonicExecution />} />
+          <Route path="audio-upload" element={<AudioUpload />} />
         </Route>
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>

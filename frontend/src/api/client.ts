@@ -258,6 +258,28 @@ export const sonicExecution = {
                          apiClient.get(`/sonic-world/platform/${artistId}/summary`),
 }
 
+// ── Audio Pipeline (Phase 6) ─────────────────────────────────────────────────
+export const audio = {
+  upload: (formData: FormData, onProgress?: (pct: number) => void) =>
+    apiClient.post('/audio/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 600_000, // 10 min for large files
+      onUploadProgress: (e) => {
+        if (onProgress && e.total) onProgress(Math.round((e.loaded * 100) / e.total))
+      },
+    }),
+  process:     (upload_id: string) => apiClient.post('/audio/process', { upload_id }),
+  list:        (artist_id: string, limit = 20) =>
+                 apiClient.get('/audio', { params: { artist_id, limit } }),
+  getById:     (id: string) => apiClient.get(`/audio/${id}`),
+  getAnalysis: (id: string) => apiClient.get(`/audio/${id}/analysis`),
+  uploadStem:  (formData: FormData) =>
+                 apiClient.post('/audio/stems', formData, {
+                   headers: { 'Content-Type': 'multipart/form-data' },
+                   timeout: 300_000,
+                 }),
+}
+
 // ── Music Intelligence ───────────────────────────────────────────────────────
 export const musicIntelligence = {
   dashboard:           (artistId?: string) => apiClient.get('/music-intelligence/dashboard', { params: artistId ? { artist_id: artistId } : {} }),

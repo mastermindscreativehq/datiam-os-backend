@@ -1483,3 +1483,166 @@ export const platformIngestionSignalsRelations = relations(platform_ingestion_si
 
 export type PlatformIngestionSignal    = typeof platform_ingestion_signals.$inferSelect;
 export type NewPlatformIngestionSignal = typeof platform_ingestion_signals.$inferInsert;
+
+// ── Audio Pipeline (Phase 6) ─────────────────────────────────────────────────
+
+export const audio_uploads = pgTable(
+  'audio_uploads',
+  {
+    id:               uuid('id').primaryKey().defaultRandom(),
+    session_id:       uuid('session_id').notNull().defaultRandom(),
+    artist_id:        uuid('artist_id').references(() => artist_profiles.id, { onDelete: 'set null' }),
+    song_id:          uuid('song_id').references((): AnyPgColumn => songs.id, { onDelete: 'set null' }),
+    file_name:        text('file_name').notNull(),
+    file_size:        integer('file_size').notNull(),
+    mime_type:        text('mime_type').notNull(),
+    storage_path:     text('storage_path').notNull(),
+    storage_url:      text('storage_url'),
+    duration_seconds: numeric('duration_seconds', { precision: 10, scale: 3 }),
+    status:           text('status').notNull().default('pending'),
+    upload_version:   text('upload_version').notNull().default('v1'),
+    created_at:       timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updated_at:       timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    artistIdx:    index('audio_uploads_artist_id_idx').on(t.artist_id),
+    sessionIdx:   index('audio_uploads_session_id_idx').on(t.session_id),
+    statusIdx:    index('audio_uploads_status_idx').on(t.status),
+    createdAtIdx: index('audio_uploads_created_at_idx').on(t.created_at),
+  }),
+);
+
+export const audioUploadsRelations = relations(audio_uploads, ({ one, many }) => ({
+  artist:   one(artist_profiles, { fields: [audio_uploads.artist_id], references: [artist_profiles.id] }),
+  analysis: one(audio_analysis, { fields: [audio_uploads.id], references: [audio_analysis.upload_id] }),
+  waveform: one(waveform_cache, { fields: [audio_uploads.id], references: [waveform_cache.upload_id] }),
+  jobs:     many(audio_jobs),
+  stems:    many(audio_stems),
+}));
+
+export type AudioUpload    = typeof audio_uploads.$inferSelect;
+export type NewAudioUpload = typeof audio_uploads.$inferInsert;
+
+export const audio_analysis = pgTable(
+  'audio_analysis',
+  {
+    id:                  uuid('id').primaryKey().defaultRandom(),
+    upload_id:           uuid('upload_id').notNull().references(() => audio_uploads.id, { onDelete: 'cascade' }),
+    artist_id:           uuid('artist_id').references(() => artist_profiles.id, { onDelete: 'set null' }),
+    bpm:                 numeric('bpm', { precision: 6, scale: 2 }),
+    duration_seconds:    numeric('duration_seconds', { precision: 10, scale: 3 }),
+    loudness_lufs:       numeric('loudness_lufs', { precision: 8, scale: 3 }),
+    peak_db:             numeric('peak_db', { precision: 8, scale: 3 }),
+    sample_rate:         integer('sample_rate'),
+    bit_rate:            integer('bit_rate'),
+    channels:            integer('channels'),
+    format:              text('format'),
+    spectral_centroid:   numeric('spectral_centroid', { precision: 10, scale: 3 }),
+    emotional_profile:   jsonb('emotional_profile'),
+    cinematic_score:     numeric('cinematic_score', { precision: 5, scale: 2 }),
+    sync_categories:     jsonb('sync_categories'),
+    genre_confidence:    jsonb('genre_confidence'),
+    vocal_intensity:     numeric('vocal_intensity', { precision: 5, scale: 2 }),
+    replay_score:        numeric('replay_score', { precision: 5, scale: 2 }),
+    trailer_suitability: numeric('trailer_suitability', { precision: 5, scale: 2 }),
+    ai_notes:            text('ai_notes'),
+    ai_model_version:    text('ai_model_version').notNull().default('v1'),
+    processing_version:  text('processing_version').notNull().default('v1'),
+    created_at:          timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    uploadIdx: index('audio_analysis_upload_id_idx').on(t.upload_id),
+    artistIdx: index('audio_analysis_artist_id_idx').on(t.artist_id),
+  }),
+);
+
+export const audioAnalysisRelations = relations(audio_analysis, ({ one }) => ({
+  upload: one(audio_uploads, { fields: [audio_analysis.upload_id], references: [audio_uploads.id] }),
+  artist: one(artist_profiles, { fields: [audio_analysis.artist_id], references: [artist_profiles.id] }),
+}));
+
+export type AudioAnalysis    = typeof audio_analysis.$inferSelect;
+export type NewAudioAnalysis = typeof audio_analysis.$inferInsert;
+
+export const audio_jobs = pgTable(
+  'audio_jobs',
+  {
+    id:           uuid('id').primaryKey().defaultRandom(),
+    upload_id:    uuid('upload_id').notNull().references(() => audio_uploads.id, { onDelete: 'cascade' }),
+    queue_name:   text('queue_name').notNull(),
+    job_id:       text('job_id'),
+    job_type:     text('job_type').notNull(),
+    status:       text('status').notNull().default('pending'),
+    attempts:     integer('attempts').notNull().default(0),
+    max_attempts: integer('max_attempts').notNull().default(3),
+    error:        text('error'),
+    payload:      jsonb('payload'),
+    created_at:   timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    completed_at: timestamp('completed_at', { withTimezone: true }),
+  },
+  (t) => ({
+    uploadIdx:    index('audio_jobs_upload_id_idx').on(t.upload_id),
+    statusIdx:    index('audio_jobs_status_idx').on(t.status),
+    queueIdx:     index('audio_jobs_queue_name_idx').on(t.queue_name),
+    createdAtIdx: index('audio_jobs_created_at_idx').on(t.created_at),
+  }),
+);
+
+export const audioJobsRelations = relations(audio_jobs, ({ one }) => ({
+  upload: one(audio_uploads, { fields: [audio_jobs.upload_id], references: [audio_uploads.id] }),
+}));
+
+export type AudioJob    = typeof audio_jobs.$inferSelect;
+export type NewAudioJob = typeof audio_jobs.$inferInsert;
+
+export const audio_stems = pgTable(
+  'audio_stems',
+  {
+    id:               uuid('id').primaryKey().defaultRandom(),
+    upload_id:        uuid('upload_id').notNull().references(() => audio_uploads.id, { onDelete: 'cascade' }),
+    artist_id:        uuid('artist_id').references(() => artist_profiles.id, { onDelete: 'set null' }),
+    stem_type:        text('stem_type').notNull(),
+    file_name:        text('file_name').notNull(),
+    file_size:        integer('file_size').notNull(),
+    storage_path:     text('storage_path').notNull(),
+    storage_url:      text('storage_url'),
+    duration_seconds: numeric('duration_seconds', { precision: 10, scale: 3 }),
+    status:           text('status').notNull().default('pending'),
+    created_at:       timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    uploadIdx: index('audio_stems_upload_id_idx').on(t.upload_id),
+    artistIdx: index('audio_stems_artist_id_idx').on(t.artist_id),
+    typeIdx:   index('audio_stems_stem_type_idx').on(t.stem_type),
+  }),
+);
+
+export const audioStemsRelations = relations(audio_stems, ({ one }) => ({
+  upload: one(audio_uploads, { fields: [audio_stems.upload_id], references: [audio_uploads.id] }),
+  artist: one(artist_profiles, { fields: [audio_stems.artist_id], references: [artist_profiles.id] }),
+}));
+
+export type AudioStem    = typeof audio_stems.$inferSelect;
+export type NewAudioStem = typeof audio_stems.$inferInsert;
+
+export const waveform_cache = pgTable(
+  'waveform_cache',
+  {
+    id:               uuid('id').primaryKey().defaultRandom(),
+    upload_id:        uuid('upload_id').notNull().unique().references(() => audio_uploads.id, { onDelete: 'cascade' }),
+    waveform_data:    jsonb('waveform_data').notNull(),
+    sample_count:     integer('sample_count').notNull(),
+    duration_seconds: numeric('duration_seconds', { precision: 10, scale: 3 }).notNull(),
+    generated_at:     timestamp('generated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    uploadIdx: index('waveform_cache_upload_id_idx').on(t.upload_id),
+  }),
+);
+
+export const waveformCacheRelations = relations(waveform_cache, ({ one }) => ({
+  upload: one(audio_uploads, { fields: [waveform_cache.upload_id], references: [audio_uploads.id] }),
+}));
+
+export type WaveformCache    = typeof waveform_cache.$inferSelect;
+export type NewWaveformCache = typeof waveform_cache.$inferInsert;

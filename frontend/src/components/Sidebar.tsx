@@ -16,6 +16,7 @@ const NAV = [
   { to: '/sonic-memory',         label: 'SONIC MEMORY',  icon: '◈' },
   { to: '/sonic-director',       label: 'SONIC DIRECTOR',   icon: '◆' },
   { to: '/sonic-execution',      label: 'EXECUTION ENGINE', icon: '⬡' },
+  { to: '/audio-upload',          label: 'AUDIO PIPELINE',   icon: '◎' },
   { to: '/activity',             label: 'ACTIVITY',         icon: '◈' },
 ]
 

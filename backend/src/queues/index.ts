@@ -37,6 +37,9 @@ export const sonicAnalyticsQueue  = process.env.REDIS_URL ? createQueue('sonic-a
 export const sonicMemoryQueue     = process.env.REDIS_URL ? createQueue('sonic-memory')       : null;
 export const sonicRankingQueue    = process.env.REDIS_URL ? createQueue('sonic-ranking')      : null;
 
+// Audio Pipeline Phase 6
+export const audioProcessingQueue = process.env.REDIS_URL ? createQueue('audio-processing')  : null;
+
 export async function enqueueSonicJob(
   queue: ReturnType<typeof createQueue>,
   jobName: string,
@@ -44,5 +47,15 @@ export async function enqueueSonicJob(
 ): Promise<string | null> {
   if (!queue) return null;
   const job = await queue.add(jobName, data, { attempts: 3, backoff: { type: 'exponential', delay: 2000 } });
+  return job.id ?? null;
+}
+
+export async function enqueueAudioJob(
+  queue: ReturnType<typeof createQueue>,
+  jobName: string,
+  data: Record<string, unknown>,
+): Promise<string | null> {
+  if (!queue) return null;
+  const job = await queue.add(jobName, data, { attempts: 3, backoff: { type: 'exponential', delay: 5000 } });
   return job.id ?? null;
 }

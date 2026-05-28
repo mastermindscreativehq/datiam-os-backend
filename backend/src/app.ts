@@ -32,6 +32,7 @@ import musicIntelligenceRouter from './modules/music-intelligence/music-intellig
 import sonicWorldRouter from './modules/sonic-world/sonic-world.routes';
 import activityRouter from './modules/activity/activity.routes';
 import migrationsRouter from './modules/system/migrations.routes';
+import audioRouter from './modules/audio/audio.routes';
 import { verifySchema } from './db/schemaVerifier';
 
 const app = express();
@@ -138,6 +139,9 @@ app.use('/api/ai/recommendations', aiRouter);
 app.use('/api/music-intelligence', musicIntelligenceRouter);
 app.use('/api/sonic-world', sonicWorldRouter);
 app.use('/api/activity', activityRouter);
+
+// ---- Audio Pipeline Routes (Phase 6) ----
+app.use('/api/audio', audioRouter);
 
 // ---- System Routes ----
 app.use('/api/system/migrations', migrationsRouter);

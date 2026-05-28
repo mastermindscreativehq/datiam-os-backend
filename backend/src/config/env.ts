@@ -10,6 +10,7 @@ const envSchema = z.object({
   REDIS_URL: z.string().optional(),
   SUPABASE_URL: z.string().optional(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
+  SUPABASE_STORAGE_BUCKET: z.string().default('audio-uploads'),
   N8N_WEBHOOK_SECRET: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
   ANTHROPIC_API_KEY: z.string().optional(),
