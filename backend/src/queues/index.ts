@@ -1,11 +1,11 @@
-import IORedis from 'ioredis';
+import IORedis, { RedisOptions } from 'ioredis';
 import { Queue } from 'bullmq';
 
 // Railway's *.proxy.rlwy.net is a transparent TCP pass-through proxy — it is NOT a TLS endpoint.
 // TLS must only be enabled when the URL scheme is rediss://; adding tls:{} to a redis:// URL
 // causes ioredis to send a TLS CLIENT_HELLO to a plain-TCP Redis port → ETIMEDOUT.
 // ECONNRESET on Railway proxy is fixed by keepAlive, not TLS.
-function buildRedisOpts(url: string): ConstructorParameters<typeof IORedis>[1] {
+function buildRedisOpts(url: string): RedisOptions {
   const isTls = url.startsWith('rediss://');
   return {
     maxRetriesPerRequest: null,
