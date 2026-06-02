@@ -33,6 +33,7 @@ import sonicWorldRouter from './modules/sonic-world/sonic-world.routes';
 import activityRouter from './modules/activity/activity.routes';
 import migrationsRouter from './modules/system/migrations.routes';
 import audioRouter from './modules/audio/audio.routes';
+import energyRouter from './modules/energy/energy.routes';
 import { verifySchema } from './db/schemaVerifier';
 
 const app = express();
@@ -142,6 +143,9 @@ app.use('/api/activity', activityRouter);
 
 // ---- Audio Pipeline Routes (Phase 6) ----
 app.use('/api/audio', audioRouter);
+
+// ---- Energy Intelligence Engine (Phase 7) ----
+app.use('/api/energy', energyRouter);
 
 // ---- System Routes ----
 app.use('/api/system/migrations', migrationsRouter);

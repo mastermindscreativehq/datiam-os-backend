@@ -40,6 +40,9 @@ export const sonicRankingQueue    = process.env.REDIS_URL ? createQueue('sonic-r
 // Audio Pipeline Phase 6
 export const audioProcessingQueue = process.env.REDIS_URL ? createQueue('audio-processing')  : null;
 
+// Energy Intelligence Engine Phase 7
+export const energyAnalysisQueue   = process.env.REDIS_URL ? createQueue('energy-analysis')   : null;
+
 export async function enqueueSonicJob(
   queue: ReturnType<typeof createQueue>,
   jobName: string,

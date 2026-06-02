@@ -1646,3 +1646,116 @@ export const waveformCacheRelations = relations(waveform_cache, ({ one }) => ({
 
 export type WaveformCache    = typeof waveform_cache.$inferSelect;
 export type NewWaveformCache = typeof waveform_cache.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// Energy Intelligence Engine — Phase 7
+// ---------------------------------------------------------------------------
+
+export const energy_analysis = pgTable(
+  'energy_analysis',
+  {
+    id:                uuid('id').primaryKey().defaultRandom(),
+    upload_id:         uuid('upload_id').notNull().unique().references(() => audio_uploads.id, { onDelete: 'cascade' }),
+    artist_id:         uuid('artist_id').references(() => artist_profiles.id, { onDelete: 'set null' }),
+
+    // Global intelligence
+    energy_arc:        text('energy_arc'),
+    peak_moment:       text('peak_moment'),
+    drop_strength:     numeric('drop_strength',     { precision: 5, scale: 2 }),
+    energy_volatility: numeric('energy_volatility', { precision: 5, scale: 2 }),
+    tension_curve:     text('tension_curve'),
+    replay_retention:  numeric('replay_retention',  { precision: 5, scale: 2 }),
+
+    // Compact energy curve for visualization (downsampled ~1 pt/sec)
+    energy_curve:      jsonb('energy_curve'),
+
+    // Processing provenance
+    frame_size:        integer('frame_size'),
+    hop_size:          integer('hop_size'),
+    sample_rate:       integer('sample_rate'),
+    analyzer_version:  text('analyzer_version'),
+
+    created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    artistIdx:  index('energy_analysis_artist_id_idx').on(t.artist_id),
+    createdIdx: index('energy_analysis_created_at_idx').on(t.created_at),
+  }),
+);
+
+export const energyAnalysisRelations = relations(energy_analysis, ({ one, many }) => ({
+  upload:   one(audio_uploads,    { fields: [energy_analysis.upload_id], references: [audio_uploads.id] }),
+  artist:   one(artist_profiles,  { fields: [energy_analysis.artist_id], references: [artist_profiles.id] }),
+  sections: many(energy_sections),
+}));
+
+export type EnergyAnalysis    = typeof energy_analysis.$inferSelect;
+export type NewEnergyAnalysis = typeof energy_analysis.$inferInsert;
+
+// ---------------------------------------------------------------------------
+
+export const energy_sections = pgTable(
+  'energy_sections',
+  {
+    id:                    uuid('id').primaryKey().defaultRandom(),
+    analysis_id:           uuid('analysis_id').notNull().references(() => energy_analysis.id, { onDelete: 'cascade' }),
+    upload_id:             uuid('upload_id').notNull().references(() => audio_uploads.id,    { onDelete: 'cascade' }),
+
+    section_type:          text('section_type').notNull(),
+    section_index:         integer('section_index').notNull(),
+    start_time:            numeric('start_time', { precision: 10, scale: 3 }).notNull(),
+    end_time:              numeric('end_time',   { precision: 10, scale: 3 }).notNull(),
+    duration:              numeric('duration',   { precision: 10, scale: 3 }).notNull(),
+
+    avg_rms:               numeric('avg_rms',               { precision: 10, scale: 6 }),
+    peak_rms:              numeric('peak_rms',              { precision: 10, scale: 6 }),
+    avg_spectral_centroid: numeric('avg_spectral_centroid', { precision: 10, scale: 3 }),
+    avg_spectral_flux:     numeric('avg_spectral_flux',     { precision: 10, scale: 6 }),
+    avg_zcr:               numeric('avg_zcr',               { precision: 10, scale: 6 }),
+    energy_score:          numeric('energy_score',          { precision: 5, scale: 2 }),
+    tension_score:         numeric('tension_score',         { precision: 5, scale: 2 }),
+
+    created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    analysisIdx: index('energy_sections_analysis_id_idx').on(t.analysis_id),
+    uploadIdx:   index('energy_sections_upload_id_idx').on(t.upload_id),
+  }),
+);
+
+export const energySectionsRelations = relations(energy_sections, ({ one }) => ({
+  analysis: one(energy_analysis, { fields: [energy_sections.analysis_id], references: [energy_analysis.id] }),
+  upload:   one(audio_uploads,   { fields: [energy_sections.upload_id],   references: [audio_uploads.id] }),
+}));
+
+export type EnergySection    = typeof energy_sections.$inferSelect;
+export type NewEnergySection = typeof energy_sections.$inferInsert;
+
+// ---------------------------------------------------------------------------
+
+export const energy_jobs = pgTable(
+  'energy_jobs',
+  {
+    id:            uuid('id').primaryKey().defaultRandom(),
+    upload_id:     uuid('upload_id').notNull().references(() => audio_uploads.id, { onDelete: 'cascade' }),
+    queue_job_id:  text('queue_job_id'),
+    status:        text('status').notNull().default('pending'),
+    error_message: text('error_message'),
+    started_at:    timestamp('started_at',   { withTimezone: true }),
+    completed_at:  timestamp('completed_at', { withTimezone: true }),
+    created_at:    timestamp('created_at',   { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    uploadIdx:  index('energy_jobs_upload_id_idx').on(t.upload_id),
+    statusIdx:  index('energy_jobs_status_idx').on(t.status),
+    createdIdx: index('energy_jobs_created_at_idx').on(t.created_at),
+  }),
+);
+
+export const energyJobsRelations = relations(energy_jobs, ({ one }) => ({
+  upload: one(audio_uploads, { fields: [energy_jobs.upload_id], references: [audio_uploads.id] }),
+}));
+
+export type EnergyJob    = typeof energy_jobs.$inferSelect;
+export type NewEnergyJob = typeof energy_jobs.$inferInsert;
