@@ -40,35 +40,75 @@ export async function initiateUpload(
   file: Express.Multer.File,
   songId?: string,
 ): Promise<typeof audio_uploads.$inferSelect> {
+  console.log('[Upload] initiateUpload start', {
+    artistId,
+    fileName: file.originalname,
+    fileSize: file.size,
+    mimeType: file.mimetype,
+  });
+
   const [artist] = await db
     .select({ id: artist_profiles.id })
     .from(artist_profiles)
     .where(eq(artist_profiles.id, artistId))
     .limit(1);
+
+  console.log('[Upload] artist lookup:', artist ? 'found' : 'NOT FOUND');
   if (!artist) throw new AppError('Artist not found', 404, 'ARTIST_NOT_FOUND');
 
   validateAudioFile(file.size, file.mimetype);
+  console.log('[Upload] file validation passed');
 
   const sessionId = uuidv4();
   const safeName = file.originalname.replace(/[^a-zA-Z0-9._\-]/g, '_');
   const storagePath = `${artistId}/${sessionId}/${safeName}`;
 
-  const storageUrl = await uploadAudioFile(file.buffer, storagePath, file.mimetype);
+  console.log('[Upload] calling uploadAudioFile', { storagePath });
+  let storageUrl: string;
+  try {
+    storageUrl = await uploadAudioFile(file.buffer, storagePath, file.mimetype);
+  } catch (err) {
+    const e = err as Error;
+    console.error('[Upload] uploadAudioFile FAILED:', {
+      message: e.message,
+      stack: e.stack,
+      storagePath,
+      fileName: file.originalname,
+      fileSize: file.size,
+    });
+    throw err;
+  }
+  console.log('[Upload] Supabase storage OK', { storageUrl });
 
-  const [upload] = await db
-    .insert(audio_uploads)
-    .values({
-      session_id: sessionId,
-      artist_id: artistId,
-      song_id: songId ?? null,
-      file_name: file.originalname,
-      file_size: file.size,
-      mime_type: file.mimetype,
-      storage_path: storagePath,
-      storage_url: storageUrl,
-      status: 'pending',
-    })
-    .returning();
+  let upload: typeof audio_uploads.$inferSelect;
+  try {
+    const rows = await db
+      .insert(audio_uploads)
+      .values({
+        session_id: sessionId,
+        artist_id: artistId,
+        song_id: songId ?? null,
+        file_name: file.originalname,
+        file_size: file.size,
+        mime_type: file.mimetype,
+        storage_path: storagePath,
+        storage_url: storageUrl,
+        status: 'pending',
+      })
+      .returning();
+    [upload] = rows;
+  } catch (err) {
+    const e = err as Error;
+    console.error('[Upload] DB insert audio_uploads FAILED:', {
+      message: e.message,
+      stack: e.stack,
+      artistId,
+      sessionId,
+      storagePath,
+    });
+    throw err;
+  }
+  console.log('[Upload] DB insert OK', { uploadId: upload.id });
 
   logActivity({
     eventType: 'audio.upload.initiated',

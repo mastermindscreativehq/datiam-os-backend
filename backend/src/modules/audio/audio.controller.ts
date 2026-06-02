@@ -24,19 +24,38 @@ export async function uploadAudio(
     if (!artist_id) throw new AppError('artist_id is required', 400, 'MISSING_ARTIST_ID');
 
     const upload = await initiateUpload(artist_id, file, song_id);
+    console.log('[Upload] initiateUpload complete', { uploadId: upload.id });
 
     // Enqueue async processing job
     if (audioProcessingQueue) {
-      const jobRecord = await createJobRecord(upload.id, 'process_audio', { upload_id: upload.id });
+      let jobRecord: Awaited<ReturnType<typeof createJobRecord>>;
+      try {
+        jobRecord = await createJobRecord(upload.id, 'process_audio', { upload_id: upload.id });
+        console.log('[Upload] createJobRecord OK', { jobRecordId: jobRecord.id });
+      } catch (err) {
+        const e = err as Error;
+        console.error('[Upload] createJobRecord FAILED:', {
+          message: e.message,
+          stack: e.stack,
+          uploadId: upload.id,
+        });
+        throw err;
+      }
+
       try {
         const bullJob = await enqueueAudioJob(audioProcessingQueue, 'process_audio', {
           upload_id: upload.id,
         });
+        console.log('[Upload] enqueueAudioJob OK', { bullJobId: bullJob });
         if (bullJob) {
           await updateJobRecord(jobRecord.id, { job_id: bullJob, status: 'queued' });
         }
       } catch (err) {
-        console.warn('[Audio] Failed to enqueue job (non-fatal):', err);
+        const e = err as Error;
+        console.warn('[Upload] enqueueAudioJob failed (non-fatal):', {
+          message: e.message,
+          stack: e.stack,
+        });
       }
     }
 
@@ -53,6 +72,15 @@ export async function uploadAudio(
       message: 'Upload received. Processing queued.',
     });
   } catch (err) {
+    const e = err as Error;
+    console.error('[Upload] uploadAudio 500:', {
+      message: e.message,
+      stack: e.stack,
+      fileName: req.file?.originalname,
+      fileSize: req.file?.size,
+      mimeType: req.file?.mimetype,
+      artistId: (req.body as { artist_id?: string }).artist_id,
+    });
     next(err);
   }
 }

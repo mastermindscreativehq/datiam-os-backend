@@ -19,13 +19,46 @@ export async function uploadAudioFile(
 ): Promise<string> {
   const supabase = getSupabase();
 
-  const { error } = await supabase.storage
-    .from(BUCKET)
-    .upload(storagePath, buffer, { contentType: mimeType, upsert: false });
+  console.log('[Storage] upload start', {
+    bucket: BUCKET,
+    storagePath,
+    mimeType,
+    bytes: buffer.length,
+  });
 
-  if (error) throw new AppError(`Storage upload failed: ${error.message}`, 500, 'STORAGE_ERROR');
+  let supabaseError: unknown;
+  try {
+    const { error } = await supabase.storage
+      .from(BUCKET)
+      .upload(storagePath, buffer, { contentType: mimeType, upsert: false });
+    supabaseError = error ?? null;
+  } catch (thrown) {
+    const e = thrown as Error;
+    console.error('[Storage] Supabase upload THREW (network/init exception):', {
+      message: e.message,
+      stack: e.stack,
+      storagePath,
+      mimeType,
+      bytes: buffer.length,
+    });
+    throw new AppError(`Storage upload threw: ${e.message}`, 500, 'STORAGE_ERROR');
+  }
+
+  if (supabaseError) {
+    const e = supabaseError as { message?: string; statusCode?: string; error?: string };
+    console.error('[Storage] Supabase upload returned error:', {
+      message: e.message,
+      statusCode: e.statusCode,
+      error: e.error,
+      storagePath,
+      mimeType,
+      bytes: buffer.length,
+    });
+    throw new AppError(`Storage upload failed: ${e.message}`, 500, 'STORAGE_ERROR');
+  }
 
   const { data } = supabase.storage.from(BUCKET).getPublicUrl(storagePath);
+  console.log('[Storage] upload OK', { publicUrl: data.publicUrl });
   return data.publicUrl;
 }
 
