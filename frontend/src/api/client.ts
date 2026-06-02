@@ -280,6 +280,14 @@ export const audio = {
                  }),
 }
 
+// ── Energy Intelligence (Phase 8) ───────────────────────────────────────────
+export const energy = {
+  analyze: (upload_id: string) =>
+    apiClient.post('/energy/analyze', { upload_id }),
+  get: (upload_id: string) =>
+    apiClient.get(`/energy/${upload_id}`),
+}
+
 // ── Music Intelligence ───────────────────────────────────────────────────────
 export const musicIntelligence = {
   dashboard:           (artistId?: string) => apiClient.get('/music-intelligence/dashboard', { params: artistId ? { artist_id: artistId } : {} }),

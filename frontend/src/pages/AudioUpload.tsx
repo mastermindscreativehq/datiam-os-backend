@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useDropzone } from 'react-dropzone'
-import { artists as artistsApi, audio } from '../api/client'
+import { artists as artistsApi, audio, energy as energyApi } from '../api/client'
 import LoadingSpinner from '../components/LoadingSpinner'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─── Audio Pipeline Types ─────────────────────────────────────────────────────
 
 interface Artist { id: string; stage_name: string }
 
@@ -67,6 +67,43 @@ interface UploadDetail {
   jobs: Job[]
 }
 
+// ─── Energy Intelligence Types ────────────────────────────────────────────────
+
+interface EnergyIntelligence {
+  energyArc: string
+  peakMoment: string
+  dropStrength: number
+  energyVolatility: number
+  tensionCurve: string
+  replayRetention: number
+}
+
+interface EnergyCurvePoint { t: number; rms: number; sc: number }
+
+interface EnergySection {
+  sectionType: string
+  sectionIndex: number
+  startTime: number
+  endTime: number
+  duration: number
+  energyScore: number
+  tensionScore: number
+  avgRms: number
+  avgSpectralCentroid: number
+  peakRms: number
+  avgSpectralFlux: number
+  avgZcr: number
+}
+
+type EnergyStatus = 'not_started' | 'pending' | 'processing' | 'completed' | 'failed'
+
+interface EnergyData {
+  status: EnergyStatus
+  intelligence: EnergyIntelligence | null
+  energyCurve: EnergyCurvePoint[]
+  sections: EnergySection[]
+}
+
 // ─── Waveform Canvas ──────────────────────────────────────────────────────────
 
 function WaveformCanvas({ data }: { data: number[] }) {
@@ -84,7 +121,6 @@ function WaveformCanvas({ data }: { data: number[] }) {
 
     ctx.clearRect(0, 0, width, height)
 
-    // Draw centre line
     ctx.fillStyle = '#00ff4110'
     ctx.fillRect(0, midY - 0.5, width, 1)
 
@@ -108,6 +144,172 @@ function WaveformCanvas({ data }: { data: number[] }) {
       className="w-full rounded"
       style={{ background: '#050505', display: 'block' }}
     />
+  )
+}
+
+// ─── Energy Curve Chart ───────────────────────────────────────────────────────
+
+function EnergyCurveChart({ curve, peakMoment }: { curve: EnergyCurvePoint[]; peakMoment: string }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas || curve.length < 2) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    const W = canvas.width
+    const H = canvas.height
+    const pad = { l: 0, r: 0, t: 6, b: 6 }
+    const plotW = W - pad.l - pad.r
+    const plotH = H - pad.t - pad.b
+    const maxT = curve[curve.length - 1].t || 1
+
+    ctx.clearRect(0, 0, W, H)
+    ctx.fillStyle = '#050505'
+    ctx.fillRect(0, 0, W, H)
+
+    // Subtle grid lines
+    ctx.strokeStyle = '#ffffff06'
+    ctx.lineWidth = 1
+    for (let i = 1; i < 4; i++) {
+      const y = pad.t + (plotH * i) / 4
+      ctx.beginPath()
+      ctx.moveTo(pad.l, y)
+      ctx.lineTo(pad.l + plotW, y)
+      ctx.stroke()
+    }
+
+    const toX = (t: number) => pad.l + (t / maxT) * plotW
+    const toY = (rms: number) => pad.t + plotH - rms * plotH
+
+    // Filled area
+    const grad = ctx.createLinearGradient(0, pad.t, 0, pad.t + plotH)
+    grad.addColorStop(0, '#00ff4135')
+    grad.addColorStop(1, '#00ff4105')
+
+    ctx.beginPath()
+    curve.forEach((pt, i) => {
+      const x = toX(pt.t)
+      const y = toY(pt.rms)
+      if (i === 0) ctx.moveTo(x, y)
+      else ctx.lineTo(x, y)
+    })
+    ctx.lineTo(toX(curve[curve.length - 1].t), pad.t + plotH)
+    ctx.lineTo(toX(curve[0].t), pad.t + plotH)
+    ctx.closePath()
+    ctx.fillStyle = grad
+    ctx.fill()
+
+    // Curve line
+    ctx.beginPath()
+    curve.forEach((pt, i) => {
+      const x = toX(pt.t)
+      const y = toY(pt.rms)
+      if (i === 0) ctx.moveTo(x, y)
+      else ctx.lineTo(x, y)
+    })
+    ctx.strokeStyle = '#00ff41'
+    ctx.lineWidth = 1.5
+    ctx.stroke()
+
+    // Peak moment marker
+    const parts = peakMoment.split(':').map(Number)
+    const peakSeconds = (parts[0] ?? 0) * 60 + (parts[1] ?? 0)
+    if (peakSeconds > 0 && peakSeconds < maxT) {
+      const px = toX(peakSeconds)
+      ctx.save()
+      ctx.setLineDash([3, 3])
+      ctx.strokeStyle = '#00d4ff60'
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      ctx.moveTo(px, pad.t)
+      ctx.lineTo(px, pad.t + plotH)
+      ctx.stroke()
+      ctx.restore()
+
+      ctx.fillStyle = '#00d4ff'
+      ctx.font = '9px monospace'
+      ctx.fillText('PEAK', Math.min(px + 3, W - 36), pad.t + 10)
+    }
+  }, [curve, peakMoment])
+
+  return (
+    <canvas
+      ref={canvasRef}
+      width={800}
+      height={96}
+      className="w-full rounded"
+      style={{ background: '#050505', display: 'block' }}
+    />
+  )
+}
+
+// ─── Section Timeline ─────────────────────────────────────────────────────────
+
+const SECTION_STYLE: Record<string, { color: string }> = {
+  intro:      { color: '#6366f1' },
+  verse:      { color: '#10b981' },
+  pre_chorus: { color: '#f59e0b' },
+  chorus:     { color: '#00d4ff' },
+  bridge:     { color: '#a855f7' },
+  outro:      { color: '#64748b' },
+}
+
+function SectionTimeline({ sections }: { sections: EnergySection[] }) {
+  if (!sections.length) return null
+  const totalDuration = sections[sections.length - 1].endTime || 1
+
+  const fmtTime = (s: number) => {
+    const m = Math.floor(s / 60)
+    const sec = Math.round(s % 60)
+    return `${m}:${sec.toString().padStart(2, '0')}`
+  }
+
+  return (
+    <div className="space-y-2">
+      {/* Bar */}
+      <div className="flex h-7 rounded overflow-hidden gap-[1px]">
+        {sections.map((s) => {
+          const pct = (s.duration / totalDuration) * 100
+          const style = SECTION_STYLE[s.sectionType] ?? { color: '#64748b' }
+          const label = s.sectionType.replace('_', ' ').toUpperCase()
+          return (
+            <div
+              key={`${s.sectionType}-${s.sectionIndex}`}
+              title={`${label} ${fmtTime(s.startTime)}–${fmtTime(s.endTime)}`}
+              className="flex items-center justify-center overflow-hidden text-[8px] font-mono tracking-wider shrink-0"
+              style={{
+                width: `${pct}%`,
+                background: style.color + '18',
+                borderTop: `2px solid ${style.color}60`,
+                color: style.color + 'cc',
+              }}
+            >
+              {pct > 7 ? label.substring(0, 4) : ''}
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Legend */}
+      <div className="flex flex-wrap gap-x-4 gap-y-1">
+        {sections.map((s) => {
+          const style = SECTION_STYLE[s.sectionType] ?? { color: '#64748b' }
+          return (
+            <div
+              key={`${s.sectionType}-${s.sectionIndex}-leg`}
+              className="flex items-center gap-1.5 text-[9px] font-mono"
+            >
+              <div className="w-1.5 h-1.5 rounded-sm" style={{ background: style.color }} />
+              <span style={{ color: style.color + 'cc' }}>
+                {s.sectionType.replace('_', ' ').toUpperCase()} {fmtTime(s.startTime)}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
   )
 }
 
@@ -163,6 +365,23 @@ const fmtDuration = (s: string | null) => {
 
 const fmtScore = (v: string | null) => (v ? parseFloat(v).toFixed(1) : '—')
 
+// ─── Energy Arc / Tension Curve label helpers ─────────────────────────────────
+
+const ARC_STYLE: Record<string, { label: string; color: string }> = {
+  slow_burn:    { label: 'SLOW BURN',    color: '#6366f1' },
+  explosive:    { label: 'EXPLOSIVE',    color: '#ef4444' },
+  steady:       { label: 'STEADY',       color: '#10b981' },
+  rollercoaster:{ label: 'ROLLERCOASTER',color: '#a855f7' },
+  plateau:      { label: 'PLATEAU',      color: '#64748b' },
+}
+
+const TENSION_STYLE: Record<string, { label: string; color: string }> = {
+  ascending:  { label: 'ASCENDING',  color: '#00ff41' },
+  descending: { label: 'DESCENDING', color: '#f59e0b' },
+  plateau:    { label: 'PLATEAU',    color: '#64748b' },
+  wave:       { label: 'WAVE',       color: '#a855f7' },
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function AudioUpload() {
@@ -178,7 +397,13 @@ export default function AudioUpload() {
   const [pollingIds, setPollingIds]         = useState<Set<string>>(new Set())
   const pollingRef                          = useRef<Record<string, ReturnType<typeof setInterval>>>({})
 
-  // ── Load artists ────────────────────────────────────────────────────────────
+  // Energy state
+  const [energyData, setEnergyData]           = useState<Record<string, EnergyData>>({})
+  const [energyPollingIds, setEnergyPollingIds] = useState<Set<string>>(new Set())
+  const energyPollingRef                        = useRef<Record<string, ReturnType<typeof setInterval>>>({})
+  const energyTriggeredRef                      = useRef<Set<string>>(new Set())
+
+  // ── Load artists ─────────────────────────────────────────────────────────────
   useEffect(() => {
     artistsApi.list().then((r) => {
       const data = (r.data?.data ?? []) as Artist[]
@@ -187,7 +412,7 @@ export default function AudioUpload() {
     }).catch(() => {})
   }, [])
 
-  // ── Load uploads when artist changes ────────────────────────────────────────
+  // ── Load uploads when artist changes ─────────────────────────────────────────
   useEffect(() => {
     if (!selectedArtist) return
     setLoadingUploads(true)
@@ -197,7 +422,84 @@ export default function AudioUpload() {
       .finally(() => setLoadingUploads(false))
   }, [selectedArtist])
 
-  // ── Polling for in-progress uploads ─────────────────────────────────────────
+  // ── Energy polling ───────────────────────────────────────────────────────────
+  const startEnergyPolling = useCallback((uploadId: string) => {
+    if (energyPollingRef.current[uploadId]) return
+    energyPollingRef.current[uploadId] = setInterval(async () => {
+      try {
+        const r = await energyApi.get(uploadId)
+        const res = r.data
+        const ed: EnergyData = {
+          status: res.status as EnergyStatus,
+          intelligence: res.data?.intelligence ?? null,
+          energyCurve: res.data?.energyCurve ?? [],
+          sections: res.data?.sections ?? [],
+        }
+        setEnergyData((prev) => ({ ...prev, [uploadId]: ed }))
+        if (res.status === 'completed' || res.status === 'failed') {
+          clearInterval(energyPollingRef.current[uploadId])
+          delete energyPollingRef.current[uploadId]
+          setEnergyPollingIds((prev) => { const s = new Set(prev); s.delete(uploadId); return s })
+        }
+      } catch { /* non-fatal */ }
+    }, 3000)
+    setEnergyPollingIds((prev) => new Set(prev).add(uploadId))
+  }, [])
+
+  // ── Trigger energy analysis for a completed audio upload ─────────────────────
+  const triggerEnergyAnalysis = useCallback(async (uploadId: string) => {
+    if (energyTriggeredRef.current.has(uploadId)) return
+    energyTriggeredRef.current.add(uploadId)
+
+    // Optimistically show loading
+    setEnergyData((prev) => ({
+      ...prev,
+      [uploadId]: { status: 'pending', intelligence: null, energyCurve: [], sections: [] },
+    }))
+
+    try {
+      const r = await energyApi.get(uploadId)
+      const res = r.data
+
+      if (res.status === 'completed') {
+        setEnergyData((prev) => ({
+          ...prev,
+          [uploadId]: {
+            status: 'completed',
+            intelligence: res.data?.intelligence ?? null,
+            energyCurve: res.data?.energyCurve ?? [],
+            sections: res.data?.sections ?? [],
+          },
+        }))
+        return
+      }
+
+      if (res.status === 'pending' || res.status === 'processing') {
+        setEnergyData((prev) => ({
+          ...prev,
+          [uploadId]: { status: res.status as EnergyStatus, intelligence: null, energyCurve: [], sections: [] },
+        }))
+        startEnergyPolling(uploadId)
+        return
+      }
+
+      // not_started or failed — enqueue
+      await energyApi.analyze(uploadId)
+      setEnergyData((prev) => ({
+        ...prev,
+        [uploadId]: { status: 'pending', intelligence: null, energyCurve: [], sections: [] },
+      }))
+      startEnergyPolling(uploadId)
+    } catch {
+      energyTriggeredRef.current.delete(uploadId)
+      setEnergyData((prev) => ({
+        ...prev,
+        [uploadId]: { status: 'failed', intelligence: null, energyCurve: [], sections: [] },
+      }))
+    }
+  }, [startEnergyPolling])
+
+  // ── Audio polling ─────────────────────────────────────────────────────────────
   const startPolling = useCallback((uploadId: string) => {
     if (pollingRef.current[uploadId]) return
     pollingRef.current[uploadId] = setInterval(async () => {
@@ -212,30 +514,52 @@ export default function AudioUpload() {
           clearInterval(pollingRef.current[uploadId])
           delete pollingRef.current[uploadId]
           setPollingIds((prev) => { const s = new Set(prev); s.delete(uploadId); return s })
+
+          // Auto-trigger energy analysis when audio processing is done
+          if (d.upload.status === 'analyzed') {
+            triggerEnergyAnalysis(uploadId)
+          }
         }
       } catch { /* non-fatal */ }
     }, 3000)
     setPollingIds((prev) => new Set(prev).add(uploadId))
-  }, [])
+  }, [triggerEnergyAnalysis])
 
   // Cleanup pollers on unmount
   useEffect(() => {
-    return () => { Object.values(pollingRef.current).forEach(clearInterval) }
+    return () => {
+      Object.values(pollingRef.current).forEach(clearInterval)
+      Object.values(energyPollingRef.current).forEach(clearInterval)
+    }
   }, [])
 
-  // ── Expand an upload and fetch details ──────────────────────────────────────
+  // ── Expand an upload and fetch details ───────────────────────────────────────
   const handleExpand = useCallback(async (uploadId: string) => {
     if (expandedId === uploadId) { setExpandedId(null); return }
     setExpandedId(uploadId)
+
+    // Load audio detail if not yet cached
     if (!detail[uploadId]) {
       try {
         const r = await audio.getAnalysis(uploadId)
-        setDetail((prev) => ({ ...prev, [uploadId]: r.data?.data as UploadDetail }))
-      } catch { /* non-fatal */ }
-    }
-  }, [expandedId, detail])
+        const d = r.data?.data as UploadDetail
+        setDetail((prev) => ({ ...prev, [uploadId]: d }))
 
-  // ── Dropzone ─────────────────────────────────────────────────────────────────
+        // Auto-trigger energy for already-analyzed uploads
+        if (d.upload.status === 'analyzed' && !energyTriggeredRef.current.has(uploadId)) {
+          triggerEnergyAnalysis(uploadId)
+        }
+      } catch { /* non-fatal */ }
+    } else {
+      // Detail cached — check if we should start energy
+      const d = detail[uploadId]
+      if (d.upload.status === 'analyzed' && !energyTriggeredRef.current.has(uploadId)) {
+        triggerEnergyAnalysis(uploadId)
+      }
+    }
+  }, [expandedId, detail, triggerEnergyAnalysis])
+
+  // ── Dropzone ──────────────────────────────────────────────────────────────────
   const onDrop = useCallback(async (accepted: File[]) => {
     if (!accepted.length) return
     if (!selectedArtist) { setUploadError('Select an artist first'); return }
@@ -291,7 +615,7 @@ export default function AudioUpload() {
     disabled: uploading || !selectedArtist,
   })
 
-  // ─── Render ────────────────────────────────────────────────────────────────
+  // ─── Render ──────────────────────────────────────────────────────────────────
 
   return (
     <div className="p-6 space-y-6 font-mono">
@@ -399,6 +723,8 @@ export default function AudioUpload() {
                 expanded={expandedId === upload.id}
                 detail={detail[upload.id] ?? null}
                 polling={pollingIds.has(upload.id)}
+                energyData={energyData[upload.id] ?? null}
+                energyPolling={energyPollingIds.has(upload.id)}
                 onToggle={() => handleExpand(upload.id)}
               />
             ))
@@ -412,12 +738,14 @@ export default function AudioUpload() {
 // ─── Upload Row ───────────────────────────────────────────────────────────────
 
 function UploadRow({
-  upload, expanded, detail, polling, onToggle,
+  upload, expanded, detail, polling, energyData, energyPolling, onToggle,
 }: {
   upload: Upload
   expanded: boolean
   detail: UploadDetail | null
   polling: boolean
+  energyData: EnergyData | null
+  energyPolling: boolean
   onToggle: () => void
 }) {
   return (
@@ -608,10 +936,152 @@ function UploadRow({
                   ⊗ Processing failed. Check job logs above.
                 </div>
               )}
+
+              {/* ── ENERGY INTELLIGENCE ────────────────────────────────────── */}
+              {upload.status === 'analyzed' && (
+                <EnergyIntelligenceSection
+                  energyData={energyData}
+                  energyPolling={energyPolling}
+                />
+              )}
             </>
           )}
         </div>
       )}
+    </div>
+  )
+}
+
+// ─── Energy Intelligence Section ──────────────────────────────────────────────
+
+function EnergyIntelligenceSection({
+  energyData,
+  energyPolling,
+}: {
+  energyData: EnergyData | null
+  energyPolling: boolean
+}) {
+  const isLoading = energyPolling
+    || energyData?.status === 'pending'
+    || energyData?.status === 'processing'
+
+  return (
+    <div className="border-t border-[#00d4ff]/10 pt-5 space-y-4">
+      {/* Section header */}
+      <div className="flex items-center justify-between">
+        <div className="text-[10px] text-[#00d4ff] tracking-[0.3em] uppercase font-bold">
+          Energy Intelligence
+        </div>
+        <div className="text-[9px] text-[#00d4ff]/30 tracking-widest border border-[#00d4ff]/10 px-2 py-0.5 rounded">
+          PHASE 7
+        </div>
+      </div>
+
+      {/* Loading state */}
+      {isLoading && (
+        <div className="flex items-center gap-3 py-4">
+          <div className="text-[#00d4ff] text-[10px] animate-pulse tracking-[0.3em]">
+            ◌ ANALYZING ENERGY...
+          </div>
+        </div>
+      )}
+
+      {/* Failure state */}
+      {!isLoading && energyData?.status === 'failed' && (
+        <div className="border border-red-500/25 bg-red-500/5 rounded p-3 text-red-400 text-[11px] tracking-wider">
+          ⊗ Energy analysis failed. The audio file could not be processed.
+        </div>
+      )}
+
+      {/* Completed state */}
+      {!isLoading && energyData?.status === 'completed' && energyData.intelligence && (
+        <div className="space-y-5">
+          {/* Intelligence metrics */}
+          <div className="space-y-4">
+            {/* Arc + Tension badges + Peak */}
+            <div className="grid grid-cols-3 gap-3">
+              <EnergyBadgeCard
+                label="Energy Arc"
+                value={(ARC_STYLE[energyData.intelligence.energyArc] ?? { label: energyData.intelligence.energyArc.toUpperCase(), color: '#64748b' }).label}
+                color={(ARC_STYLE[energyData.intelligence.energyArc] ?? { color: '#64748b' }).color}
+              />
+              <EnergyBadgeCard
+                label="Peak Moment"
+                value={energyData.intelligence.peakMoment}
+                color="#00d4ff"
+              />
+              <EnergyBadgeCard
+                label="Tension Curve"
+                value={(TENSION_STYLE[energyData.intelligence.tensionCurve] ?? { label: energyData.intelligence.tensionCurve.toUpperCase(), color: '#64748b' }).label}
+                color={(TENSION_STYLE[energyData.intelligence.tensionCurve] ?? { color: '#64748b' }).color}
+              />
+            </div>
+
+            {/* Score bars */}
+            <div className="space-y-2.5">
+              <ScoreBar label="Drop Strength"     value={energyData.intelligence.dropStrength}    color="#ef4444" />
+              <ScoreBar label="Energy Volatility" value={energyData.intelligence.energyVolatility} color="#a855f7" />
+              <ScoreBar label="Replay Retention"  value={energyData.intelligence.replayRetention}  color="#00ff41" />
+            </div>
+          </div>
+
+          {/* Energy Curve chart */}
+          {energyData.energyCurve.length > 1 && (
+            <div className="space-y-2">
+              <div className="text-[10px] text-[#00d4ff]/40 tracking-[0.2em] uppercase">Energy Curve</div>
+              <EnergyCurveChart
+                curve={energyData.energyCurve}
+                peakMoment={energyData.intelligence.peakMoment}
+              />
+              <div className="flex justify-between text-[9px] text-gray-700">
+                <span>0:00</span>
+                <span className="text-[#00ff41]/40">RMS Energy over Time</span>
+                <span>
+                  {(() => {
+                    const last = energyData.energyCurve[energyData.energyCurve.length - 1]?.t ?? 0
+                    const m = Math.floor(last / 60)
+                    const s = Math.round(last % 60)
+                    return `${m}:${s.toString().padStart(2, '0')}`
+                  })()}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Section Timeline */}
+          {energyData.sections.length > 0 && (
+            <div className="space-y-2">
+              <div className="text-[10px] text-[#00d4ff]/40 tracking-[0.2em] uppercase">
+                Section Timeline
+              </div>
+              <SectionTimeline sections={energyData.sections} />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Not yet triggered */}
+      {!isLoading && !energyData && (
+        <div className="text-center py-3 text-gray-700 text-[10px] tracking-widest">
+          WAITING TO START...
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Energy Badge Card ────────────────────────────────────────────────────────
+
+function EnergyBadgeCard({ label, value, color }: { label: string; value: string; color: string }) {
+  return (
+    <div className="border border-white/5 bg-white/2 rounded p-3 space-y-1.5">
+      <div className="text-[9px] text-gray-600 tracking-[0.2em] uppercase">{label}</div>
+      <div
+        className="text-[11px] font-bold tracking-wider leading-tight"
+        style={{ color }}
+      >
+        {value}
+      </div>
     </div>
   )
 }
