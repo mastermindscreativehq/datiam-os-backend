@@ -2,6 +2,8 @@ import axios from 'axios'
 
 const BASE = import.meta.env.VITE_API_URL || 'http://localhost:4000/api'
 
+console.log('[API] base URL:', BASE)
+
 export const apiClient = axios.create({
   baseURL: BASE,
   headers: { 'Content-Type': 'application/json' },
@@ -283,9 +285,9 @@ export const audio = {
 // ── Energy Intelligence (Phase 8) ───────────────────────────────────────────
 export const energy = {
   analyze: (upload_id: string) =>
-    apiClient.post('/energy/analyze', { upload_id }),
+    apiClient.post('/energy/analyze', { upload_id }, { timeout: 60_000 }),
   get: (upload_id: string) =>
-    apiClient.get(`/energy/${upload_id}`),
+    apiClient.get(`/energy/${upload_id}`, { timeout: 30_000 }),
 }
 
 // ── Music Intelligence ───────────────────────────────────────────────────────

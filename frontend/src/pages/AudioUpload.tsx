@@ -427,8 +427,10 @@ export default function AudioUpload() {
     if (energyPollingRef.current[uploadId]) return
     energyPollingRef.current[uploadId] = setInterval(async () => {
       try {
+        console.log('polling energy status', { uploadId })
         const r = await energyApi.get(uploadId)
         const res = r.data
+        console.log('energy response', { uploadId, status: res.status, hasData: !!res.data })
         const ed: EnergyData = {
           status: res.status as EnergyStatus,
           intelligence: res.data?.intelligence ?? null,
@@ -441,7 +443,9 @@ export default function AudioUpload() {
           delete energyPollingRef.current[uploadId]
           setEnergyPollingIds((prev) => { const s = new Set(prev); s.delete(uploadId); return s })
         }
-      } catch { /* non-fatal */ }
+      } catch (err) {
+        console.error('[EnergyPolling] poll error', { uploadId, err })
+      }
     }, 3000)
     setEnergyPollingIds((prev) => new Set(prev).add(uploadId))
   }, [])
@@ -458,8 +462,10 @@ export default function AudioUpload() {
     }))
 
     try {
+      console.log('polling energy status', { uploadId, phase: 'initial-check' })
       const r = await energyApi.get(uploadId)
       const res = r.data
+      console.log('energy response', { uploadId, status: res.status, hasData: !!res.data })
 
       if (res.status === 'completed') {
         setEnergyData((prev) => ({
@@ -484,13 +490,22 @@ export default function AudioUpload() {
       }
 
       // not_started or failed — enqueue
+      console.log('energy response', { uploadId, action: 'enqueueing', prevStatus: res.status })
       await energyApi.analyze(uploadId)
       setEnergyData((prev) => ({
         ...prev,
         [uploadId]: { status: 'pending', intelligence: null, energyCurve: [], sections: [] },
       }))
       startEnergyPolling(uploadId)
-    } catch {
+    } catch (err) {
+      const axiosErr = err as { code?: string; message?: string; response?: { status?: number; data?: unknown } }
+      console.error('[EnergyAnalysis] trigger failed', {
+        uploadId,
+        code: axiosErr.code,
+        message: axiosErr.message,
+        httpStatus: axiosErr.response?.status,
+        responseData: axiosErr.response?.data,
+      })
       energyTriggeredRef.current.delete(uploadId)
       setEnergyData((prev) => ({
         ...prev,
@@ -506,6 +521,7 @@ export default function AudioUpload() {
       try {
         const r = await audio.getAnalysis(uploadId)
         const d = r.data?.data as UploadDetail
+        console.log('job id', { uploadId, audioStatus: d.upload.status, jobCount: d.jobs.length })
         setDetail((prev) => ({ ...prev, [uploadId]: d }))
         setUploads((prev) =>
           prev.map((u) => (u.id === uploadId ? { ...u, status: d.upload.status } : u)),
@@ -520,7 +536,9 @@ export default function AudioUpload() {
             triggerEnergyAnalysis(uploadId)
           }
         }
-      } catch { /* non-fatal */ }
+      } catch (err) {
+        console.error('[AudioPolling] poll error', { uploadId, err })
+      }
     }, 3000)
     setPollingIds((prev) => new Set(prev).add(uploadId))
   }, [triggerEnergyAnalysis])
@@ -565,17 +583,22 @@ export default function AudioUpload() {
     if (!selectedArtist) { setUploadError('Select an artist first'); return }
 
     const file = accepted[0]
+    console.log('file selected', { name: file.name, size: file.size, type: file.type })
     setUploadError(null)
     setUploading(true)
     setUploadProgress(0)
+    console.log('upload started', { artistId: selectedArtist })
 
     try {
       const form = new FormData()
       form.append('file', file)
       form.append('artist_id', selectedArtist)
 
+      console.log('sending upload request', { endpoint: '/api/audio/upload', artistId: selectedArtist, fileName: file.name })
       const result = await audio.upload(form, (pct) => setUploadProgress(pct))
+      console.log('upload response', { status: result.status, data: result.data })
       const newUpload = result.data?.data as { upload_id: string; session_id: string; status: string; file_name: string; file_size: number; storage_url: string }
+      console.log('job id', { uploadId: newUpload.upload_id, uploadStatus: newUpload.status })
 
       const placeholder: Upload = {
         id: newUpload.upload_id,
