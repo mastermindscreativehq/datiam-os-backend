@@ -8,7 +8,7 @@ import * as schema from './schema';
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'admin@datiam.com';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? 'DatiamOS2024!';
 
-const client = postgres(process.env.DATABASE_URL!, { max: 1 });
+const client = postgres(process.env.DATABASE_URL!, { max: 1, ssl: { rejectUnauthorized: false } });
 const db = drizzle(client, { schema });
 
 async function ensureAdmin() {

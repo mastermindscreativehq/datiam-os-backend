@@ -1,5 +1,5 @@
 import { Worker, Job } from 'bullmq';
-import { getRedisConnection } from '../../queues';
+import { createWorkerConnection } from '../../queues';
 import { eq } from 'drizzle-orm';
 import { db } from '../../db';
 import { sonic_queue_jobs, sonic_world_blueprints } from '../../db/schema';
@@ -32,8 +32,7 @@ async function markFailed(jobId: string, error: string) {
 }
 
 function createWorker(queueName: string, handler: (job: Job) => Promise<void>): Worker {
-  const conn = getRedisConnection();
-  if (!conn) throw new Error(`[SonicQueue] No Redis connection for queue ${queueName}`);
+  if (!process.env.REDIS_URL) throw new Error(`[SonicQueue] No Redis connection for queue ${queueName}`);
 
   const worker = new Worker(queueName, async (job: Job) => {
     try {
@@ -45,15 +44,14 @@ function createWorker(queueName: string, handler: (job: Job) => Promise<void>): 
       await markFailed(job.id ?? '', msg);
       throw err;
     }
-  }, { connection: conn, concurrency: 2 });
+  }, { connection: createWorkerConnection(), concurrency: 2 });
 
   worker.on('error', err => console.warn(`[SonicQueue:${queueName}] Worker error:`, err.message));
   return worker;
 }
 
 export function startSonicWorkers(): void {
-  const conn = getRedisConnection();
-  if (!conn) {
+  if (!process.env.REDIS_URL) {
     console.log('[SonicQueue] Redis not configured — workers not started (graceful degradation)');
     return;
   }

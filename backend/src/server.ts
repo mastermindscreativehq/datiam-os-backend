@@ -19,7 +19,7 @@ async function runMigrations(): Promise<void> {
   const migrationUrl = process.env.MIGRATION_DATABASE_URL || process.env.DATABASE_URL;
   if (!migrationUrl) return;
 
-  const client = postgres(migrationUrl, { max: 1 });
+  const client = postgres(migrationUrl, { max: 1, ssl: { rejectUnauthorized: false } });
   try {
     await migrate(drizzle(client), {
       migrationsFolder: path.join(process.cwd(), 'drizzle'),

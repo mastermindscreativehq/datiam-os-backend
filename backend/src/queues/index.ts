@@ -1,6 +1,22 @@
 import IORedis from 'ioredis';
 import { Queue } from 'bullmq';
 
+// Railway's *.proxy.rlwy.net is a transparent TCP pass-through proxy — it is NOT a TLS endpoint.
+// TLS must only be enabled when the URL scheme is rediss://; adding tls:{} to a redis:// URL
+// causes ioredis to send a TLS CLIENT_HELLO to a plain-TCP Redis port → ETIMEDOUT.
+// ECONNRESET on Railway proxy is fixed by keepAlive, not TLS.
+function buildRedisOpts(url: string): ConstructorParameters<typeof IORedis>[1] {
+  const isTls = url.startsWith('rediss://');
+  return {
+    maxRetriesPerRequest: null,
+    enableReadyCheck: false,
+    keepAlive: 30_000,
+    connectTimeout: 30_000,
+    retryStrategy: (times: number) => Math.min(times * 200, 5_000),
+    ...(isTls ? { tls: { rejectUnauthorized: false } } : {}),
+  };
+}
+
 let redisConnection: IORedis | null = null;
 
 export const getRedisConnection = (): IORedis | null => {
@@ -8,17 +24,27 @@ export const getRedisConnection = (): IORedis | null => {
   if (!redisUrl) return null;
 
   if (!redisConnection) {
-    redisConnection = new IORedis(redisUrl, {
-      maxRetriesPerRequest: null,
-      enableReadyCheck: false,
-    });
-
-    redisConnection.on('error', (err) => {
-      console.warn('[Redis] Connection error:', err.message);
-    });
+    redisConnection = new IORedis(redisUrl, buildRedisOpts(redisUrl));
+    redisConnection.on('connect', () => console.log('[Redis] CONNECTED'));
+    redisConnection.on('ready',   () => console.log('[Redis] READY'));
+    redisConnection.on('error',   (err) => console.warn('[Redis] ERROR:', err.message));
   }
 
   return redisConnection;
+};
+
+/**
+ * Returns a fresh, dedicated IORedis connection.
+ * BullMQ Workers must NOT share the queue producer connection — each Worker
+ * needs its own socket so that blocking commands and regular operations don't
+ * contend, and a single connection failure doesn't cascade across all workers.
+ */
+export const createWorkerConnection = (): IORedis => {
+  const redisUrl = process.env.REDIS_URL;
+  if (!redisUrl) throw new Error('[Redis] REDIS_URL is not set');
+  const conn = new IORedis(redisUrl, buildRedisOpts(redisUrl));
+  conn.on('error', (err) => console.warn('[Redis:worker] ERROR:', err.message));
+  return conn;
 };
 
 const createQueue = (name: string): Queue | null => {

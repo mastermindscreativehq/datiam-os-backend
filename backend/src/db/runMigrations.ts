@@ -18,7 +18,7 @@ interface JournalEntry { tag: string }
 interface Journal { entries: JournalEntry[] }
 
 async function runMigrations() {
-  const sql = postgres(process.env.DATABASE_URL!, { max: 1, ssl: 'require' });
+  const sql = postgres(process.env.DATABASE_URL!, { max: 1, ssl: { rejectUnauthorized: false } });
 
   try {
     // Ensure tracking table exists (idempotent)

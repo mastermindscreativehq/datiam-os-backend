@@ -86,6 +86,12 @@ export async function extractEnergyFrames(inputPath: string): Promise<RawEnergyD
   const frames: EnergyFrame[] = [];
   let prevFrame: Float32Array | null = null;
 
+  // Yield the event loop every 100 frames so IORedis keepalives, BullMQ
+  // heartbeats, and TCP reads can fire during long extractions.  Without this
+  // the synchronous Meyda FFT+MFCC loop blocks Node.js for tens of seconds on
+  // large files, causing Railway's proxy idle-timeout to drop the Redis socket.
+  const YIELD_INTERVAL = 100;
+
   for (let i = 0; i + FRAME_SIZE <= samples.length; i += HOP_SIZE) {
     const frame = samples.subarray(i, i + FRAME_SIZE);
 
@@ -120,6 +126,10 @@ export async function extractEnergyFrames(inputPath: string): Promise<RawEnergyD
 
     // Copy needed so spectralFlux has stable reference for the next iteration
     prevFrame = new Float32Array(frame);
+
+    if (frames.length % YIELD_INTERVAL === 0) {
+      await new Promise<void>(resolve => setImmediate(resolve));
+    }
   }
 
   const actualDuration = duration > 0 ? duration : samples.length / SAMPLE_RATE;

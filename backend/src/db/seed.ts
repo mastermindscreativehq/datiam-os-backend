@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 import * as schema from './schema';
 
-const client = postgres(process.env.DATABASE_URL!, { max: 1 });
+const client = postgres(process.env.DATABASE_URL!, { max: 1, ssl: { rejectUnauthorized: false } });
 const db = drizzle(client, { schema });
 
 async function seed() {
