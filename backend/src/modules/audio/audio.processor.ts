@@ -18,8 +18,8 @@ export function verifyFfmpegBinaries(): void {
     try {
       execFileSync(bin, ['-version'], { stdio: 'pipe' });
       console.log(`[AudioProcessor] ${label}: OK`);
-    } catch {
-      console.error(`[AudioProcessor] ${label}: NOT FOUND — set ${label.toUpperCase()}_PATH env var to point to the binary`);
+    } catch (err) {
+      console.error(`[AudioProcessor] ${label}: NOT FOUND — set ${label.toUpperCase()}_PATH env var to point to the binary`, err instanceof Error ? err.stack : err);
     }
   }
 }
@@ -137,7 +137,8 @@ async function generateWaveformData(inputPath: string, points = 500): Promise<nu
     }
 
     return waveform;
-  } catch {
+  } catch (err) {
+    console.error('[AudioProcessor] generateWaveformData failed:', err instanceof Error ? err.stack : err);
     return new Array(points).fill(0) as number[];
   } finally {
     safeUnlink(tmpOut);
@@ -219,7 +220,8 @@ async function estimateBPM(inputPath: string): Promise<number | null> {
     while (adjusted > 180) adjusted /= 2;
 
     return Math.round(adjusted * 10) / 10;
-  } catch {
+  } catch (err) {
+    console.error('[AudioProcessor] estimateBPM failed:', err instanceof Error ? err.stack : err);
     return null;
   } finally {
     safeUnlink(tmpOut);

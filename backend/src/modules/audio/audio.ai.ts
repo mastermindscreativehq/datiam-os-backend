@@ -82,7 +82,8 @@ Respond ONLY with valid JSON — no markdown, no text outside the JSON object:
     if (!match) return null;
 
     return JSON.parse(match[0]) as AudioAIProfile;
-  } catch {
+  } catch (err) {
+    console.error('[AudioAI] runAISonicAnalysis failed:', err instanceof Error ? err.stack : err);
     return null;
   }
 }

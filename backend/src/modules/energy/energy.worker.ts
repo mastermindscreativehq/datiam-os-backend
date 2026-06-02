@@ -1,5 +1,5 @@
 import { Worker, Job } from 'bullmq';
-import { getRedisConnection } from '../../queues';
+import { createWorkerConnection } from '../../queues';
 import { extractEnergyFrames } from './energy.analyzer';
 import { detectSections } from './energy.sections';
 import { computeEnergyIntelligence, buildEnergyCurve } from './energy.scoring';
@@ -56,26 +56,31 @@ async function processEnergyJob(job: Job): Promise<void> {
 }
 
 export function startEnergyWorker(): void {
-  const conn = getRedisConnection();
-  if (!conn) {
+  if (!process.env.REDIS_URL) {
     console.log('[EnergyWorker] Redis not configured — worker not started (graceful degradation)');
     return;
   }
 
   energyWorker = new Worker('energy-analysis', processEnergyJob, {
-    connection: conn,
+    connection: createWorkerConnection(),
     concurrency: 1,
   });
 
   energyWorker.on('failed', async (job, err) => {
-    console.error(`[EnergyWorker] Job=${job?.id} failed:`, err.message);
+    console.error(
+      `[EnergyWorker] Job=${job?.id} failed:`,
+      err instanceof Error ? err.stack : err,
+    );
     if (job?.data?.job_db_id) {
       await markEnergyJobDone(job.data.job_db_id as string, 'failed', err.message);
     }
   });
 
   energyWorker.on('error', (err) => {
-    console.warn('[EnergyWorker] Worker error:', err.message);
+    console.error(
+      '[EnergyWorker] Worker error:',
+      err instanceof Error ? err.stack : err,
+    );
   });
 
   console.log('[EnergyWorker] Started: energy-analysis (concurrency=1)');

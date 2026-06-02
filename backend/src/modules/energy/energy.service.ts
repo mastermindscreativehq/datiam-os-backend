@@ -34,7 +34,7 @@ export async function markEnergyJobStarted(
     .update(energy_jobs)
     .set({ status: 'processing', queue_job_id: queueJobId, started_at: new Date() })
     .where(eq(energy_jobs.id, jobDbId))
-    .catch(() => {});
+    .catch((err) => console.error('[EnergyService] markEnergyJobStarted DB update failed:', err instanceof Error ? err.stack : err));
 }
 
 export async function markEnergyJobDone(
@@ -50,7 +50,7 @@ export async function markEnergyJobDone(
       completed_at:  status === 'completed' ? new Date() : null,
     })
     .where(eq(energy_jobs.id, jobDbId))
-    .catch(() => {});
+    .catch((err) => console.error('[EnergyService] markEnergyJobDone DB update failed:', err instanceof Error ? err.stack : err));
 }
 
 // ------------------------------------------------------------------

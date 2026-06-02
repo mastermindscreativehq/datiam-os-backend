@@ -2,7 +2,7 @@ import { Worker, Job } from 'bullmq';
 import { eq } from 'drizzle-orm';
 import { db } from '../../db';
 import { audio_jobs } from '../../db/schema';
-import { getRedisConnection } from '../../queues';
+import { createWorkerConnection } from '../../queues';
 import { processAudioFromUrl, verifyFfmpegBinaries } from './audio.processor';
 import { runAISonicAnalysis } from './audio.ai';
 import {
@@ -24,7 +24,7 @@ async function markJobStatus(
     .update(audio_jobs)
     .set({ status, ...extra })
     .where(eq(audio_jobs.job_id, bullJobId))
-    .catch(() => {});
+    .catch((err) => console.error('[AudioWorker] markJobStatus DB update failed:', err instanceof Error ? err.stack : err));
 }
 
 async function processJob(job: Job): Promise<void> {
@@ -58,25 +58,30 @@ async function processJob(job: Job): Promise<void> {
 export function startAudioWorker(): void {
   verifyFfmpegBinaries();
 
-  const conn = getRedisConnection();
-  if (!conn) {
+  if (!process.env.REDIS_URL) {
     console.log('[AudioWorker] Redis not configured — worker not started (graceful degradation)');
     return;
   }
 
   audioWorker = new Worker('audio-processing', processJob, {
-    connection: conn,
+    connection: createWorkerConnection(),
     concurrency: 2,
   });
 
   audioWorker.on('failed', async (job, err) => {
-    console.error(`[AudioWorker] Job=${job?.id} failed:`, err.message);
+    console.error(
+      `[AudioWorker] Job=${job?.id} failed:`,
+      err instanceof Error ? err.stack : err,
+    );
     if (job?.id) await markJobStatus(job.id, 'failed', { error: err.message });
     if (job?.data?.upload_id) await markUploadFailed(job.data.upload_id as string, err.message);
   });
 
   audioWorker.on('error', (err) => {
-    console.warn('[AudioWorker] Worker error:', err.message);
+    console.error(
+      '[AudioWorker] Worker error:',
+      err instanceof Error ? err.stack : err,
+    );
   });
 
   console.log('[AudioWorker] Started: audio-processing (concurrency=2)');
