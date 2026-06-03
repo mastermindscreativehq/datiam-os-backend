@@ -92,16 +92,35 @@ export async function extractEnergyFrames(inputPath: string): Promise<RawEnergyD
   // large files, causing Railway's proxy idle-timeout to drop the Redis socket.
   const YIELD_INTERVAL = 100;
 
+  // Base extractors that are always safe regardless of whether a previous frame exists.
+  const BASE_EXTRACTORS = ['rms', 'energy', 'zcr', 'spectralCentroid', 'spectralRolloff', 'mfcc'] as const;
+  // spectralFlux requires a previous frame's signal; including it without one causes
+  // Meyda to throw a TypeError when it attempts to FFT an undefined buffer.
+  const FLUX_EXTRACTORS  = [...BASE_EXTRACTORS, 'spectralFlux'] as const;
+
   for (let i = 0; i + FRAME_SIZE <= samples.length; i += HOP_SIZE) {
-    const frame = samples.subarray(i, i + FRAME_SIZE);
+    const frameIndex = frames.length;
+    const frame      = samples.subarray(i, i + FRAME_SIZE);
+    const hasPrev    = prevFrame !== null;
+    const extractors = hasPrev ? FLUX_EXTRACTORS : BASE_EXTRACTORS;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const features = Meyda.extract(
-      ['rms', 'energy', 'zcr', 'spectralCentroid', 'spectralFlux', 'spectralRolloff', 'mfcc'],
-      frame,
-      prevFrame ?? undefined,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ) as Record<string, any> | null;
+    let features: Record<string, any> | null = null;
+    try {
+      features = Meyda.extract(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        extractors as any,
+        frame,
+        hasPrev ? prevFrame! : undefined,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ) as Record<string, any> | null;
+    } catch (err) {
+      // Log but do not crash the worker — a single bad frame should not abort the job.
+      console.error(
+        `[EnergyAnalyzer] Frame ${frameIndex} extraction failed (extractors: ${extractors.join(', ')}):`,
+        err,
+      );
+    }
 
     if (features) {
       const rawMfcc: unknown = features['mfcc'];
@@ -118,13 +137,14 @@ export async function extractEnergyFrames(inputPath: string): Promise<RawEnergyD
         energy:           safeNum(features['energy']),
         zcr:              safeNum(features['zcr']),
         spectralCentroid: safeNum(features['spectralCentroid']),
-        spectralFlux:     safeNum(features['spectralFlux']),
+        // 0 on the first frame (no previous spectrum to diff against)
+        spectralFlux:     hasPrev ? safeNum(features['spectralFlux']) : 0,
         spectralRolloff:  safeNum(features['spectralRolloff']),
         mfcc,
       });
     }
 
-    // Copy needed so spectralFlux has stable reference for the next iteration
+    // Copy needed so spectralFlux has a stable reference for the next iteration.
     prevFrame = new Float32Array(frame);
 
     if (frames.length % YIELD_INTERVAL === 0) {
