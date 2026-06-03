@@ -91,7 +91,10 @@ export async function getAnalysisResult(
           energyScore:         s.energy_score !== null ? parseFloat(String(s.energy_score)) : null,
           tensionScore:        s.tension_score !== null ? parseFloat(String(s.tension_score)) : null,
           avgRms:              s.avg_rms !== null ? parseFloat(String(s.avg_rms)) : null,
+          peakRms:             s.peak_rms !== null ? parseFloat(String(s.peak_rms)) : null,
           avgSpectralCentroid: s.avg_spectral_centroid !== null ? parseFloat(String(s.avg_spectral_centroid)) : null,
+          avgSpectralFlux:     s.avg_spectral_flux !== null ? parseFloat(String(s.avg_spectral_flux)) : null,
+          avgZcr:              s.avg_zcr !== null ? parseFloat(String(s.avg_zcr)) : null,
         })),
         meta: {
           analyzerVersion: analysis.analyzer_version,
