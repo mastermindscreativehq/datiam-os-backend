@@ -12,7 +12,11 @@ export interface SchemaReport {
   missingColumns: ColumnCheck[];
 }
 
-const REQUIRED_TABLES = ['activity_log', 'songs', 'releases'];
+const REQUIRED_TABLES = [
+  'activity_log', 'songs', 'releases',
+  'audio_dna', 'audio_dna_jobs',
+  'sync_intelligence', 'sync_intelligence_jobs',
+];
 
 const REQUIRED_COLUMNS: ColumnCheck[] = [
   { table: 'artist_profiles', column: 'genre' },

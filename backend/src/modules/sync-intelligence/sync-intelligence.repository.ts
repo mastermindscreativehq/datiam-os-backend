@@ -1,4 +1,4 @@
-import { eq, desc, gte } from 'drizzle-orm';
+import { eq, desc, gte, and } from 'drizzle-orm';
 import { db } from '../../db';
 import {
   sync_intelligence,
@@ -182,7 +182,10 @@ export async function getTopSyncOpportunities(artistId: string, minScore = 60, l
     .from(sync_intelligence)
     .innerJoin(audio_uploads, eq(sync_intelligence.upload_id, audio_uploads.id))
     .where(
-      eq(sync_intelligence.artist_id, artistId),
+      and(
+        eq(sync_intelligence.artist_id, artistId),
+        gte(sync_intelligence.overall_sync_score, String(minScore)),
+      ),
     )
     .orderBy(desc(sync_intelligence.overall_sync_score))
     .limit(limit);
