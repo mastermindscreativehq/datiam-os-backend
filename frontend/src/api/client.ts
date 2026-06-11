@@ -290,6 +290,30 @@ export const energy = {
     apiClient.get(`/energy/${upload_id}`, { timeout: 30_000 }),
 }
 
+// ── Audio DNA Engine (Phase 1 Intelligence) ─────────────────────────────────
+export const audioDna = {
+  analyze:  (upload_id: string) =>
+    apiClient.post('/audio-dna/analyze', { upload_id }, { timeout: 60_000 }),
+  get:      (upload_id: string) =>
+    apiClient.get(`/audio-dna/${upload_id}`, { timeout: 30_000 }),
+  byArtist: (artist_id: string, limit = 50) =>
+    apiClient.get(`/audio-dna/artist/${artist_id}`, { params: { limit }, timeout: 30_000 }),
+}
+
+// ── Sync Intelligence Engine (Phase 1 Intelligence) ──────────────────────────
+export const syncIntelligence = {
+  analyze:       (upload_id: string) =>
+    apiClient.post('/sync-intelligence/analyze', { upload_id }, { timeout: 60_000 }),
+  get:           (upload_id: string) =>
+    apiClient.get(`/sync-intelligence/${upload_id}`, { timeout: 30_000 }),
+  byArtist:      (artist_id: string, limit = 50) =>
+    apiClient.get(`/sync-intelligence/artist/${artist_id}`, { params: { limit }, timeout: 30_000 }),
+  opportunities: (artist_id: string, min_score = 60, limit = 10) =>
+    apiClient.get(`/sync-intelligence/artist/${artist_id}/opportunities`, {
+      params: { min_score, limit }, timeout: 30_000,
+    }),
+}
+
 // ── Music Intelligence ───────────────────────────────────────────────────────
 export const musicIntelligence = {
   dashboard:           (artistId?: string) => apiClient.get('/music-intelligence/dashboard', { params: artistId ? { artist_id: artistId } : {} }),

@@ -16,8 +16,14 @@ const NAV = [
   { to: '/sonic-memory',         label: 'SONIC MEMORY',  icon: '◈' },
   { to: '/sonic-director',       label: 'SONIC DIRECTOR',   icon: '◆' },
   { to: '/sonic-execution',      label: 'EXECUTION ENGINE', icon: '⬡' },
-  { to: '/audio-upload',          label: 'AUDIO PIPELINE',   icon: '◎' },
-  { to: '/activity',             label: 'ACTIVITY',         icon: '◈' },
+  { to: '/audio-upload',              label: 'AUDIO PIPELINE',       icon: '◎' },
+  { to: '/audio-dna',                label: 'AUDIO DNA',            icon: '◉' },
+  { to: '/mood-analysis',            label: 'MOOD ANALYSIS',        icon: '◈' },
+  { to: '/genre-intelligence',       label: 'GENRE INTEL',          icon: '◆' },
+  { to: '/sync-intelligence',        label: 'SYNC INTEL',           icon: '◇' },
+  { to: '/placement-opportunities',  label: 'PLACEMENTS',           icon: '✦' },
+  { to: '/suitability-matrix',       label: 'SUITABILITY',          icon: '⬡' },
+  { to: '/activity',                 label: 'ACTIVITY',             icon: '◈' },
 ]
 
 export default function Sidebar() {

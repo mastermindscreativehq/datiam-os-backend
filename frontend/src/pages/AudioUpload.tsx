@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useDropzone } from 'react-dropzone'
-import { artists as artistsApi, audio, energy as energyApi } from '../api/client'
+import { artists as artistsApi, audio, energy as energyApi, audioDna as audioDnaApi, syncIntelligence as syncIntelligenceApi } from '../api/client'
 import LoadingSpinner from '../components/LoadingSpinner'
 
 // ─── Audio Pipeline Types ─────────────────────────────────────────────────────
@@ -103,6 +103,12 @@ interface EnergyData {
   energyCurve: EnergyCurvePoint[]
   sections: EnergySection[]
 }
+
+type DnaStatus = 'not_started' | 'pending' | 'processing' | 'completed' | 'failed'
+type SyncStatus = 'not_started' | 'pending' | 'processing' | 'completed' | 'failed'
+
+interface DnaData { status: DnaStatus }
+interface SyncData { status: SyncStatus }
 
 // ─── Waveform Canvas ──────────────────────────────────────────────────────────
 
@@ -403,6 +409,18 @@ export default function AudioUpload() {
   const energyPollingRef                        = useRef<Record<string, ReturnType<typeof setInterval>>>({})
   const energyTriggeredRef                      = useRef<Set<string>>(new Set())
 
+  // DNA state
+  const [dnaData, setDnaData]             = useState<Record<string, DnaData>>({})
+  const [dnaPollingIds, setDnaPollingIds] = useState<Set<string>>(new Set())
+  const dnaPollingRef                     = useRef<Record<string, ReturnType<typeof setInterval>>>({})
+  const dnaCheckedRef                     = useRef<Set<string>>(new Set())
+
+  // Sync state
+  const [syncData, setSyncData]             = useState<Record<string, SyncData>>({})
+  const [syncPollingIds, setSyncPollingIds] = useState<Set<string>>(new Set())
+  const syncPollingRef                      = useRef<Record<string, ReturnType<typeof setInterval>>>({})
+  const syncCheckedRef                      = useRef<Set<string>>(new Set())
+
   // ── Load artists ─────────────────────────────────────────────────────────────
   useEffect(() => {
     artistsApi.list().then((r) => {
@@ -514,6 +532,62 @@ export default function AudioUpload() {
     }
   }, [startEnergyPolling])
 
+  // ── DNA polling ──────────────────────────────────────────────────────────────
+  const startDnaPolling = useCallback((uploadId: string) => {
+    if (dnaPollingRef.current[uploadId]) return
+    dnaPollingRef.current[uploadId] = setInterval(async () => {
+      try {
+        const r = await audioDnaApi.get(uploadId)
+        const status = r.data?.status as DnaStatus
+        setDnaData((prev) => ({ ...prev, [uploadId]: { status: status ?? 'pending' } }))
+        if (status === 'completed' || status === 'failed') {
+          clearInterval(dnaPollingRef.current[uploadId])
+          delete dnaPollingRef.current[uploadId]
+          setDnaPollingIds((prev) => { const s = new Set(prev); s.delete(uploadId); return s })
+        }
+      } catch { /* silent */ }
+    }, 3000)
+    setDnaPollingIds((prev) => new Set(prev).add(uploadId))
+  }, [])
+
+  const triggerDnaAnalysis = useCallback(async (uploadId: string) => {
+    setDnaData((prev) => ({ ...prev, [uploadId]: { status: 'pending' } }))
+    try {
+      await audioDnaApi.analyze(uploadId)
+      startDnaPolling(uploadId)
+    } catch {
+      setDnaData((prev) => ({ ...prev, [uploadId]: { status: 'failed' } }))
+    }
+  }, [startDnaPolling])
+
+  // ── Sync polling ──────────────────────────────────────────────────────────────
+  const startSyncPolling = useCallback((uploadId: string) => {
+    if (syncPollingRef.current[uploadId]) return
+    syncPollingRef.current[uploadId] = setInterval(async () => {
+      try {
+        const r = await syncIntelligenceApi.get(uploadId)
+        const status = r.data?.status as SyncStatus
+        setSyncData((prev) => ({ ...prev, [uploadId]: { status: status ?? 'pending' } }))
+        if (status === 'completed' || status === 'failed') {
+          clearInterval(syncPollingRef.current[uploadId])
+          delete syncPollingRef.current[uploadId]
+          setSyncPollingIds((prev) => { const s = new Set(prev); s.delete(uploadId); return s })
+        }
+      } catch { /* silent */ }
+    }, 3000)
+    setSyncPollingIds((prev) => new Set(prev).add(uploadId))
+  }, [])
+
+  const triggerSyncAnalysis = useCallback(async (uploadId: string) => {
+    setSyncData((prev) => ({ ...prev, [uploadId]: { status: 'pending' } }))
+    try {
+      await syncIntelligenceApi.analyze(uploadId)
+      startSyncPolling(uploadId)
+    } catch {
+      setSyncData((prev) => ({ ...prev, [uploadId]: { status: 'failed' } }))
+    }
+  }, [startSyncPolling])
+
   // ── Audio polling ─────────────────────────────────────────────────────────────
   const startPolling = useCallback((uploadId: string) => {
     if (pollingRef.current[uploadId]) return
@@ -548,6 +622,8 @@ export default function AudioUpload() {
     return () => {
       Object.values(pollingRef.current).forEach(clearInterval)
       Object.values(energyPollingRef.current).forEach(clearInterval)
+      Object.values(dnaPollingRef.current).forEach(clearInterval)
+      Object.values(syncPollingRef.current).forEach(clearInterval)
     }
   }, [])
 
@@ -575,7 +651,31 @@ export default function AudioUpload() {
         triggerEnergyAnalysis(uploadId)
       }
     }
-  }, [expandedId, detail, triggerEnergyAnalysis])
+
+    // Probe existing DNA status so the button reflects reality on first expand
+    if (!dnaCheckedRef.current.has(uploadId)) {
+      dnaCheckedRef.current.add(uploadId)
+      audioDnaApi.get(uploadId).then((r) => {
+        const status = r.data?.status as DnaStatus
+        if (status && status !== 'not_started') {
+          setDnaData((prev) => ({ ...prev, [uploadId]: { status } }))
+          if (status === 'pending' || status === 'processing') startDnaPolling(uploadId)
+        }
+      }).catch(() => {})
+    }
+
+    // Probe existing Sync status
+    if (!syncCheckedRef.current.has(uploadId)) {
+      syncCheckedRef.current.add(uploadId)
+      syncIntelligenceApi.get(uploadId).then((r) => {
+        const status = r.data?.status as SyncStatus
+        if (status && status !== 'not_started') {
+          setSyncData((prev) => ({ ...prev, [uploadId]: { status } }))
+          if (status === 'pending' || status === 'processing') startSyncPolling(uploadId)
+        }
+      }).catch(() => {})
+    }
+  }, [expandedId, detail, triggerEnergyAnalysis, startDnaPolling, startSyncPolling])
 
   // ── Dropzone ──────────────────────────────────────────────────────────────────
   const onDrop = useCallback(async (accepted: File[]) => {
@@ -748,7 +848,13 @@ export default function AudioUpload() {
                 polling={pollingIds.has(upload.id)}
                 energyData={energyData[upload.id] ?? null}
                 energyPolling={energyPollingIds.has(upload.id)}
+                dnaData={dnaData[upload.id] ?? null}
+                dnaPolling={dnaPollingIds.has(upload.id)}
+                syncData={syncData[upload.id] ?? null}
+                syncPolling={syncPollingIds.has(upload.id)}
                 onToggle={() => handleExpand(upload.id)}
+                onTriggerDna={() => triggerDnaAnalysis(upload.id)}
+                onTriggerSync={() => triggerSyncAnalysis(upload.id)}
               />
             ))
           )}
@@ -761,7 +867,9 @@ export default function AudioUpload() {
 // ─── Upload Row ───────────────────────────────────────────────────────────────
 
 function UploadRow({
-  upload, expanded, detail, polling, energyData, energyPolling, onToggle,
+  upload, expanded, detail, polling, energyData, energyPolling,
+  dnaData, dnaPolling, syncData, syncPolling,
+  onToggle, onTriggerDna, onTriggerSync,
 }: {
   upload: Upload
   expanded: boolean
@@ -769,7 +877,13 @@ function UploadRow({
   polling: boolean
   energyData: EnergyData | null
   energyPolling: boolean
+  dnaData: DnaData | null
+  dnaPolling: boolean
+  syncData: SyncData | null
+  syncPolling: boolean
   onToggle: () => void
+  onTriggerDna: () => void
+  onTriggerSync: () => void
 }) {
   return (
     <div className="border border-[#00ff41]/10 rounded overflow-hidden">
@@ -967,10 +1081,86 @@ function UploadRow({
                   energyPolling={energyPolling}
                 />
               )}
+
+              {/* ── INTELLIGENCE ACTIONS ───────────────────────────────────── */}
+              {upload.status === 'analyzed' && (
+                <IntelligenceActions
+                  dnaData={dnaData}
+                  dnaPolling={dnaPolling}
+                  syncData={syncData}
+                  syncPolling={syncPolling}
+                  onTriggerDna={onTriggerDna}
+                  onTriggerSync={onTriggerSync}
+                />
+              )}
             </>
           )}
         </div>
       )}
+    </div>
+  )
+}
+
+// ─── Intelligence Actions ─────────────────────────────────────────────────────
+
+function IntelligenceActions({
+  dnaData, dnaPolling, syncData, syncPolling, onTriggerDna, onTriggerSync,
+}: {
+  dnaData: DnaData | null
+  dnaPolling: boolean
+  syncData: SyncData | null
+  syncPolling: boolean
+  onTriggerDna: () => void
+  onTriggerSync: () => void
+}) {
+  const dnaRunning  = dnaPolling  || dnaData?.status  === 'pending' || dnaData?.status  === 'processing'
+  const syncRunning = syncPolling || syncData?.status === 'pending' || syncData?.status === 'processing'
+
+  return (
+    <div className="border-t border-[#00ff41]/10 pt-4 space-y-3">
+      <div className="text-[10px] text-[#00ff41]/40 tracking-[0.2em] uppercase">
+        Intelligence Engines
+      </div>
+      <div className="flex flex-wrap gap-3">
+
+        {/* DNA */}
+        {dnaRunning ? (
+          <span className="text-[10px] font-mono tracking-widest text-[#00d4ff] animate-pulse px-4 py-2 border border-[#00d4ff]/20 rounded">
+            ◌ DNA ANALYZING...
+          </span>
+        ) : dnaData?.status === 'completed' ? (
+          <span className="text-[10px] font-mono tracking-widest text-[#00ff41] px-4 py-2 border border-[#00ff41]/20 bg-[#00ff41]/5 rounded">
+            ✓ DNA COMPLETE
+          </span>
+        ) : (
+          <button
+            onClick={onTriggerDna}
+            className="text-[10px] font-mono tracking-widest px-4 py-2 border border-[#00d4ff]/30 bg-[#00d4ff]/5 text-[#00d4ff] rounded hover:bg-[#00d4ff]/10 hover:border-[#00d4ff]/50 transition-all"
+          >
+            ◎ ANALYZE DNA
+          </button>
+        )}
+
+        {/* Sync — only available after DNA completes */}
+        {dnaData?.status === 'completed' && (
+          syncRunning ? (
+            <span className="text-[10px] font-mono tracking-widest text-[#a855f7] animate-pulse px-4 py-2 border border-[#a855f7]/20 rounded">
+              ◌ SYNC ANALYZING...
+            </span>
+          ) : syncData?.status === 'completed' ? (
+            <span className="text-[10px] font-mono tracking-widest text-[#a855f7] px-4 py-2 border border-[#a855f7]/20 bg-[#a855f7]/5 rounded">
+              ✓ SYNC COMPLETE
+            </span>
+          ) : (
+            <button
+              onClick={onTriggerSync}
+              className="text-[10px] font-mono tracking-widest px-4 py-2 border border-[#a855f7]/30 bg-[#a855f7]/5 text-[#a855f7] rounded hover:bg-[#a855f7]/10 hover:border-[#a855f7]/50 transition-all"
+            >
+              ◈ ANALYZE SYNC
+            </button>
+          )
+        )}
+      </div>
     </div>
   )
 }
@@ -1025,18 +1215,18 @@ function EnergyIntelligenceSection({
             <div className="grid grid-cols-3 gap-3">
               <EnergyBadgeCard
                 label="Energy Arc"
-                value={(ARC_STYLE[energyData.intelligence.energyArc] ?? { label: energyData.intelligence.energyArc.toUpperCase(), color: '#64748b' }).label}
-                color={(ARC_STYLE[energyData.intelligence.energyArc] ?? { color: '#64748b' }).color}
+                value={(ARC_STYLE[energyData.intelligence.energyArc ?? ''] ?? { label: (energyData.intelligence.energyArc ?? 'unknown').toUpperCase(), color: '#64748b' }).label}
+                color={(ARC_STYLE[energyData.intelligence.energyArc ?? ''] ?? { color: '#64748b' }).color}
               />
               <EnergyBadgeCard
                 label="Peak Moment"
-                value={energyData.intelligence.peakMoment}
+                value={energyData.intelligence.peakMoment ?? '—'}
                 color="#00d4ff"
               />
               <EnergyBadgeCard
                 label="Tension Curve"
-                value={(TENSION_STYLE[energyData.intelligence.tensionCurve] ?? { label: energyData.intelligence.tensionCurve.toUpperCase(), color: '#64748b' }).label}
-                color={(TENSION_STYLE[energyData.intelligence.tensionCurve] ?? { color: '#64748b' }).color}
+                value={(TENSION_STYLE[energyData.intelligence.tensionCurve ?? ''] ?? { label: (energyData.intelligence.tensionCurve ?? 'unknown').toUpperCase(), color: '#64748b' }).label}
+                color={(TENSION_STYLE[energyData.intelligence.tensionCurve ?? ''] ?? { color: '#64748b' }).color}
               />
             </div>
 
@@ -1083,8 +1273,8 @@ function EnergyIntelligenceSection({
         </div>
       )}
 
-      {/* Not yet triggered */}
-      {!isLoading && !energyData && (
+      {/* Not yet triggered or job not yet picked up */}
+      {!isLoading && (!energyData || energyData.status === 'not_started') && (
         <div className="text-center py-3 text-gray-700 text-[10px] tracking-widest">
           WAITING TO START...
         </div>

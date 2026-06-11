@@ -17,6 +17,12 @@ import SonicMemory from './pages/SonicMemory'
 import SonicDirector from './pages/SonicDirector'
 import SonicExecution from './pages/SonicExecution'
 import AudioUpload from './pages/AudioUpload'
+import AudioDNA from './pages/AudioDNA'
+import MoodAnalysis from './pages/MoodAnalysis'
+import GenreIntelligence from './pages/GenreIntelligence'
+import SyncIntelligence from './pages/SyncIntelligence'
+import PlacementOpportunities from './pages/PlacementOpportunities'
+import SuitabilityMatrix from './pages/SuitabilityMatrix'
 
 function App() {
   return (
@@ -41,6 +47,13 @@ function App() {
           <Route path="sonic-director" element={<SonicDirector />} />
           <Route path="sonic-execution" element={<SonicExecution />} />
           <Route path="audio-upload" element={<AudioUpload />} />
+          {/* DATIAM Intelligence Phase 1 */}
+          <Route path="audio-dna" element={<AudioDNA />} />
+          <Route path="mood-analysis" element={<MoodAnalysis />} />
+          <Route path="genre-intelligence" element={<GenreIntelligence />} />
+          <Route path="sync-intelligence" element={<SyncIntelligence />} />
+          <Route path="placement-opportunities" element={<PlacementOpportunities />} />
+          <Route path="suitability-matrix" element={<SuitabilityMatrix />} />
         </Route>
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
