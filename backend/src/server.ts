@@ -10,6 +10,8 @@ import { startSchedulerWorker, stopSchedulerWorker } from './modules/scheduler/s
 import { startSonicWorkers, stopSonicWorkers } from './modules/sonic-world/sonic-queue-workers';
 import { startAudioWorker, stopAudioWorker } from './modules/audio/audio.worker';
 import { startEnergyWorker, stopEnergyWorker } from './modules/energy/energy.worker';
+import { startDnaWorker, stopDnaWorker } from './modules/audio-dna/audio-dna.worker';
+import { startSyncWorker, stopSyncWorker } from './modules/sync-intelligence/sync-intelligence.worker';
 import { verifySchema } from './db/schemaVerifier';
 import { logActivity } from './lib/activityLogger';
 
@@ -65,6 +67,18 @@ async function main(): Promise<void> {
       console.warn('[EnergyWorker] Worker failed to start (non-fatal):', err);
     }
 
+    try {
+      startDnaWorker();
+    } catch (err) {
+      console.warn('[DnaWorker] Worker failed to start (non-fatal):', err);
+    }
+
+    try {
+      startSyncWorker();
+    } catch (err) {
+      console.warn('[SyncWorker] Worker failed to start (non-fatal):', err);
+    }
+
     verifySchema()
       .then(report => {
         if (report.healthy) {
@@ -100,13 +114,13 @@ async function main(): Promise<void> {
   process.on('SIGTERM', () => {
     console.log('SIGTERM received. Shutting down gracefully...');
     stopSchedulerWorker();
-    void Promise.allSettled([stopSonicWorkers(), stopAudioWorker(), stopEnergyWorker()])
+    void Promise.allSettled([stopSonicWorkers(), stopAudioWorker(), stopEnergyWorker(), stopDnaWorker(), stopSyncWorker()])
       .finally(() => server.close(() => process.exit(0)));
   });
 
   process.on('SIGINT', () => {
     stopSchedulerWorker();
-    void Promise.allSettled([stopSonicWorkers(), stopAudioWorker(), stopEnergyWorker()])
+    void Promise.allSettled([stopSonicWorkers(), stopAudioWorker(), stopEnergyWorker(), stopDnaWorker(), stopSyncWorker()])
       .finally(() => server.close(() => process.exit(0)));
   });
 }

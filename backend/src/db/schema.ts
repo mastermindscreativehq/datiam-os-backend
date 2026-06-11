@@ -1759,3 +1759,162 @@ export const energyJobsRelations = relations(energy_jobs, ({ one }) => ({
 
 export type EnergyJob    = typeof energy_jobs.$inferSelect;
 export type NewEnergyJob = typeof energy_jobs.$inferInsert;
+
+// ── Audio DNA Engine (Phase 1 DATIAM Intelligence) ───────────────────────────
+
+export const audio_dna = pgTable(
+  'audio_dna',
+  {
+    id:         uuid('id').primaryKey().defaultRandom(),
+    upload_id:  uuid('upload_id').notNull().references(() => audio_uploads.id, { onDelete: 'cascade' }),
+    artist_id:  uuid('artist_id').references(() => artist_profiles.id, { onDelete: 'set null' }),
+
+    primary_genre:   text('primary_genre').notNull().default('Unknown'),
+    secondary_genre: text('secondary_genre'),
+    genre_confidence: numeric('genre_confidence', { precision: 5, scale: 2 }),
+    genre_tags:      jsonb('genre_tags'),
+
+    mood_primary:   text('mood_primary'),
+    mood_secondary: text('mood_secondary'),
+    mood_profile:   jsonb('mood_profile'),
+
+    emotional_fingerprint: jsonb('emotional_fingerprint'),
+    sonic_fingerprint:     jsonb('sonic_fingerprint'),
+    energy_fingerprint:    jsonb('energy_fingerprint'),
+
+    danceability: numeric('danceability', { precision: 5, scale: 2 }),
+    brightness:   numeric('brightness',   { precision: 5, scale: 2 }),
+    warmth:       numeric('warmth',       { precision: 5, scale: 2 }),
+    darkness:     numeric('darkness',     { precision: 5, scale: 2 }),
+    aggression:   numeric('aggression',   { precision: 5, scale: 2 }),
+    spirituality: numeric('spirituality', { precision: 5, scale: 2 }),
+    romance:      numeric('romance',      { precision: 5, scale: 2 }),
+    triumph:      numeric('triumph',      { precision: 5, scale: 2 }),
+    melancholy:   numeric('melancholy',   { precision: 5, scale: 2 }),
+    tension:      numeric('tension',      { precision: 5, scale: 2 }),
+
+    analyzer_version:   text('analyzer_version').notNull().default('1.0.0'),
+    processing_time_ms: integer('processing_time_ms'),
+    created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    uploadIdx: index('audio_dna_upload_id_idx').on(t.upload_id),
+    artistIdx: index('audio_dna_artist_id_idx').on(t.artist_id),
+    genreIdx:  index('audio_dna_primary_genre_idx').on(t.primary_genre),
+  }),
+);
+
+export const audioDnaRelations = relations(audio_dna, ({ one }) => ({
+  upload: one(audio_uploads, { fields: [audio_dna.upload_id], references: [audio_uploads.id] }),
+  artist: one(artist_profiles, { fields: [audio_dna.artist_id], references: [artist_profiles.id] }),
+}));
+
+export type AudioDna    = typeof audio_dna.$inferSelect;
+export type NewAudioDna = typeof audio_dna.$inferInsert;
+
+export const audio_dna_jobs = pgTable(
+  'audio_dna_jobs',
+  {
+    id:            uuid('id').primaryKey().defaultRandom(),
+    upload_id:     uuid('upload_id').notNull().references(() => audio_uploads.id, { onDelete: 'cascade' }),
+    queue_job_id:  text('queue_job_id'),
+    status:        text('status').notNull().default('pending'),
+    error_message: text('error_message'),
+    started_at:    timestamp('started_at',   { withTimezone: true }),
+    completed_at:  timestamp('completed_at', { withTimezone: true }),
+    created_at:    timestamp('created_at',   { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    uploadIdx: index('audio_dna_jobs_upload_id_idx').on(t.upload_id),
+    statusIdx: index('audio_dna_jobs_status_idx').on(t.status),
+  }),
+);
+
+export const audioDnaJobsRelations = relations(audio_dna_jobs, ({ one }) => ({
+  upload: one(audio_uploads, { fields: [audio_dna_jobs.upload_id], references: [audio_uploads.id] }),
+}));
+
+export type AudioDnaJob    = typeof audio_dna_jobs.$inferSelect;
+export type NewAudioDnaJob = typeof audio_dna_jobs.$inferInsert;
+
+// ── Sync Intelligence Engine (Phase 1 DATIAM Intelligence) ──────────────────
+
+export const sync_intelligence = pgTable(
+  'sync_intelligence',
+  {
+    id:        uuid('id').primaryKey().defaultRandom(),
+    upload_id: uuid('upload_id').notNull().references(() => audio_uploads.id, { onDelete: 'cascade' }),
+    artist_id: uuid('artist_id').references(() => artist_profiles.id, { onDelete: 'set null' }),
+
+    film_trailer:  numeric('film_trailer',  { precision: 5, scale: 2 }),
+    netflix_drama: numeric('netflix_drama', { precision: 5, scale: 2 }),
+    documentary:   numeric('documentary',   { precision: 5, scale: 2 }),
+    sports_content: numeric('sports_content', { precision: 5, scale: 2 }),
+    gaming:         numeric('gaming',         { precision: 5, scale: 2 }),
+    fashion:        numeric('fashion',        { precision: 5, scale: 2 }),
+    luxury_brands:  numeric('luxury_brands',  { precision: 5, scale: 2 }),
+    travel_campaigns: numeric('travel_campaigns', { precision: 5, scale: 2 }),
+    commercial_ads:   numeric('commercial_ads',   { precision: 5, scale: 2 }),
+    social_content:   numeric('social_content',   { precision: 5, scale: 2 }),
+
+    film_trailer_confidence:   numeric('film_trailer_confidence',   { precision: 5, scale: 2 }),
+    netflix_drama_confidence:  numeric('netflix_drama_confidence',  { precision: 5, scale: 2 }),
+    documentary_confidence:    numeric('documentary_confidence',    { precision: 5, scale: 2 }),
+    sports_content_confidence: numeric('sports_content_confidence', { precision: 5, scale: 2 }),
+    gaming_confidence:         numeric('gaming_confidence',         { precision: 5, scale: 2 }),
+    fashion_confidence:        numeric('fashion_confidence',        { precision: 5, scale: 2 }),
+    luxury_brands_confidence:  numeric('luxury_brands_confidence',  { precision: 5, scale: 2 }),
+    travel_confidence:         numeric('travel_confidence',         { precision: 5, scale: 2 }),
+    commercial_confidence:     numeric('commercial_confidence',     { precision: 5, scale: 2 }),
+    social_confidence:         numeric('social_confidence',         { precision: 5, scale: 2 }),
+
+    top_categories:     jsonb('top_categories'),
+    sync_tags:          jsonb('sync_tags'),
+    placement_notes:    text('placement_notes'),
+    overall_sync_score: numeric('overall_sync_score', { precision: 5, scale: 2 }),
+
+    analyzer_version:   text('analyzer_version').notNull().default('1.0.0'),
+    processing_time_ms: integer('processing_time_ms'),
+    created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    uploadIdx:      index('sync_intel_upload_id_idx').on(t.upload_id),
+    artistIdx:      index('sync_intel_artist_id_idx').on(t.artist_id),
+    overallScoreIdx: index('sync_intel_overall_score_idx').on(t.overall_sync_score),
+  }),
+);
+
+export const syncIntelligenceRelations = relations(sync_intelligence, ({ one }) => ({
+  upload: one(audio_uploads, { fields: [sync_intelligence.upload_id], references: [audio_uploads.id] }),
+  artist: one(artist_profiles, { fields: [sync_intelligence.artist_id], references: [artist_profiles.id] }),
+}));
+
+export type SyncIntelligence    = typeof sync_intelligence.$inferSelect;
+export type NewSyncIntelligence = typeof sync_intelligence.$inferInsert;
+
+export const sync_intelligence_jobs = pgTable(
+  'sync_intelligence_jobs',
+  {
+    id:            uuid('id').primaryKey().defaultRandom(),
+    upload_id:     uuid('upload_id').notNull().references(() => audio_uploads.id, { onDelete: 'cascade' }),
+    queue_job_id:  text('queue_job_id'),
+    status:        text('status').notNull().default('pending'),
+    error_message: text('error_message'),
+    started_at:    timestamp('started_at',   { withTimezone: true }),
+    completed_at:  timestamp('completed_at', { withTimezone: true }),
+    created_at:    timestamp('created_at',   { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    uploadIdx: index('sync_intel_jobs_upload_idx').on(t.upload_id),
+    statusIdx: index('sync_intel_jobs_status_idx').on(t.status),
+  }),
+);
+
+export const syncIntelligenceJobsRelations = relations(sync_intelligence_jobs, ({ one }) => ({
+  upload: one(audio_uploads, { fields: [sync_intelligence_jobs.upload_id], references: [audio_uploads.id] }),
+}));
+
+export type SyncIntelligenceJob    = typeof sync_intelligence_jobs.$inferSelect;
+export type NewSyncIntelligenceJob = typeof sync_intelligence_jobs.$inferInsert;

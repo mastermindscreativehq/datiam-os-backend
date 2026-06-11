@@ -69,6 +69,10 @@ export const audioProcessingQueue = process.env.REDIS_URL ? createQueue('audio-p
 // Energy Intelligence Engine Phase 7
 export const energyAnalysisQueue   = process.env.REDIS_URL ? createQueue('energy-analysis')   : null;
 
+// DATIAM Intelligence Phase 1
+export const audioDnaQueue          = process.env.REDIS_URL ? createQueue('audio-dna')          : null;
+export const syncIntelligenceQueue  = process.env.REDIS_URL ? createQueue('sync-intelligence')  : null;
+
 export async function enqueueSonicJob(
   queue: ReturnType<typeof createQueue>,
   jobName: string,

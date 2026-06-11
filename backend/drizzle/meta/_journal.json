@@ -120,6 +120,20 @@
       "when": 1748476800000,
       "tag": "0020_energy_intelligence",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1749600000000,
+      "tag": "0021_audio_dna",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1749600001000,
+      "tag": "0022_sync_intelligence",
+      "breakpoints": true
     }
   ]
 }
