@@ -1,0 +1,1249 @@
+
+<!doctype html>
+<html lang="en">
+
+<head>
+    <title>Code coverage report for why-engine.ts</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="prettify.css" />
+    <link rel="stylesheet" href="base.css" />
+    <link rel="shortcut icon" type="image/x-icon" href="favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style type='text/css'>
+        .coverage-summary .sorter {
+            background-image: url(sort-arrow-sprite.png);
+        }
+    </style>
+</head>
+    
+<body>
+<div class='wrapper'>
+    <div class='pad1'>
+        <h1><a href="index.html">All files</a> why-engine.ts</h1>
+        <div class='clearfix'>
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">99.05% </span>
+                <span class="quiet">Statements</span>
+                <span class='fraction'>315/318</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">97.03% </span>
+                <span class="quiet">Branches</span>
+                <span class='fraction'>262/270</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Functions</span>
+                <span class='fraction'>17/17</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Lines</span>
+                <span class='fraction'>195/195</span>
+            </div>
+        
+            
+        </div>
+        <p class="quiet">
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+        </p>
+        <template id="filterTemplate">
+            <div class="quiet">
+                Filter:
+                <input type="search" id="fileSearch">
+            </div>
+        </template>
+    </div>
+    <div class='status-line high'></div>
+    <pre><table class="coverage">
+<tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
+<a name='L2'></a><a href='#L2'>2</a>
+<a name='L3'></a><a href='#L3'>3</a>
+<a name='L4'></a><a href='#L4'>4</a>
+<a name='L5'></a><a href='#L5'>5</a>
+<a name='L6'></a><a href='#L6'>6</a>
+<a name='L7'></a><a href='#L7'>7</a>
+<a name='L8'></a><a href='#L8'>8</a>
+<a name='L9'></a><a href='#L9'>9</a>
+<a name='L10'></a><a href='#L10'>10</a>
+<a name='L11'></a><a href='#L11'>11</a>
+<a name='L12'></a><a href='#L12'>12</a>
+<a name='L13'></a><a href='#L13'>13</a>
+<a name='L14'></a><a href='#L14'>14</a>
+<a name='L15'></a><a href='#L15'>15</a>
+<a name='L16'></a><a href='#L16'>16</a>
+<a name='L17'></a><a href='#L17'>17</a>
+<a name='L18'></a><a href='#L18'>18</a>
+<a name='L19'></a><a href='#L19'>19</a>
+<a name='L20'></a><a href='#L20'>20</a>
+<a name='L21'></a><a href='#L21'>21</a>
+<a name='L22'></a><a href='#L22'>22</a>
+<a name='L23'></a><a href='#L23'>23</a>
+<a name='L24'></a><a href='#L24'>24</a>
+<a name='L25'></a><a href='#L25'>25</a>
+<a name='L26'></a><a href='#L26'>26</a>
+<a name='L27'></a><a href='#L27'>27</a>
+<a name='L28'></a><a href='#L28'>28</a>
+<a name='L29'></a><a href='#L29'>29</a>
+<a name='L30'></a><a href='#L30'>30</a>
+<a name='L31'></a><a href='#L31'>31</a>
+<a name='L32'></a><a href='#L32'>32</a>
+<a name='L33'></a><a href='#L33'>33</a>
+<a name='L34'></a><a href='#L34'>34</a>
+<a name='L35'></a><a href='#L35'>35</a>
+<a name='L36'></a><a href='#L36'>36</a>
+<a name='L37'></a><a href='#L37'>37</a>
+<a name='L38'></a><a href='#L38'>38</a>
+<a name='L39'></a><a href='#L39'>39</a>
+<a name='L40'></a><a href='#L40'>40</a>
+<a name='L41'></a><a href='#L41'>41</a>
+<a name='L42'></a><a href='#L42'>42</a>
+<a name='L43'></a><a href='#L43'>43</a>
+<a name='L44'></a><a href='#L44'>44</a>
+<a name='L45'></a><a href='#L45'>45</a>
+<a name='L46'></a><a href='#L46'>46</a>
+<a name='L47'></a><a href='#L47'>47</a>
+<a name='L48'></a><a href='#L48'>48</a>
+<a name='L49'></a><a href='#L49'>49</a>
+<a name='L50'></a><a href='#L50'>50</a>
+<a name='L51'></a><a href='#L51'>51</a>
+<a name='L52'></a><a href='#L52'>52</a>
+<a name='L53'></a><a href='#L53'>53</a>
+<a name='L54'></a><a href='#L54'>54</a>
+<a name='L55'></a><a href='#L55'>55</a>
+<a name='L56'></a><a href='#L56'>56</a>
+<a name='L57'></a><a href='#L57'>57</a>
+<a name='L58'></a><a href='#L58'>58</a>
+<a name='L59'></a><a href='#L59'>59</a>
+<a name='L60'></a><a href='#L60'>60</a>
+<a name='L61'></a><a href='#L61'>61</a>
+<a name='L62'></a><a href='#L62'>62</a>
+<a name='L63'></a><a href='#L63'>63</a>
+<a name='L64'></a><a href='#L64'>64</a>
+<a name='L65'></a><a href='#L65'>65</a>
+<a name='L66'></a><a href='#L66'>66</a>
+<a name='L67'></a><a href='#L67'>67</a>
+<a name='L68'></a><a href='#L68'>68</a>
+<a name='L69'></a><a href='#L69'>69</a>
+<a name='L70'></a><a href='#L70'>70</a>
+<a name='L71'></a><a href='#L71'>71</a>
+<a name='L72'></a><a href='#L72'>72</a>
+<a name='L73'></a><a href='#L73'>73</a>
+<a name='L74'></a><a href='#L74'>74</a>
+<a name='L75'></a><a href='#L75'>75</a>
+<a name='L76'></a><a href='#L76'>76</a>
+<a name='L77'></a><a href='#L77'>77</a>
+<a name='L78'></a><a href='#L78'>78</a>
+<a name='L79'></a><a href='#L79'>79</a>
+<a name='L80'></a><a href='#L80'>80</a>
+<a name='L81'></a><a href='#L81'>81</a>
+<a name='L82'></a><a href='#L82'>82</a>
+<a name='L83'></a><a href='#L83'>83</a>
+<a name='L84'></a><a href='#L84'>84</a>
+<a name='L85'></a><a href='#L85'>85</a>
+<a name='L86'></a><a href='#L86'>86</a>
+<a name='L87'></a><a href='#L87'>87</a>
+<a name='L88'></a><a href='#L88'>88</a>
+<a name='L89'></a><a href='#L89'>89</a>
+<a name='L90'></a><a href='#L90'>90</a>
+<a name='L91'></a><a href='#L91'>91</a>
+<a name='L92'></a><a href='#L92'>92</a>
+<a name='L93'></a><a href='#L93'>93</a>
+<a name='L94'></a><a href='#L94'>94</a>
+<a name='L95'></a><a href='#L95'>95</a>
+<a name='L96'></a><a href='#L96'>96</a>
+<a name='L97'></a><a href='#L97'>97</a>
+<a name='L98'></a><a href='#L98'>98</a>
+<a name='L99'></a><a href='#L99'>99</a>
+<a name='L100'></a><a href='#L100'>100</a>
+<a name='L101'></a><a href='#L101'>101</a>
+<a name='L102'></a><a href='#L102'>102</a>
+<a name='L103'></a><a href='#L103'>103</a>
+<a name='L104'></a><a href='#L104'>104</a>
+<a name='L105'></a><a href='#L105'>105</a>
+<a name='L106'></a><a href='#L106'>106</a>
+<a name='L107'></a><a href='#L107'>107</a>
+<a name='L108'></a><a href='#L108'>108</a>
+<a name='L109'></a><a href='#L109'>109</a>
+<a name='L110'></a><a href='#L110'>110</a>
+<a name='L111'></a><a href='#L111'>111</a>
+<a name='L112'></a><a href='#L112'>112</a>
+<a name='L113'></a><a href='#L113'>113</a>
+<a name='L114'></a><a href='#L114'>114</a>
+<a name='L115'></a><a href='#L115'>115</a>
+<a name='L116'></a><a href='#L116'>116</a>
+<a name='L117'></a><a href='#L117'>117</a>
+<a name='L118'></a><a href='#L118'>118</a>
+<a name='L119'></a><a href='#L119'>119</a>
+<a name='L120'></a><a href='#L120'>120</a>
+<a name='L121'></a><a href='#L121'>121</a>
+<a name='L122'></a><a href='#L122'>122</a>
+<a name='L123'></a><a href='#L123'>123</a>
+<a name='L124'></a><a href='#L124'>124</a>
+<a name='L125'></a><a href='#L125'>125</a>
+<a name='L126'></a><a href='#L126'>126</a>
+<a name='L127'></a><a href='#L127'>127</a>
+<a name='L128'></a><a href='#L128'>128</a>
+<a name='L129'></a><a href='#L129'>129</a>
+<a name='L130'></a><a href='#L130'>130</a>
+<a name='L131'></a><a href='#L131'>131</a>
+<a name='L132'></a><a href='#L132'>132</a>
+<a name='L133'></a><a href='#L133'>133</a>
+<a name='L134'></a><a href='#L134'>134</a>
+<a name='L135'></a><a href='#L135'>135</a>
+<a name='L136'></a><a href='#L136'>136</a>
+<a name='L137'></a><a href='#L137'>137</a>
+<a name='L138'></a><a href='#L138'>138</a>
+<a name='L139'></a><a href='#L139'>139</a>
+<a name='L140'></a><a href='#L140'>140</a>
+<a name='L141'></a><a href='#L141'>141</a>
+<a name='L142'></a><a href='#L142'>142</a>
+<a name='L143'></a><a href='#L143'>143</a>
+<a name='L144'></a><a href='#L144'>144</a>
+<a name='L145'></a><a href='#L145'>145</a>
+<a name='L146'></a><a href='#L146'>146</a>
+<a name='L147'></a><a href='#L147'>147</a>
+<a name='L148'></a><a href='#L148'>148</a>
+<a name='L149'></a><a href='#L149'>149</a>
+<a name='L150'></a><a href='#L150'>150</a>
+<a name='L151'></a><a href='#L151'>151</a>
+<a name='L152'></a><a href='#L152'>152</a>
+<a name='L153'></a><a href='#L153'>153</a>
+<a name='L154'></a><a href='#L154'>154</a>
+<a name='L155'></a><a href='#L155'>155</a>
+<a name='L156'></a><a href='#L156'>156</a>
+<a name='L157'></a><a href='#L157'>157</a>
+<a name='L158'></a><a href='#L158'>158</a>
+<a name='L159'></a><a href='#L159'>159</a>
+<a name='L160'></a><a href='#L160'>160</a>
+<a name='L161'></a><a href='#L161'>161</a>
+<a name='L162'></a><a href='#L162'>162</a>
+<a name='L163'></a><a href='#L163'>163</a>
+<a name='L164'></a><a href='#L164'>164</a>
+<a name='L165'></a><a href='#L165'>165</a>
+<a name='L166'></a><a href='#L166'>166</a>
+<a name='L167'></a><a href='#L167'>167</a>
+<a name='L168'></a><a href='#L168'>168</a>
+<a name='L169'></a><a href='#L169'>169</a>
+<a name='L170'></a><a href='#L170'>170</a>
+<a name='L171'></a><a href='#L171'>171</a>
+<a name='L172'></a><a href='#L172'>172</a>
+<a name='L173'></a><a href='#L173'>173</a>
+<a name='L174'></a><a href='#L174'>174</a>
+<a name='L175'></a><a href='#L175'>175</a>
+<a name='L176'></a><a href='#L176'>176</a>
+<a name='L177'></a><a href='#L177'>177</a>
+<a name='L178'></a><a href='#L178'>178</a>
+<a name='L179'></a><a href='#L179'>179</a>
+<a name='L180'></a><a href='#L180'>180</a>
+<a name='L181'></a><a href='#L181'>181</a>
+<a name='L182'></a><a href='#L182'>182</a>
+<a name='L183'></a><a href='#L183'>183</a>
+<a name='L184'></a><a href='#L184'>184</a>
+<a name='L185'></a><a href='#L185'>185</a>
+<a name='L186'></a><a href='#L186'>186</a>
+<a name='L187'></a><a href='#L187'>187</a>
+<a name='L188'></a><a href='#L188'>188</a>
+<a name='L189'></a><a href='#L189'>189</a>
+<a name='L190'></a><a href='#L190'>190</a>
+<a name='L191'></a><a href='#L191'>191</a>
+<a name='L192'></a><a href='#L192'>192</a>
+<a name='L193'></a><a href='#L193'>193</a>
+<a name='L194'></a><a href='#L194'>194</a>
+<a name='L195'></a><a href='#L195'>195</a>
+<a name='L196'></a><a href='#L196'>196</a>
+<a name='L197'></a><a href='#L197'>197</a>
+<a name='L198'></a><a href='#L198'>198</a>
+<a name='L199'></a><a href='#L199'>199</a>
+<a name='L200'></a><a href='#L200'>200</a>
+<a name='L201'></a><a href='#L201'>201</a>
+<a name='L202'></a><a href='#L202'>202</a>
+<a name='L203'></a><a href='#L203'>203</a>
+<a name='L204'></a><a href='#L204'>204</a>
+<a name='L205'></a><a href='#L205'>205</a>
+<a name='L206'></a><a href='#L206'>206</a>
+<a name='L207'></a><a href='#L207'>207</a>
+<a name='L208'></a><a href='#L208'>208</a>
+<a name='L209'></a><a href='#L209'>209</a>
+<a name='L210'></a><a href='#L210'>210</a>
+<a name='L211'></a><a href='#L211'>211</a>
+<a name='L212'></a><a href='#L212'>212</a>
+<a name='L213'></a><a href='#L213'>213</a>
+<a name='L214'></a><a href='#L214'>214</a>
+<a name='L215'></a><a href='#L215'>215</a>
+<a name='L216'></a><a href='#L216'>216</a>
+<a name='L217'></a><a href='#L217'>217</a>
+<a name='L218'></a><a href='#L218'>218</a>
+<a name='L219'></a><a href='#L219'>219</a>
+<a name='L220'></a><a href='#L220'>220</a>
+<a name='L221'></a><a href='#L221'>221</a>
+<a name='L222'></a><a href='#L222'>222</a>
+<a name='L223'></a><a href='#L223'>223</a>
+<a name='L224'></a><a href='#L224'>224</a>
+<a name='L225'></a><a href='#L225'>225</a>
+<a name='L226'></a><a href='#L226'>226</a>
+<a name='L227'></a><a href='#L227'>227</a>
+<a name='L228'></a><a href='#L228'>228</a>
+<a name='L229'></a><a href='#L229'>229</a>
+<a name='L230'></a><a href='#L230'>230</a>
+<a name='L231'></a><a href='#L231'>231</a>
+<a name='L232'></a><a href='#L232'>232</a>
+<a name='L233'></a><a href='#L233'>233</a>
+<a name='L234'></a><a href='#L234'>234</a>
+<a name='L235'></a><a href='#L235'>235</a>
+<a name='L236'></a><a href='#L236'>236</a>
+<a name='L237'></a><a href='#L237'>237</a>
+<a name='L238'></a><a href='#L238'>238</a>
+<a name='L239'></a><a href='#L239'>239</a>
+<a name='L240'></a><a href='#L240'>240</a>
+<a name='L241'></a><a href='#L241'>241</a>
+<a name='L242'></a><a href='#L242'>242</a>
+<a name='L243'></a><a href='#L243'>243</a>
+<a name='L244'></a><a href='#L244'>244</a>
+<a name='L245'></a><a href='#L245'>245</a>
+<a name='L246'></a><a href='#L246'>246</a>
+<a name='L247'></a><a href='#L247'>247</a>
+<a name='L248'></a><a href='#L248'>248</a>
+<a name='L249'></a><a href='#L249'>249</a>
+<a name='L250'></a><a href='#L250'>250</a>
+<a name='L251'></a><a href='#L251'>251</a>
+<a name='L252'></a><a href='#L252'>252</a>
+<a name='L253'></a><a href='#L253'>253</a>
+<a name='L254'></a><a href='#L254'>254</a>
+<a name='L255'></a><a href='#L255'>255</a>
+<a name='L256'></a><a href='#L256'>256</a>
+<a name='L257'></a><a href='#L257'>257</a>
+<a name='L258'></a><a href='#L258'>258</a>
+<a name='L259'></a><a href='#L259'>259</a>
+<a name='L260'></a><a href='#L260'>260</a>
+<a name='L261'></a><a href='#L261'>261</a>
+<a name='L262'></a><a href='#L262'>262</a>
+<a name='L263'></a><a href='#L263'>263</a>
+<a name='L264'></a><a href='#L264'>264</a>
+<a name='L265'></a><a href='#L265'>265</a>
+<a name='L266'></a><a href='#L266'>266</a>
+<a name='L267'></a><a href='#L267'>267</a>
+<a name='L268'></a><a href='#L268'>268</a>
+<a name='L269'></a><a href='#L269'>269</a>
+<a name='L270'></a><a href='#L270'>270</a>
+<a name='L271'></a><a href='#L271'>271</a>
+<a name='L272'></a><a href='#L272'>272</a>
+<a name='L273'></a><a href='#L273'>273</a>
+<a name='L274'></a><a href='#L274'>274</a>
+<a name='L275'></a><a href='#L275'>275</a>
+<a name='L276'></a><a href='#L276'>276</a>
+<a name='L277'></a><a href='#L277'>277</a>
+<a name='L278'></a><a href='#L278'>278</a>
+<a name='L279'></a><a href='#L279'>279</a>
+<a name='L280'></a><a href='#L280'>280</a>
+<a name='L281'></a><a href='#L281'>281</a>
+<a name='L282'></a><a href='#L282'>282</a>
+<a name='L283'></a><a href='#L283'>283</a>
+<a name='L284'></a><a href='#L284'>284</a>
+<a name='L285'></a><a href='#L285'>285</a>
+<a name='L286'></a><a href='#L286'>286</a>
+<a name='L287'></a><a href='#L287'>287</a>
+<a name='L288'></a><a href='#L288'>288</a>
+<a name='L289'></a><a href='#L289'>289</a>
+<a name='L290'></a><a href='#L290'>290</a>
+<a name='L291'></a><a href='#L291'>291</a>
+<a name='L292'></a><a href='#L292'>292</a>
+<a name='L293'></a><a href='#L293'>293</a>
+<a name='L294'></a><a href='#L294'>294</a>
+<a name='L295'></a><a href='#L295'>295</a>
+<a name='L296'></a><a href='#L296'>296</a>
+<a name='L297'></a><a href='#L297'>297</a>
+<a name='L298'></a><a href='#L298'>298</a>
+<a name='L299'></a><a href='#L299'>299</a>
+<a name='L300'></a><a href='#L300'>300</a>
+<a name='L301'></a><a href='#L301'>301</a>
+<a name='L302'></a><a href='#L302'>302</a>
+<a name='L303'></a><a href='#L303'>303</a>
+<a name='L304'></a><a href='#L304'>304</a>
+<a name='L305'></a><a href='#L305'>305</a>
+<a name='L306'></a><a href='#L306'>306</a>
+<a name='L307'></a><a href='#L307'>307</a>
+<a name='L308'></a><a href='#L308'>308</a>
+<a name='L309'></a><a href='#L309'>309</a>
+<a name='L310'></a><a href='#L310'>310</a>
+<a name='L311'></a><a href='#L311'>311</a>
+<a name='L312'></a><a href='#L312'>312</a>
+<a name='L313'></a><a href='#L313'>313</a>
+<a name='L314'></a><a href='#L314'>314</a>
+<a name='L315'></a><a href='#L315'>315</a>
+<a name='L316'></a><a href='#L316'>316</a>
+<a name='L317'></a><a href='#L317'>317</a>
+<a name='L318'></a><a href='#L318'>318</a>
+<a name='L319'></a><a href='#L319'>319</a>
+<a name='L320'></a><a href='#L320'>320</a>
+<a name='L321'></a><a href='#L321'>321</a>
+<a name='L322'></a><a href='#L322'>322</a>
+<a name='L323'></a><a href='#L323'>323</a>
+<a name='L324'></a><a href='#L324'>324</a>
+<a name='L325'></a><a href='#L325'>325</a>
+<a name='L326'></a><a href='#L326'>326</a>
+<a name='L327'></a><a href='#L327'>327</a>
+<a name='L328'></a><a href='#L328'>328</a>
+<a name='L329'></a><a href='#L329'>329</a>
+<a name='L330'></a><a href='#L330'>330</a>
+<a name='L331'></a><a href='#L331'>331</a>
+<a name='L332'></a><a href='#L332'>332</a>
+<a name='L333'></a><a href='#L333'>333</a>
+<a name='L334'></a><a href='#L334'>334</a>
+<a name='L335'></a><a href='#L335'>335</a>
+<a name='L336'></a><a href='#L336'>336</a>
+<a name='L337'></a><a href='#L337'>337</a>
+<a name='L338'></a><a href='#L338'>338</a>
+<a name='L339'></a><a href='#L339'>339</a>
+<a name='L340'></a><a href='#L340'>340</a>
+<a name='L341'></a><a href='#L341'>341</a>
+<a name='L342'></a><a href='#L342'>342</a>
+<a name='L343'></a><a href='#L343'>343</a>
+<a name='L344'></a><a href='#L344'>344</a>
+<a name='L345'></a><a href='#L345'>345</a>
+<a name='L346'></a><a href='#L346'>346</a>
+<a name='L347'></a><a href='#L347'>347</a>
+<a name='L348'></a><a href='#L348'>348</a>
+<a name='L349'></a><a href='#L349'>349</a>
+<a name='L350'></a><a href='#L350'>350</a>
+<a name='L351'></a><a href='#L351'>351</a>
+<a name='L352'></a><a href='#L352'>352</a>
+<a name='L353'></a><a href='#L353'>353</a>
+<a name='L354'></a><a href='#L354'>354</a>
+<a name='L355'></a><a href='#L355'>355</a>
+<a name='L356'></a><a href='#L356'>356</a>
+<a name='L357'></a><a href='#L357'>357</a>
+<a name='L358'></a><a href='#L358'>358</a>
+<a name='L359'></a><a href='#L359'>359</a>
+<a name='L360'></a><a href='#L360'>360</a>
+<a name='L361'></a><a href='#L361'>361</a>
+<a name='L362'></a><a href='#L362'>362</a>
+<a name='L363'></a><a href='#L363'>363</a>
+<a name='L364'></a><a href='#L364'>364</a>
+<a name='L365'></a><a href='#L365'>365</a>
+<a name='L366'></a><a href='#L366'>366</a>
+<a name='L367'></a><a href='#L367'>367</a>
+<a name='L368'></a><a href='#L368'>368</a>
+<a name='L369'></a><a href='#L369'>369</a>
+<a name='L370'></a><a href='#L370'>370</a>
+<a name='L371'></a><a href='#L371'>371</a>
+<a name='L372'></a><a href='#L372'>372</a>
+<a name='L373'></a><a href='#L373'>373</a>
+<a name='L374'></a><a href='#L374'>374</a>
+<a name='L375'></a><a href='#L375'>375</a>
+<a name='L376'></a><a href='#L376'>376</a>
+<a name='L377'></a><a href='#L377'>377</a>
+<a name='L378'></a><a href='#L378'>378</a>
+<a name='L379'></a><a href='#L379'>379</a>
+<a name='L380'></a><a href='#L380'>380</a>
+<a name='L381'></a><a href='#L381'>381</a>
+<a name='L382'></a><a href='#L382'>382</a>
+<a name='L383'></a><a href='#L383'>383</a>
+<a name='L384'></a><a href='#L384'>384</a>
+<a name='L385'></a><a href='#L385'>385</a>
+<a name='L386'></a><a href='#L386'>386</a>
+<a name='L387'></a><a href='#L387'>387</a>
+<a name='L388'></a><a href='#L388'>388</a>
+<a name='L389'></a><a href='#L389'>389</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1020x</span>
+<span class="cline-any cline-yes">5102x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">600x</span>
+<span class="cline-any cline-yes">2596x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">600x</span>
+<span class="cline-any cline-yes">598x</span>
+<span class="cline-any cline-yes">46x</span>
+<span class="cline-any cline-yes">14x</span>
+<span class="cline-any cline-yes">12x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">45x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">42x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">13x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">44x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">45x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">45x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">58x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">59x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">44x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">18x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">52x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">36x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">33x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">28x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">43x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">11x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">29x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">24x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">44x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">42x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">59x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">24x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">24x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">18x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">25x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">26x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">26x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">52x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">36x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">52x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">33x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">24x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">28x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">24x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">24x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">26x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">24x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">24x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">11x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">29x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">60x</span>
+<span class="cline-any cline-yes">600x</span>
+<span class="cline-any cline-yes">600x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">600x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import type { DnaInputForSync, SyncCategory, CategoryScore } from '../sync-intelligence/sync-intelligence.types';
+import { SYNC_CATEGORY_LABELS } from '../sync-intelligence/sync-intelligence.types';
+import type { ScoreFactor, WhyScore } from './commercial-intelligence.types';
+&nbsp;
+function genreMatch(genre: string | null, targets: string[]): boolean {
+  if (!genre) return false;
+  return targets.some(t =&gt; genre.toLowerCase().includes(t.toLowerCase()));
+}
+&nbsp;
+function moodMatch(mood: string | null, targets: string[]): boolean {
+  <span class="missing-if-branch" title="if path not taken" >I</span>if (!mood) <span class="cstat-no" title="statement not covered" >return false;</span>
+  return targets.some(t =&gt; mood.toLowerCase().includes(t.toLowerCase()));
+}
+&nbsp;
+function confidenceLabel(confidence: number): WhyScore['confidenceLabel'] {
+  if (confidence &gt;= 80) return 'Very High';
+  if (confidence &gt;= 65) return 'High';
+  if (confidence &gt;= 45) return 'Moderate';
+  if (confidence &gt;= 25) return 'Low';
+  return 'Very Low';
+}
+&nbsp;
+// ── Per-category factor evaluators ───────────────────────────────────────────
+&nbsp;
+function filmTrailerFactors(d: DnaInputForSync) {
+  const genreAligned = genreMatch(d.primaryGenre, ['cinematic', 'orchestral', 'metal', 'electronic', 'rock'])
+    || genreMatch(d.secondaryGenre, ['cinematic', 'orchestral', 'ambient']);
+  const moodAligned = moodMatch(d.moodPrimary, ['tense', 'triumphant', 'aggressive', 'cinematic', 'dark']);
+  const arcRising = d.energyArc === 'rising' || d.energyArc === 'peak';
+&nbsp;
+  const positive: ScoreFactor[] = [];
+  const negative: ScoreFactor[] = [];
+&nbsp;
+  if (d.tension &gt; 65) positive.push({ label: 'High cinematic tension', description: `Tension score of ${d.tension} drives suspense and dramatic momentum`, impact: 'positive', strength: 'strong' });
+  else if (d.tension &lt; 40) negative.push({ label: 'Insufficient cinematic tension', description: `Tension score of ${d.tension} falls below the threshold required for impactful trailer placement`, impact: 'negative', strength: 'strong' });
+&nbsp;
+  if (d.triumph &gt; 65) positive.push({ label: 'Strong triumphant resolution', description: `Triumph score of ${d.triumph} delivers the payoff moment trailers require`, impact: 'positive', strength: 'strong' });
+  else if (d.triumph &lt; 45) negative.push({ label: 'Weak narrative resolution', description: `Triumph score of ${d.triumph} limits the emotional payoff expected in cinematic trailers`, impact: 'negative', strength: 'moderate' });
+&nbsp;
+  if (d.aggression &gt; 60) positive.push({ label: 'Powerful aggressive energy', description: `Aggression score of ${d.aggression} delivers the raw drive trailers demand`, impact: 'positive', strength: 'moderate' });
+  else if (d.aggression &lt; 35) negative.push({ label: 'Limited aggressive drive', description: `Aggression score of ${d.aggression} is below the intensity level expected for trailer placements`, impact: 'negative', strength: 'moderate' });
+&nbsp;
+  if (arcRising) positive.push({ label: 'Escalating energy arc', description: 'Rising energy architecture builds anticipation and tension progression ideal for trailer edits', impact: 'positive', strength: 'strong' });
+  else negative.push({ label: 'Non-escalating energy arc', description: `${d.energyArc ?? 'Unknown'} energy arc lacks the build progression trailers typically require`, impact: 'negative', strength: 'moderate' });
+&nbsp;
+  if (d.dropStrength &gt; 70) positive.push({ label: 'Dramatic impact moments', description: `Drop strength of ${d.dropStrength} creates the percussive punctuation editors use for key trailer beats`, impact: 'positive', strength: 'moderate' });
+  else if (d.dropStrength &lt; 40) negative.push({ label: 'Weak dynamic contrast', description: `Drop strength of ${d.dropStrength} limits the explosive moments trailer editors require`, impact: 'negative', strength: 'moderate' });
+&nbsp;
+  if (d.darkness &gt; 55) positive.push({ label: 'Dark atmospheric depth', description: `Darkness score of ${d.darkness} contributes to the cinematic weight and gravity of the track`, impact: 'positive', strength: 'moderate' });
+&nbsp;
+  if (genreAligned) positive.push({ label: 'Genre alignment', description: `${d.primaryGenre} maps to trailer-preferred genre conventions`, impact: 'positive', strength: 'strong' });
+  else negative.push({ label: 'Genre misalignment', description: `${d.primaryGenre} is underrepresented in the trailer licensing market`, impact: 'negative', strength: 'moderate' });
+&nbsp;
+  if (moodAligned) positive.push({ label: 'Mood profile match', description: `${d.moodPrimary} mood aligns with trailer placement expectations`, impact: 'positive', strength: 'moderate' });
+  else negative.push({ label: 'Mood profile mismatch', description: `${d.moodPrimary} mood is not a primary driver for trailer sync decisions`, impact: 'negative', strength: 'weak' });
+&nbsp;
+  return { positive, negative };
+}
+&nbsp;
+function netflixDramaFactors(d: DnaInputForSync) {
+  const genreAligned = genreMatch(d.primaryGenre, ['soul', 'r&amp;b', 'cinematic', 'indie', 'alternative', 'neo-soul', 'jazz'])
+    || genreMatch(d.secondaryGenre, ['soul', 'cinematic', 'jazz']);
+  const moodAligned = moodMatch(d.moodPrimary, ['melancholic', 'romantic', 'mysterious', 'dark', 'nostalgic', 'dreamy']);
+&nbsp;
+  const positive: ScoreFactor[] = [];
+  const negative: ScoreFactor[] = [];
+&nbsp;
+  if (d.melancholy &gt; 60) positive.push({ label: 'Rich melancholic emotional depth', description: `Melancholy score of ${d.melancholy} resonates with the emotional complexity streaming dramas require`, impact: 'positive', strength: 'strong' });
+  else if (d.melancholy &lt; 35) negative.push({ label: 'Limited emotional depth', description: `Melancholy score of ${d.melancholy} lacks the nuanced emotional texture streaming dramas typically feature`, impact: 'negative', strength: 'moderate' });
+&nbsp;
+  if (d.romance &gt; 55) positive.push({ label: 'Romantic emotional signature', description: `Romance score of ${d.romance} enhances intimate scene scoring potential`, impact: 'positive', strength: 'strong' });
+  else if (d.romance &lt; 35) negative.push({ label: 'Low romantic resonance', description: `Romance score of ${d.romance} reduces suitability for emotionally driven narrative scenes`, impact: 'negative', strength: 'moderate' });
+&nbsp;
+  if (d.warmth &gt; 55) positive.push({ label: 'Warm, intimate texture', description: `Warmth score of ${d.warmth} provides the sonic intimacy streaming editors favor for character moments`, impact: 'positive', strength: 'moderate' });
+&nbsp;
+  if (d.spirituality &gt; 45) positive.push({ label: 'Spiritual-emotional resonance', description: `Spirituality score of ${d.spirituality} adds emotional transcendence favored in prestige drama`, impact: 'positive', strength: 'weak' });
+&nbsp;
+  if (d.tension &gt; 45) positive.push({ label: 'Narrative tension support', description: `Tension score of ${d.tension} supports dramatic scene escalation`, impact: 'positive', strength: 'weak' });
+&nbsp;
+  if (d.retention &gt; 65) positive.push({ label: 'High replay retention', description: `Retention score of ${d.retention} indicates the track holds emotional engagement — critical for scene scoring`, impact: 'positive', strength: 'moderate' });
+&nbsp;
+  if (d.aggression &gt; 60) negative.push({ label: 'Excessive aggressive energy', description: `Aggression score of ${d.aggression} conflicts with the emotional intimacy required for streaming drama placements`, impact: 'negative', strength: 'strong' });
+&nbsp;
+  if (d.danceability &gt; 70) negative.push({ label: 'Overly rhythmic character', description: `Danceability score of ${d.danceability} reduces suitability for emotionally driven dramatic scenes`, impact: 'negative', strength: 'moderate' });
+&nbsp;
+  if (genreAligned) positive.push({ label: 'Genre alignment with streaming drama', description: `${d.primaryGenre} is a preferred genre for streaming drama sync`, impact: 'positive', strength: 'strong' });
+  else negative.push({ label: 'Genre misalignment', description: `${d.primaryGenre} is not commonly featured in streaming drama placements`, impact: 'negative', strength: 'moderate' });
+&nbsp;
+  <span class="missing-if-branch" title="if path not taken" >I</span>if (moodAligned) <span class="cstat-no" title="statement not covered" >positive.push({ label: 'Mood profile match', description: `${d.moodPrimary} mood aligns with Netflix/streaming drama placement expectations`, impact: 'positive', strength: 'moderate' });</span>
+&nbsp;
+  return { positive, negative };
+}
+&nbsp;
+function documentaryFactors(d: DnaInputForSync) {
+  const genreAligned = genreMatch(d.primaryGenre, ['ambient', 'classical', 'folk', 'world music', 'orchestral', 'cinematic', 'jazz'])
+    || genreMatch(d.secondaryGenre, ['ambient', 'folk', 'world', 'classical']);
+  const moodAligned = moodMatch(d.moodPrimary, ['peaceful', 'spiritual', 'mysterious', 'melancholic', 'dreamy', 'nostalgic']);
+&nbsp;
+  const positive: ScoreFactor[] = [];
+  const negative: ScoreFactor[] = [];
+&nbsp;
+  if (d.spirituality &gt; 55) positive.push({ label: 'Spiritual-contemplative quality', description: `Spirituality score of ${d.spirituality} supports documentary storytelling and reflective moments`, impact: 'positive', strength: 'strong' });
+  else if (d.spirituality &lt; 30) negative.push({ label: 'Low contemplative depth', description: `Spirituality score of ${d.spirituality} reduces suitability for reflective documentary scoring`, impact: 'negative', strength: 'moderate' });
+&nbsp;
+  if (d.warmth &gt; 50) positive.push({ label: 'Warm, human texture', description: `Warmth score of ${d.warmth} creates the approachable tone documentary filmmakers favor`, impact: 'positive', strength: 'moderate' });
+&nbsp;
+  if (d.aggression &lt; 35) positive.push({ label: 'Non-aggressive profile', description: `Low aggression (${d.aggression}) maintains the measured tone documentaries require`, impact: 'positive', strength: 'strong' });
+  else if (d.aggression &gt; 55) negative.push({ label: 'Elevated aggression', description: `Aggression score of ${d.aggression} disrupts the measured emotional tone documentary editors prefer`, impact: 'negative', strength: 'strong' });
+&nbsp;
+  if (d.melancholy &gt; 40) positive.push({ label: 'Contemplative melancholic quality', description: `Melancholy score of ${d.melancholy} adds emotional gravity appropriate for documentary storytelling`, impact: 'positive', strength: 'moderate' });
+&nbsp;
+  if (d.danceability &lt; 50) positive.push({ label: 'Non-rhythmic character', description: `Low danceability (${d.danceability}) supports documentary's non-commercial sonic requirement`, impact: 'positive', strength: 'moderate' });
+  else <span class="missing-if-branch" title="else path not taken" >E</span>if (d.danceability &gt; 65) negative.push({ label: 'Overly rhythmic for documentary', description: `Danceability score of ${d.danceability} makes the track feel too commercial for documentary contexts`, impact: 'negative', strength: 'moderate' });
+&nbsp;
+  if (genreAligned) positive.push({ label: 'Genre alignment with documentary', description: `${d.primaryGenre} is a commonly licensed genre in documentary productions`, impact: 'positive', strength: 'strong' });
+  else negative.push({ label: 'Genre misalignment', description: `${d.primaryGenre} is less common in documentary sync licensing`, impact: 'negative', strength: 'moderate' });
+&nbsp;
+  if (moodAligned) positive.push({ label: 'Mood profile match', description: `${d.moodPrimary} mood is well-suited for documentary emotional arcs`, impact: 'positive', strength: 'moderate' });
+&nbsp;
+  return { positive, negative };
+}
+&nbsp;
+function sportsContentFactors(d: DnaInputForSync) {
+  const genreAligned = genreMatch(d.primaryGenre, ['hip-hop', 'trap', 'metal', 'rock', 'dance', 'edm', 'drum &amp; bass', 'punk', 'afrobeats'])
+    || genreMatch(d.secondaryGenre, ['hip-hop', 'rock', 'metal', 'trap']);
+  const moodAligned = moodMatch(d.moodPrimary, ['triumphant', 'aggressive', 'confident', 'euphoric', 'uplifting']);
+  const arcDriving = d.energyArc === 'rising' || d.energyArc === 'steady';
+&nbsp;
+  const positive: ScoreFactor[] = [];
+  const negative: ScoreFactor[] = [];
+&nbsp;
+  if (d.danceability &gt; 70) positive.push({ label: 'High rhythmic drive', description: `Danceability score of ${d.danceability} delivers the groove and momentum sports content demands`, impact: 'positive', strength: 'strong' });
+  else if (d.danceability &lt; 50) negative.push({ label: 'Low rhythmic energy', description: `Danceability score of ${d.danceability} lacks the kinetic drive sports media requires`, impact: 'negative', strength: 'strong' });
+&nbsp;
+  if (d.aggression &gt; 65) positive.push({ label: 'Powerful aggressive energy', description: `Aggression score of ${d.aggression} delivers the raw intensity sports brands and broadcasters seek`, impact: 'positive', strength: 'strong' });
+  else if (d.aggression &lt; 45) negative.push({ label: 'Insufficient aggression for sports', description: `Aggression score of ${d.aggression} falls below the intensity sports content requires`, impact: 'negative', strength: 'moderate' });
+&nbsp;
+  if (d.triumph &gt; 65) positive.push({ label: 'Strong motivational signature', description: `Triumph score of ${d.triumph} provides the achievement and victory narrative sports content thrives on`, impact: 'positive', strength: 'strong' });
+  else if (d.triumph &lt; 50) negative.push({ label: 'Weak motivational presence', description: `Triumph score of ${d.triumph} limits the motivational arc sports media relies on`, impact: 'negative', strength: 'strong' });
+&nbsp;
+  if (d.brightness &gt; 60) positive.push({ label: 'High positive emotional profile', description: `Brightness score of ${d.brightness} creates the uplifting energy that enhances athlete and brand storytelling`, impact: 'positive', strength: 'moderate' });
+&nbsp;
+  if (arcDriving) positive.push({ label: 'Consistent driving energy', description: `${d.energyArc} energy arc maintains the momentum sports edits require throughout the cut`, impact: 'positive', strength: 'moderate' });
+  else negative.push({ label: 'Inconsistent energy arc', description: `${d.energyArc ?? 'Unknown'} energy arc may not sustain the momentum required for sports content`, impact: 'negative', strength: 'weak' });
+&nbsp;
+  if (d.dropStrength &gt; 65) positive.push({ label: 'Strong impact moments', description: `Drop strength of ${d.dropStrength} creates the punctuation beats that align with highlight reel editing`, impact: 'positive', strength: 'moderate' });
+&nbsp;
+  if (d.darkness &gt; 65) negative.push({ label: 'Excessive dark tonality', description: `Darkness score of ${d.darkness} conflicts with the positive-energy profile most sports brands require`, impact: 'negative', strength: 'moderate' });
+&nbsp;
+  if (genreAligned) positive.push({ label: 'Genre alignment with sports content', description: `${d.primaryGenre} is a primary genre in sports media and athlete branding`, impact: 'positive', strength: 'strong' });
+  else negative.push({ label: 'Genre misalignment', description: `${d.primaryGenre} is underrepresented in sports content sync licensing`, impact: 'negative', strength: 'moderate' });
+&nbsp;
+  if (moodAligned) positive.push({ label: 'Motivational mood profile', description: `${d.moodPrimary} mood supports athlete branding and competitive sports narratives`, impact: 'positive', strength: 'moderate' });
+  else negative.push({ label: 'Mood profile mismatch', description: `${d.moodPrimary} mood is not the primary driver for sports sync placements`, impact: 'negative', strength: 'weak' });
+&nbsp;
+  return { positive, negative };
+}
+&nbsp;
+function gamingFactors(d: DnaInputForSync) {
+  const genreAligned = genreMatch(d.primaryGenre, ['electronic', 'edm', 'metal', 'drum &amp; bass', 'techno', 'dubstep', 'trap', 'rock'])
+    || genreMatch(d.secondaryGenre, ['electronic', 'metal', 'drum &amp; bass', 'techno']);
+  const moodAligned = moodMatch(d.moodPrimary, ['tense', 'aggressive', 'dark', 'triumphant', 'mysterious', 'euphoric']);
+&nbsp;
+  const positive: ScoreFactor[] = [];
+  const negative: ScoreFactor[] = [];
+&nbsp;
+  if (d.tension &gt; 60) positive.push({ label: 'High tension profile', description: `Tension score of ${d.tension} supports immersive gameplay and combat scenarios`, impact: 'positive', strength: 'strong' });
+  else if (d.tension &lt; 40) negative.push({ label: 'Insufficient tension', description: `Tension score of ${d.tension} limits suitability for action-oriented gameplay sequences`, impact: 'negative', strength: 'moderate' });
+&nbsp;
+  if (d.aggression &gt; 60) positive.push({ label: 'Aggressive energy profile', description: `Aggression score of ${d.aggression} drives intensity for combat and competitive gaming sequences`, impact: 'positive', strength: 'strong' });
+  else if (d.aggression &lt; 40) negative.push({ label: 'Low aggression for gaming', description: `Aggression score of ${d.aggression} reduces suitability for action-driven gaming contexts`, impact: 'negative', strength: 'moderate' });
+&nbsp;
+  if (d.darkness &gt; 55) positive.push({ label: 'Dark atmospheric depth', description: `Darkness score of ${d.darkness} supports immersive world-building and atmospheric game scoring`, impact: 'positive', strength: 'strong' });
+&nbsp;
+  if (d.danceability &gt; 60) positive.push({ label: 'Rhythmic momentum', description: `Danceability score of ${d.danceability} maintains engagement in open-world and exploration sequences`, impact: 'positive', strength: 'moderate' });
+&nbsp;
+  if (d.triumph &gt; 55) positive.push({ label: 'Triumph and achievement signals', description: `Triumph score of ${d.triumph} supports victory sequences and level-completion moments`, impact: 'positive', strength: 'moderate' });
+&nbsp;
+  if (d.volatility &gt; 65) positive.push({ label: 'Dynamic energy volatility', description: `Energy volatility of ${d.volatility} provides the unpredictable momentum gaming experiences benefit from`, impact: 'positive', strength: 'moderate' });
+&nbsp;
+  if (d.warmth &gt; 60) negative.push({ label: 'Excessive warmth for gaming', description: `Warmth score of ${d.warmth} creates a softer texture that conflicts with most gaming environments`, impact: 'negative', strength: 'weak' });
+&nbsp;
+  if (d.romance &gt; 55) negative.push({ label: 'Romantic profile misalignment', description: `Romance score of ${d.romance} reduces suitability for most gaming contexts outside narrative RPGs`, impact: 'negative', strength: 'weak' });
+&nbsp;
+  if (genreAligned) positive.push({ label: 'Genre alignment with gaming', description: `${d.primaryGenre} is a primary genre in game soundtrack licensing`, impact: 'positive', strength: 'strong' });
+  else negative.push({ label: 'Genre misalignment with gaming', description: `${d.primaryGenre} is less commonly licensed for gaming contexts`, impact: 'negative', strength: 'moderate' });
+&nbsp;
+  if (moodAligned) positive.push({ label: 'Gaming mood profile', description: `${d.moodPrimary} mood aligns with gaming atmosphere requirements`, impact: 'positive', strength: 'moderate' });
+&nbsp;
+  return { positive, negative };
+}
+&nbsp;
+function fashionFactors(d: DnaInputForSync) {
+  const genreAligned = genreMatch(d.primaryGenre, ['pop', 'dance', 'edm', 'house', 'r&amp;b', 'electronic'])
+    || genreMatch(d.secondaryGenre, ['pop', 'house', 'r&amp;b', 'electronic']);
+  const moodAligned = moodMatch(d.moodPrimary, ['confident', 'euphoric', 'romantic', 'playful', 'uplifting']);
+&nbsp;
+  const positive: ScoreFactor[] = [];
+  const negative: ScoreFactor[] = [];
+&nbsp;
+  if (d.brightness &gt; 60) positive.push({ label: 'High brightness profile', description: `Brightness score of ${d.brightness} delivers the visual-sonic energy fashion editorials and runway shows demand`, impact: 'positive', strength: 'strong' });
+  else if (d.brightness &lt; 40) negative.push({ label: 'Low brightness for fashion', description: `Brightness score of ${d.brightness} lacks the editorial energy fashion brands require`, impact: 'negative', strength: 'strong' });
+&nbsp;
+  if (d.danceability &gt; 60) positive.push({ label: 'Editorial rhythmic drive', description: `Danceability score of ${d.danceability} provides the groove fashion content needs for movement and performance`, impact: 'positive', strength: 'strong' });
+  else <span class="missing-if-branch" title="else path not taken" >E</span>if (d.danceability &lt; 45) negative.push({ label: 'Insufficient rhythmic energy', description: `Danceability score of ${d.danceability} limits suitability for fashion video and runway applications`, impact: 'negative', strength: 'moderate' });
+&nbsp;
+  if (d.romance &gt; 50) positive.push({ label: 'Romantic aesthetic quality', description: `Romance score of ${d.romance} aligns with fashion's aspirational and sensual brand identity`, impact: 'positive', strength: 'moderate' });
+&nbsp;
+  if (d.triumph &gt; 50) positive.push({ label: 'Confident, triumphant tone', description: `Triumph score of ${d.triumph} supports the aspirational narrative fashion campaigns project`, impact: 'positive', strength: 'moderate' });
+&nbsp;
+  if (d.darkness &lt; 45) positive.push({ label: 'Minimal dark tonality', description: `Low darkness (${d.darkness}) maintains the elevated, aspirational aesthetic fashion requires`, impact: 'positive', strength: 'moderate' });
+  else if (d.darkness &gt; 65) negative.push({ label: 'Excessive dark atmosphere', description: `Darkness score of ${d.darkness} conflicts with fashion's predominantly aspirational visual tone`, impact: 'negative', strength: 'moderate' });
+&nbsp;
+  if (genreAligned) positive.push({ label: 'Genre alignment with fashion', description: `${d.primaryGenre} is a highly preferred genre in fashion sync licensing`, impact: 'positive', strength: 'strong' });
+  else negative.push({ label: 'Genre misalignment with fashion', description: `${d.primaryGenre} is underrepresented in fashion editorial and runway sync`, impact: 'negative', strength: 'moderate' });
+&nbsp;
+  if (moodAligned) positive.push({ label: 'Fashion mood profile', description: `${d.moodPrimary} mood supports fashion's visual storytelling and brand identity`, impact: 'positive', strength: 'moderate' });
+&nbsp;
+  return { positive, negative };
+}
+&nbsp;
+function luxuryBrandsFactors(d: DnaInputForSync) {
+  const genreAligned = genreMatch(d.primaryGenre, ['classical', 'orchestral', 'jazz', 'ambient', 'neo-soul', 'soul', 'cinematic'])
+    || genreMatch(d.secondaryGenre, ['classical', 'jazz', 'orchestral', 'ambient']);
+  const moodAligned = moodMatch(d.moodPrimary, ['romantic', 'spiritual', 'peaceful', 'mysterious', 'nostalgic', 'dreamy']);
+&nbsp;
+  const positive: ScoreFactor[] = [];
+  const negative: ScoreFactor[] = [];
+&nbsp;
+  if (d.warmth &gt; 60) positive.push({ label: 'Rich, warm texture', description: `Warmth score of ${d.warmth} delivers the premium sonic quality luxury brands require`, impact: 'positive', strength: 'strong' });
+  else <span class="missing-if-branch" title="if path not taken" >I</span>if (d.warmth &lt; 40) <span class="cstat-no" title="statement not covered" >negative.push({ label: 'Insufficient warmth for luxury', description: `Warmth score of ${d.warmth} lacks the premium sonic texture luxury brand campaigns require`, impact: 'negative', strength: 'strong' });</span>
+&nbsp;
+  if (d.romance &gt; 50) positive.push({ label: 'Romantic, aspirational quality', description: `Romance score of ${d.romance} enhances the aspirational storytelling luxury brands use to sell desire`, impact: 'positive', strength: 'strong' });
+  else if (d.romance &lt; 35) negative.push({ label: 'Low romantic resonance', description: `Romance score of ${d.romance} limits suitability for luxury brand emotional storytelling`, impact: 'negative', strength: 'moderate' });
+&nbsp;
+  if (d.spirituality &gt; 45) positive.push({ label: 'Transcendent spiritual quality', description: `Spirituality score of ${d.spirituality} adds the elevated, otherworldly quality luxury brands communicate`, impact: 'positive', strength: 'moderate' });
+&nbsp;
+  if (d.aggression &lt; 35) positive.push({ label: 'Non-aggressive profile', description: `Low aggression (${d.aggression}) maintains the refined, premium character luxury brands require`, impact: 'positive', strength: 'strong' });
+  else if (d.aggression &gt; 50) negative.push({ label: 'Elevated aggression', description: `Aggression score of ${d.aggression} conflicts with the sophistication luxury brand campaigns communicate`, impact: 'negative', strength: 'strong' });
+&nbsp;
+  if (d.danceability &lt; 45) positive.push({ label: 'Measured rhythmic restraint', description: `Low danceability (${d.danceability}) maintains the refined pacing luxury brands prefer`, impact: 'positive', strength: 'moderate' });
+  else <span class="missing-if-branch" title="else path not taken" >E</span>if (d.danceability &gt; 65) negative.push({ label: 'Overly rhythmic for luxury', description: `Danceability score of ${d.danceability} conflicts with the premium, understated luxury aesthetic`, impact: 'negative', strength: 'moderate' });
+&nbsp;
+  if (d.tension &lt; 40) positive.push({ label: 'Low tension maintains elegance', description: `Low tension (${d.tension}) preserves the serene, premium atmosphere luxury brands use`, impact: 'positive', strength: 'moderate' });
+  else if (d.tension &gt; 55) negative.push({ label: 'Tension disrupts luxury feel', description: `Tension score of ${d.tension} creates a sense of urgency that conflicts with luxury brand calm`, impact: 'negative', strength: 'moderate' });
+&nbsp;
+  if (genreAligned) positive.push({ label: 'Genre alignment with luxury brands', description: `${d.primaryGenre} is a premium genre in luxury brand sync licensing`, impact: 'positive', strength: 'strong' });
+  else negative.push({ label: 'Genre misalignment with luxury', description: `${d.primaryGenre} is not commonly featured in luxury brand campaigns`, impact: 'negative', strength: 'moderate' });
+&nbsp;
+  if (moodAligned) positive.push({ label: 'Luxury mood profile', description: `${d.moodPrimary} mood aligns with luxury brand emotional storytelling`, impact: 'positive', strength: 'moderate' });
+&nbsp;
+  return { positive, negative };
+}
+&nbsp;
+function travelCampaignFactors(d: DnaInputForSync) {
+  const genreAligned = genreMatch(d.primaryGenre, ['folk', 'world music', 'afrobeats', 'reggae', 'latin', 'pop', 'indie', 'country'])
+    || genreMatch(d.secondaryGenre, ['folk', 'world music', 'afrobeats', 'latin', 'reggae']);
+  const moodAligned = moodMatch(d.moodPrimary, ['euphoric', 'uplifting', 'peaceful', 'triumphant', 'playful', 'dreamy']);
+&nbsp;
+  const positive: ScoreFactor[] = [];
+  const negative: ScoreFactor[] = [];
+&nbsp;
+  if (d.brightness &gt; 60) positive.push({ label: 'High brightness and positivity', description: `Brightness score of ${d.brightness} delivers the sunlit, adventurous quality travel campaigns project`, impact: 'positive', strength: 'strong' });
+  else if (d.brightness &lt; 40) negative.push({ label: 'Low brightness for travel', description: `Brightness score of ${d.brightness} lacks the optimistic, exploratory energy travel campaigns require`, impact: 'negative', strength: 'strong' });
+&nbsp;
+  if (d.spirituality &gt; 55) positive.push({ label: 'Spiritual-exploratory quality', description: `Spirituality score of ${d.spirituality} adds the sense of discovery and transcendence travel brands communicate`, impact: 'positive', strength: 'strong' });
+&nbsp;
+  if (d.warmth &gt; 55) positive.push({ label: 'Warm, inviting texture', description: `Warmth score of ${d.warmth} creates the welcoming, comfortable feeling travel advertising relies on`, impact: 'positive', strength: 'moderate' });
+&nbsp;
+  if (d.triumph &gt; 50) positive.push({ label: 'Triumphant adventure narrative', description: `Triumph score of ${d.triumph} supports the journey-and-achievement narrative travel brands tell`, impact: 'positive', strength: 'moderate' });
+&nbsp;
+  if (d.danceability &gt; 50) positive.push({ label: 'Rhythmic movement energy', description: `Danceability score of ${d.danceability} creates the kinetic energy that visually motivates travel`, impact: 'positive', strength: 'moderate' });
+&nbsp;
+  if (d.retention &gt; 60) positive.push({ label: 'Strong listener retention', description: `Retention score of ${d.retention} keeps audiences engaged throughout travel content`, impact: 'positive', strength: 'moderate' });
+&nbsp;
+  if (d.tension &gt; 60) negative.push({ label: 'Elevated tension conflicts with travel', description: `Tension score of ${d.tension} creates unease that conflicts with travel's aspirational, escapist tone`, impact: 'negative', strength: 'moderate' });
+&nbsp;
+  if (d.darkness &gt; 55) negative.push({ label: 'Dark atmosphere limits appeal', description: `Darkness score of ${d.darkness} conflicts with travel advertising's optimistic, sun-filled visual identity`, impact: 'negative', strength: 'moderate' });
+&nbsp;
+  if (genreAligned) positive.push({ label: 'Genre alignment with travel content', description: `${d.primaryGenre} is strongly associated with travel and discovery media`, impact: 'positive', strength: 'strong' });
+  else negative.push({ label: 'Genre misalignment with travel', description: `${d.primaryGenre} is less commonly featured in travel campaign licensing`, impact: 'negative', strength: 'moderate' });
+&nbsp;
+  if (moodAligned) positive.push({ label: 'Travel mood profile', description: `${d.moodPrimary} mood supports the wanderlust and adventure narrative travel brands sell`, impact: 'positive', strength: 'moderate' });
+&nbsp;
+  return { positive, negative };
+}
+&nbsp;
+function commercialAdsFactors(d: DnaInputForSync) {
+  const genreAligned = genreMatch(d.primaryGenre, ['pop', 'dance', 'edm', 'house', 'r&amp;b', 'soul', 'hip-hop'])
+    || genreMatch(d.secondaryGenre, ['pop', 'house', 'r&amp;b', 'soul']);
+  const moodAligned = moodMatch(d.moodPrimary, ['uplifting', 'playful', 'confident', 'euphoric', 'romantic']);
+&nbsp;
+  const positive: ScoreFactor[] = [];
+  const negative: ScoreFactor[] = [];
+&nbsp;
+  if (d.danceability &gt; 60) positive.push({ label: 'High commercial rhythmic appeal', description: `Danceability score of ${d.danceability} drives the consumer engagement that advertising campaigns require`, impact: 'positive', strength: 'strong' });
+  else <span class="missing-if-branch" title="else path not taken" >E</span>if (d.danceability &lt; 45) negative.push({ label: 'Low rhythmic appeal for advertising', description: `Danceability score of ${d.danceability} limits mass consumer engagement potential`, impact: 'negative', strength: 'strong' });
+&nbsp;
+  if (d.brightness &gt; 55) positive.push({ label: 'Positive, bright emotional profile', description: `Brightness score of ${d.brightness} creates the feel-good energy mass-market advertising deploys`, impact: 'positive', strength: 'strong' });
+  else if (d.brightness &lt; 40) negative.push({ label: 'Insufficient brightness for ads', description: `Brightness score of ${d.brightness} lacks the positive energy consumer advertising requires`, impact: 'negative', strength: 'moderate' });
+&nbsp;
+  if (d.triumph &gt; 55) positive.push({ label: 'Triumphant consumer narrative', description: `Triumph score of ${d.triumph} delivers the aspirational payoff consumer brands use to drive purchase intent`, impact: 'positive', strength: 'moderate' });
+&nbsp;
+  if (d.romance &gt; 45) positive.push({ label: 'Romantic appeal', description: `Romance score of ${d.romance} enhances lifestyle and aspirational advertising narratives`, impact: 'positive', strength: 'moderate' });
+&nbsp;
+  if (d.retention &gt; 65) positive.push({ label: 'High listener retention', description: `Retention score of ${d.retention} ensures the brand message is absorbed throughout the ad`, impact: 'positive', strength: 'moderate' });
+&nbsp;
+  if (d.tension &gt; 55) negative.push({ label: 'Tension disrupts consumer comfort', description: `Tension score of ${d.tension} creates discomfort that commercial advertising typically avoids`, impact: 'negative', strength: 'moderate' });
+&nbsp;
+  if (d.darkness &gt; 55) negative.push({ label: 'Dark atmosphere limits ad suitability', description: `Darkness score of ${d.darkness} conflicts with the predominantly positive emotional tone mass advertising requires`, impact: 'negative', strength: 'moderate' });
+&nbsp;
+  if (genreAligned) positive.push({ label: 'Genre alignment with commercial advertising', description: `${d.primaryGenre} is a dominant genre in commercial advertising sync`, impact: 'positive', strength: 'strong' });
+  else negative.push({ label: 'Genre misalignment with advertising', description: `${d.primaryGenre} is less common in mass-market advertising licensing`, impact: 'negative', strength: 'moderate' });
+&nbsp;
+  if (moodAligned) positive.push({ label: 'Commercial mood profile', description: `${d.moodPrimary} mood is a strong driver of consumer advertising placements`, impact: 'positive', strength: 'moderate' });
+&nbsp;
+  return { positive, negative };
+}
+&nbsp;
+function socialContentFactors(d: DnaInputForSync) {
+  const genreAligned = genreMatch(d.primaryGenre, ['hip-hop', 'trap', 'pop', 'dance', 'edm', 'afrobeats', 'r&amp;b', 'lo-fi', 'dancehall'])
+    || genreMatch(d.secondaryGenre, ['hip-hop', 'trap', 'pop', 'afrobeats']);
+  const moodAligned = moodMatch(d.moodPrimary, ['euphoric', 'playful', 'confident', 'uplifting', 'aggressive', 'triumphant']);
+&nbsp;
+  const positive: ScoreFactor[] = [];
+  const negative: ScoreFactor[] = [];
+&nbsp;
+  if (d.danceability &gt; 65) positive.push({ label: 'Viral dance and movement energy', description: `Danceability score of ${d.danceability} drives the social media trend cycles that fuel viral licensing`, impact: 'positive', strength: 'strong' });
+  else <span class="missing-if-branch" title="else path not taken" >E</span>if (d.danceability &lt; 50) negative.push({ label: 'Low viral movement potential', description: `Danceability score of ${d.danceability} limits suitability for TikTok, Reels, and trend-driven social placements`, impact: 'negative', strength: 'strong' });
+&nbsp;
+  if (d.brightness &gt; 60) positive.push({ label: 'High positive energy for social', description: `Brightness score of ${d.brightness} creates the feel-good, shareable energy social content algorithms reward`, impact: 'positive', strength: 'strong' });
+  else if (d.brightness &lt; 45) negative.push({ label: 'Low brightness for social content', description: `Brightness score of ${d.brightness} limits viral potential on positivity-driven social platforms`, impact: 'negative', strength: 'moderate' });
+&nbsp;
+  if (d.triumph &gt; 55) positive.push({ label: 'Achievement and confidence narrative', description: `Triumph score of ${d.triumph} supports the self-expression and achievement culture of social media`, impact: 'positive', strength: 'moderate' });
+&nbsp;
+  if (d.aggression &gt; 55) positive.push({ label: 'High-energy social potential', description: `Aggression score of ${d.aggression} drives the intensity and edge social media audiences engage with`, impact: 'positive', strength: 'moderate' });
+&nbsp;
+  if (d.dropStrength &gt; 60) positive.push({ label: 'Strong hook and drop moments', description: `Drop strength of ${d.dropStrength} creates the viral punctuation moments social content creators need`, impact: 'positive', strength: 'strong' });
+  else if (d.dropStrength &lt; 35) negative.push({ label: 'Weak hook moments', description: `Drop strength of ${d.dropStrength} limits the viral punctuation that social content algorithms amplify`, impact: 'negative', strength: 'moderate' });
+&nbsp;
+  if (d.volatility &gt; 60) positive.push({ label: 'Dynamic energy variation', description: `Energy volatility of ${d.volatility} creates the varied, engaging experience social platforms reward`, impact: 'positive', strength: 'moderate' });
+&nbsp;
+  if (d.melancholy &gt; 65) negative.push({ label: 'High melancholy limits viral reach', description: `Melancholy score of ${d.melancholy} reduces the positive, shareable energy social platforms reward most`, impact: 'negative', strength: 'moderate' });
+&nbsp;
+  if (genreAligned) positive.push({ label: 'Viral genre alignment', description: `${d.primaryGenre} is a top-performing genre in social media content and UGC licensing`, impact: 'positive', strength: 'strong' });
+  else negative.push({ label: 'Genre misalignment with social content', description: `${d.primaryGenre} has lower viral traction on major social platforms`, impact: 'negative', strength: 'moderate' });
+&nbsp;
+  if (moodAligned) positive.push({ label: 'Social-first mood profile', description: `${d.moodPrimary} mood drives the emotional engagement social content creators and audiences seek`, impact: 'positive', strength: 'moderate' });
+&nbsp;
+  return { positive, negative };
+}
+&nbsp;
+// ── Factory ────────────────────────────────────────────────────────────────────
+&nbsp;
+const FACTOR_EVALUATORS: Record&lt;SyncCategory, (d: DnaInputForSync) =&gt; { positive: ScoreFactor[]; negative: ScoreFactor[] }&gt; = {
+  film_trailer:     filmTrailerFactors,
+  netflix_drama:    netflixDramaFactors,
+  documentary:      documentaryFactors,
+  sports_content:   sportsContentFactors,
+  gaming:           gamingFactors,
+  fashion:          fashionFactors,
+  luxury_brands:    luxuryBrandsFactors,
+  travel_campaigns: travelCampaignFactors,
+  commercial_ads:   commercialAdsFactors,
+  social_content:   socialContentFactors,
+};
+&nbsp;
+// ── Public API ────────────────────────────────────────────────────────────────
+&nbsp;
+export function buildWhyScores(
+  d: DnaInputForSync,
+  categoryScores: Record&lt;SyncCategory, CategoryScore&gt;,
+): WhyScore[] {
+  return (Object.keys(FACTOR_EVALUATORS) as SyncCategory[]).map(cat =&gt; {
+    const { positive, negative } = FACTOR_EVALUATORS[cat](d);
+    const scoreData = categoryScores[cat];
+&nbsp;
+    return {
+      category: cat,
+      label: SYNC_CATEGORY_LABELS[cat],
+      score: scoreData.score,
+      confidence: scoreData.confidence,
+      positiveFactors: positive,
+      negativeFactors: negative,
+      confidenceLabel: confidenceLabel(scoreData.confidence),
+    };
+  });
+}
+&nbsp;</pre></td></tr></table></pre>
+
+                <div class='push'></div><!-- for sticky footer -->
+            </div><!-- /wrapper -->
+            <div class='footer quiet pad2 space-top1 center small'>
+                Code coverage generated by
+                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
+                at 2026-06-13T20:44:54.437Z
+            </div>
+        <script src="prettify.js"></script>
+        <script>
+            window.onload = function () {
+                prettyPrint();
+            };
+        </script>
+        <script src="sorter.js"></script>
+        <script src="block-navigation.js"></script>
+    </body>
+</html>
+    

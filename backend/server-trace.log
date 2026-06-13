@@ -1,0 +1,44 @@
+[Redis] CONNECTED
+[Redis] READY
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P06',
+  message: 'schema "drizzle" already exists, skipping',
+  file: 'schemacmds.c',
+  line: '132',
+  routine: 'CreateSchemaCommand'
+}
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "__drizzle_migrations" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '207',
+  routine: 'transformCreateStmt'
+}
+[Migrations] All pending migrations applied
+
+DATIAM OS Backend
+   Environment : development
+   Port        : 4000
+   Health      : http://localhost:4000/health
+
+[Scheduler] Worker started — ticking every 60s
+[SonicQueue] Workers started: simulation, analytics, memory, ranking
+[AudioProcessor] ffmpeg  → ffmpeg
+[AudioProcessor] ffprobe → ffprobe
+[AudioProcessor] ffmpeg: OK
+[AudioProcessor] ffprobe: OK
+[AudioWorker] Started: audio-processing (concurrency=2)
+[EnergyWorker] Started: energy-analysis (concurrency=1)
+[DnaWorker] Started: audio-dna (concurrency=2)
+[SyncWorker] Started: sync-intelligence (concurrency=2)
+{"timestamp":"2026-06-13T19:43:38.252Z","requestId":"f21fb832-3154-4387-88eb-c748d8b95239","method":"GET","path":"/health","statusCode":200,"durationMs":148,"userId":null}
+{"timestamp":"2026-06-13T19:43:38.491Z","requestId":"e1771a79-32d8-4189-95a9-9073ff4d1d14","method":"GET","path":"/api/commercial-intelligence/0a25871f-4dd0-401f-a7f4-612836a1c11b","statusCode":401,"durationMs":3,"userId":null}
+[CI-Audit-Finish] path=/api/commercial-intelligence/0a25871f-4dd0-401f-a7f4-612836a1c11b status=401 user=unauthenticated
+{"timestamp":"2026-06-13T19:43:38.667Z","requestId":"0838b9bb-510a-4f95-8c18-ed89dac9ae0c","method":"GET","path":"/api/commercial-intelligence/0a25871f-4dd0-401f-a7f4-612836a1c11b","statusCode":403,"durationMs":70,"userId":"b1a1b5b1-d9f0-4879-9b8a-af1df5b51629"}
+[CI-Audit-Finish] path=/api/commercial-intelligence/0a25871f-4dd0-401f-a7f4-612836a1c11b status=403 user=b1a1b5b1-d9f0-4879-9b8a-af1df5b51629
+[SchemaVerifier] schema healthy
+{"timestamp":"2026-06-13T19:44:35.589Z","requestId":"d9f3a325-282b-4bf7-8034-93d0f92e64b8","method":"GET","path":"/recent","statusCode":200,"durationMs":2369,"userId":"b1a1b5b1-d9f0-4879-9b8a-af1df5b51629"}

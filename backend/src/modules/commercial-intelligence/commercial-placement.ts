@@ -39,11 +39,14 @@ const CLASSIFICATION_THRESHOLDS: Array<{ min: number; max: number; classificatio
 ];
 
 export function buildCommercialPlacementPotential(overallSyncScore: number): CommercialPlacementPotential {
-  const tier = CLASSIFICATION_THRESHOLDS.find(t => overallSyncScore >= t.min && overallSyncScore <= t.max)
+  // Round before tier lookup so fractional scores (e.g. 80.5) don't fall through
+  // the gap between integer tier boundaries (Strong max=80, Exceptional min=81).
+  const rounded = Math.round(overallSyncScore);
+  const tier = CLASSIFICATION_THRESHOLDS.find(t => rounded >= t.min && rounded <= t.max)
     ?? CLASSIFICATION_THRESHOLDS[CLASSIFICATION_THRESHOLDS.length - 1];
 
   return {
-    score: Math.round(overallSyncScore),
+    score: rounded,
     classification: tier.classification,
     description: tier.description,
     colorKey: tier.colorKey,

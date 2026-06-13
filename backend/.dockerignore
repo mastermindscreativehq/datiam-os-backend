@@ -1,0 +1,28 @@
+# Dependencies (reinstalled during build)
+node_modules
+
+# Build output (rebuilt by RUN npm run build inside image)
+dist
+
+# Test infrastructure
+coverage
+**/__tests__/
+vitest.config.ts
+
+# Logs
+*.log
+
+# Development utility scripts (check-audit.mjs, list-users.mjs, mint-tokens.mjs, test-query.js)
+*.mjs
+test-query.js
+
+# Claude Code session files
+.claude
+
+# Environment files (injected at runtime by Railway / platform)
+.env
+.env.*
+
+# Version control metadata
+.git
+.gitignore
