@@ -23,6 +23,7 @@ const NAV = [
   { to: '/sync-intelligence',        label: 'SYNC INTEL',           icon: '◇' },
   { to: '/placement-opportunities',  label: 'PLACEMENTS',           icon: '✦' },
   { to: '/suitability-matrix',       label: 'SUITABILITY',          icon: '⬡' },
+  { to: '/commercial-intelligence',  label: 'COMMERCIAL INTEL',     icon: '◆' },
   { to: '/activity',                 label: 'ACTIVITY',             icon: '◈' },
 ]
 

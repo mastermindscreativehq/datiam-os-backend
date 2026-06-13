@@ -23,6 +23,7 @@ import GenreIntelligence from './pages/GenreIntelligence'
 import SyncIntelligence from './pages/SyncIntelligence'
 import PlacementOpportunities from './pages/PlacementOpportunities'
 import SuitabilityMatrix from './pages/SuitabilityMatrix'
+import CommercialIntelligence from './pages/CommercialIntelligence'
 
 function App() {
   return (
@@ -54,6 +55,8 @@ function App() {
           <Route path="sync-intelligence" element={<SyncIntelligence />} />
           <Route path="placement-opportunities" element={<PlacementOpportunities />} />
           <Route path="suitability-matrix" element={<SuitabilityMatrix />} />
+          {/* DATIAM OS v4 — Commercial Intelligence Engine */}
+          <Route path="commercial-intelligence" element={<CommercialIntelligence />} />
         </Route>
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>

@@ -314,6 +314,14 @@ export const syncIntelligence = {
     }),
 }
 
+// ── Commercial Intelligence Engine (DATIAM OS v4) ────────────────────────────
+export const commercialIntelligence = {
+  get:      (upload_id: string) =>
+    apiClient.get(`/commercial-intelligence/${upload_id}`, { timeout: 45_000 }),
+  byArtist: (artist_id: string, limit = 10) =>
+    apiClient.get(`/commercial-intelligence/artist/${artist_id}`, { params: { limit }, timeout: 60_000 }),
+}
+
 // ── Music Intelligence ───────────────────────────────────────────────────────
 export const musicIntelligence = {
   dashboard:           (artistId?: string) => apiClient.get('/music-intelligence/dashboard', { params: artistId ? { artist_id: artistId } : {} }),

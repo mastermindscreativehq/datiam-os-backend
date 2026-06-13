@@ -36,6 +36,7 @@ import audioRouter from './modules/audio/audio.routes';
 import energyRouter from './modules/energy/energy.routes';
 import audioDnaRouter from './modules/audio-dna/audio-dna.routes';
 import syncIntelligenceRouter from './modules/sync-intelligence/sync-intelligence.routes';
+import commercialIntelligenceRouter from './modules/commercial-intelligence/commercial-intelligence.router';
 import { verifySchema } from './db/schemaVerifier';
 
 const app = express();
@@ -152,6 +153,9 @@ app.use('/api/energy', energyRouter);
 // ---- DATIAM Intelligence Phase 1 ----
 app.use('/api/audio-dna', audioDnaRouter);
 app.use('/api/sync-intelligence', syncIntelligenceRouter);
+
+// ---- Commercial Intelligence Engine (DATIAM OS v4) ----
+app.use('/api/commercial-intelligence', commercialIntelligenceRouter);
 
 // ---- System Routes ----
 app.use('/api/system/migrations', migrationsRouter);
