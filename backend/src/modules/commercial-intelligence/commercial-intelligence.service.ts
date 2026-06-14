@@ -6,7 +6,7 @@ import { SYNC_CATEGORIES, SYNC_CATEGORY_LABELS } from '../sync-intelligence/sync
 import type { CommercialIntelligenceReport } from './commercial-intelligence.types';
 
 import { buildWhyScores } from './why-engine';
-import { buildExecutiveSyncAssessment } from './executive-assessment';
+import { buildExecutiveSyncAssessment, buildExecutiveReportV2 } from './executive-assessment';
 import { buildCommercialPlacementPotential } from './commercial-placement';
 import { buildMarketAlignment } from './market-alignment';
 import { buildRevenueForecast } from './revenue-forecast';
@@ -14,6 +14,10 @@ import { buildComparableArtists } from './comparable-artists';
 import { buildSyncRiskAssessment } from './risk-assessment';
 import { buildDecisionEngine } from './decision-engine';
 import { buildDatiamVerdict } from './verdict-engine';
+import { buildSyncReadinessScores } from './sync-readiness-engine';
+import { buildMarketMatches } from './market-matching-engine';
+import { buildProspectDiscovery } from './prospect-discovery-engine';
+import { buildRevenueTierForecast } from './revenue-tier-engine';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -142,7 +146,10 @@ export async function getCommercialIntelligenceReport(uploadId: string): Promise
       .filter(({ s }) => s >= 40)
       .map(({ c }) => c);
 
-  // Run all 9 intelligence engines
+  // Sync readiness computed first — verdict engine depends on it
+  const syncReadinessScores = buildSyncReadinessScores(dnaInput);
+
+  // Run all intelligence engines in parallel
   const [
     whyScores,
     executiveSyncAssessment,
@@ -153,6 +160,10 @@ export async function getCommercialIntelligenceReport(uploadId: string): Promise
     syncRiskAssessment,
     decisionEngine,
     datiamVerdict,
+    marketMatches,
+    revenueTierForecast,
+    prospectDiscovery,
+    executiveReportV2,
   ] = await Promise.all([
     Promise.resolve(buildWhyScores(dnaInput, categoryScores)),
     Promise.resolve(buildExecutiveSyncAssessment(dnaInput, topCategories, overallScore)),
@@ -162,7 +173,11 @@ export async function getCommercialIntelligenceReport(uploadId: string): Promise
     Promise.resolve(buildComparableArtists(dnaInput)),
     Promise.resolve(buildSyncRiskAssessment(dnaInput, categoryScores, overallScore)),
     Promise.resolve(buildDecisionEngine(categoryScores, overallScore)),
-    Promise.resolve(buildDatiamVerdict(dnaInput, categoryScores, overallScore)),
+    Promise.resolve(buildDatiamVerdict(dnaInput, categoryScores, overallScore, syncReadinessScores)),
+    Promise.resolve(buildMarketMatches(dnaInput)),
+    Promise.resolve(buildRevenueTierForecast(categoryScores, overallScore)),
+    Promise.resolve(buildProspectDiscovery(dnaInput)),
+    Promise.resolve(buildExecutiveReportV2(dnaInput, topCategories, overallScore)),
   ]);
 
   return {
@@ -179,6 +194,11 @@ export async function getCommercialIntelligenceReport(uploadId: string): Promise
     syncRiskAssessment,
     decisionEngine,
     datiamVerdict,
+    syncReadinessScores,
+    marketMatches,
+    revenueTierForecast,
+    prospectDiscovery,
+    executiveReportV2,
   };
 }
 

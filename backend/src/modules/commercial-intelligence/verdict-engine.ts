@@ -1,6 +1,10 @@
-import type { SyncCategory, CategoryScore } from '../sync-intelligence/sync-intelligence.types';
+import type { DnaInputForSync, SyncCategory, CategoryScore } from '../sync-intelligence/sync-intelligence.types';
 import { SYNC_CATEGORY_LABELS } from '../sync-intelligence/sync-intelligence.types';
-import type { DatiamVerdict, CommercialOutlook, VerdictRecommendation } from './commercial-intelligence.types';
+import type {
+  DatiamVerdict, CommercialOutlook, VerdictRecommendation,
+  VerdictStrengthFactor, VerdictRiskFactor, VerdictRecommendedAction,
+} from './commercial-intelligence.types';
+import type { SyncReadinessScores } from './commercial-intelligence.types';
 
 // ── Revenue path mapping ───────────────────────────────────────────────────────
 
@@ -87,12 +91,86 @@ function confidenceScore(overallScore: number, categoryCount: number): number {
   return Math.round(baseConfidence + diversityBonus);
 }
 
+// ── V2: Strength / Risk / Action builders ─────────────────────────────────────
+
+function buildStrengthFactors(
+  d: { triumph: number; danceability: number; brightness: number; warmth: number; spirituality: number; dropStrength: number },
+  readiness: SyncReadinessScores,
+): VerdictStrengthFactor[] {
+  const factors: VerdictStrengthFactor[] = [];
+
+  if (d.triumph > 65) factors.push({ label: 'High Energy', description: 'Strong triumph energy drives commercial momentum', impact: 15 });
+  if (readiness.hookStrength.score > 65) factors.push({ label: 'Strong Chorus', description: 'Hook strength score indicates memorable chorus structure', impact: 12 });
+  if (readiness.instrumentalValue.score > 60) factors.push({ label: 'Good Instrumental Sections', description: 'Cinematic tension creates strong underscore value', impact: 10 });
+  if (d.danceability > 65) factors.push({ label: 'High Danceability', description: 'Strong rhythmic drive suits commercial and fitness campaigns', impact: 10 });
+  if (d.brightness > 65) factors.push({ label: 'Brand-Safe Bright Tone', description: 'Positive, bright profile suitable for mainstream brand use', impact: 8 });
+  if (d.warmth > 65) factors.push({ label: 'Warm Emotional Tone', description: 'Warmth creates strong consumer brand connection', impact: 8 });
+  if (readiness.replayValue.score > 65) factors.push({ label: 'High Replay Value', description: 'Track demonstrates strong listener retention', impact: 8 });
+  if (d.spirituality > 60) factors.push({ label: 'Unique Artistic Voice', description: 'Spiritual depth creates distinctive placement opportunity', impact: 6 });
+  if (d.dropStrength > 65) factors.push({ label: 'Powerful Drop Structure', description: 'Strong drops create high-impact placement moments', impact: 8 });
+
+  return factors.slice(0, 5);
+}
+
+function buildRiskFactors(
+  d: { aggression: number; darkness: number; melancholy: number; volatility: number; retention: number; triumph: number; brightness: number },
+  readiness: SyncReadinessScores,
+): VerdictRiskFactor[] {
+  const factors: VerdictRiskFactor[] = [];
+
+  if (d.aggression > 70 && d.darkness > 65) factors.push({ label: 'Limited Brand Alignment', description: 'High aggression and darkness reduce brand campaign suitability', impact: -10 });
+  if (d.volatility > 75) factors.push({ label: 'Chaotic Energy Curve', description: 'Excessive volatility disrupts sync placement edit points', impact: -8 });
+  if (d.melancholy > 75) factors.push({ label: 'Narrow Emotional Appeal', description: 'Heavy melancholy limits broad commercial utility', impact: -8 });
+  if (d.aggression > 80) factors.push({ label: 'Brand Safety Risk', description: 'Extreme aggression creates brand safety concerns', impact: -12 });
+  if (d.darkness > 80) factors.push({ label: 'Extreme Dark Tone', description: 'Very dark profile limits mainstream commercial placements', impact: -10 });
+  if (d.retention < 35) factors.push({ label: 'Low Replay Value', description: 'Low retention score indicates weak listener engagement loop', impact: -8 });
+  if (readiness.hookStrength.score < 50) factors.push({ label: 'Weak First Hook', description: 'Hook strength below threshold reduces immediate commercial appeal', impact: -8 });
+  if (d.triumph < 30 && d.brightness < 30) factors.push({ label: 'Low Commercial Energy', description: 'Subdued triumph and brightness limit mainstream placement potential', impact: -10 });
+
+  return factors.slice(0, 5);
+}
+
+function buildRecommendedActions(
+  overallScore: number,
+  readiness: SyncReadinessScores,
+  topCategory: SyncCategory,
+): VerdictRecommendedAction[] {
+  const actions: VerdictRecommendedAction[] = [];
+  let p = 1;
+
+  if (readiness.instrumentalValue.score > 55) {
+    actions.push({ priority: p++, action: 'Create Instrumental Version', rationale: 'High instrumental value creates additional licensing tier for sync and film use' });
+  }
+  if (overallScore > 50) {
+    actions.push({ priority: p++, action: 'Create 60-Second Edit', rationale: 'Commercial edit maximizes ad and digital placement opportunities' });
+  }
+  if (readiness.vocalClarity.score < 55) {
+    actions.push({ priority: p++, action: 'Improve Vocal Presence', rationale: 'Strengthening vocal clarity increases placement value across emotional categories' });
+  }
+  if (readiness.brandSuitability.score < 50) {
+    actions.push({ priority: p++, action: 'Create Brand-Safe Edit', rationale: 'Reduced aggression version opens major brand campaign opportunities' });
+  }
+  if (readiness.hookStrength.score < 50) {
+    actions.push({ priority: p++, action: 'Strengthen Opening Hook', rationale: 'Immediate musical hook increases sync placement acceptance rate' });
+  }
+  if (topCategory === 'sports_content' || topCategory === 'gaming') {
+    actions.push({ priority: p++, action: 'Pitch to Sports Media', rationale: 'High-energy triumph profile is ideal for sports broadcast and athlete content' });
+  }
+  actions.push({ priority: p++, action: 'Submit to Sync Libraries', rationale: 'Library registration maximizes passive income across all placement categories' });
+  if (overallScore > 60) {
+    actions.push({ priority: p++, action: 'Engage Sync Agent', rationale: 'Commercial score justifies dedicated sync representation for major placements' });
+  }
+
+  return actions.slice(0, 5);
+}
+
 // ── Public API ─────────────────────────────────────────────────────────────────
 
 export function buildDatiamVerdict(
-  d: { primaryGenre: string | null; moodPrimary: string | null },
+  d: DnaInputForSync,
   categoryScores: Record<SyncCategory, CategoryScore>,
   overallScore: number,
+  readiness: SyncReadinessScores,
 ): DatiamVerdict {
   const ranked = (Object.entries(categoryScores) as [SyncCategory, CategoryScore][])
     .sort(([, a], [, b]) => b.score - a.score);
@@ -103,10 +181,9 @@ export function buildDatiamVerdict(
   const highCategories = ranked.filter(([, cs]) => cs.score >= 50);
   const outlook = commercialOutlook(overallScore);
   const recommendation = verdictRecommendation(overallScore);
-  const readiness = syncReadiness(overallScore, topScore);
+  const readinessScore = syncReadiness(overallScore, topScore);
 
   const bestAudience = CATEGORY_AUDIENCE[topCategory].slice(0, 3);
-
   const summary = buildExecutiveSummary(d, outlook, topCategory, topScore, overallScore, recommendation);
 
   return {
@@ -114,9 +191,12 @@ export function buildDatiamVerdict(
     bestOpportunity: SYNC_CATEGORY_LABELS[topCategory],
     bestRevenuePath: REVENUE_PATH[topCategory],
     bestAudience,
-    syncReadiness: readiness,
+    syncReadiness: readinessScore,
     recommendation,
     executiveSummary: summary,
     confidenceScore: confidenceScore(overallScore, highCategories.length),
+    strengthFactors:    buildStrengthFactors(d, readiness),
+    riskFactors:        buildRiskFactors(d, readiness),
+    recommendedActions: buildRecommendedActions(overallScore, readiness, topCategory),
   };
 }

@@ -1,6 +1,6 @@
 import type { DnaInputForSync, SyncCategory } from '../sync-intelligence/sync-intelligence.types';
 import { SYNC_CATEGORY_LABELS } from '../sync-intelligence/sync-intelligence.types';
-import type { ExecutiveSyncAssessment } from './commercial-intelligence.types';
+import type { ExecutiveSyncAssessment, ExecutiveReportV2 } from './commercial-intelligence.types';
 
 function titleCase(s: string): string {
   return s.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
@@ -146,4 +146,81 @@ export function buildExecutiveSyncAssessment(
   }
 
   return { headline, body, primaryOpportunities, supervisorVerdict };
+}
+
+// ── Executive Report V2 (A&R Style) ──────────────────────────────────────────
+
+export function buildExecutiveReportV2(
+  d: DnaInputForSync,
+  topCategories: SyncCategory[],
+  overallScore: number,
+): ExecutiveReportV2 {
+  const cats = topCategories.length > 0 ? topCategories : (['social_content'] as SyncCategory[]);
+  const primaryLabel = SYNC_CATEGORY_LABELS[cats[0]];
+  const secondaryLabel = cats[1] ? SYNC_CATEGORY_LABELS[cats[1]] : null;
+  const genre = d.primaryGenre ?? 'this genre';
+  const mood = d.moodPrimary?.toLowerCase() ?? 'nuanced';
+  const outlook = overallScore >= 75 ? 'exceptional' : overallScore >= 60 ? 'strong' : overallScore >= 45 ? 'moderate' : 'limited';
+
+  const commercialSummary = (() => {
+    if (overallScore >= 75) {
+      return `This ${genre} track demonstrates exceptional commercial viability with a ${mood} emotional signature commanding premium consideration from major sync buyers. Overall commercial score of ${overallScore}/100 places this track in the top tier of placement-ready material. The combination of ${buildStrengthProfile(d)} positions this work for immediate pitch to first-tier supervisors across multiple categories.`;
+    }
+    if (overallScore >= 60) {
+      return `A commercially strong ${genre} track with a ${mood} profile that demonstrates clear placement utility across targeted sync categories. With an overall commercial score of ${overallScore}/100, this track is well-positioned for a focused outreach campaign to ${primaryLabel.toLowerCase()} supervisors and relevant brand partners. The emotional architecture is commercially coherent and consistently aligns with buyer expectations in this space.`;
+    }
+    if (overallScore >= 45) {
+      return `This ${genre} track presents moderate commercial sync utility with a ${mood} emotional character best suited for specialist categories. The commercial score of ${overallScore}/100 reflects genuine potential in ${primaryLabel.toLowerCase()} contexts, though broader market appeal requires further positioning. Library submissions and niche channel pitching are recommended as the primary strategy.`;
+    }
+    return `This ${genre} track is currently at an early stage of commercial sync viability. The ${mood} emotional profile has foundational qualities that require further development and production refinement. At ${overallScore}/100, the track is best suited for library deposit and targeted development rather than active pitching to major supervisors.`;
+  })();
+
+  const audienceSummary = (() => {
+    const primary = cats[0];
+    const audienceMap: Record<SyncCategory, string> = {
+      film_trailer:     'Major studio music supervisors, trailer production companies, and cinematic advertising agencies represent the primary audience. These buyers require technically polished, high-impact tracks with clear build-and-release structure.',
+      netflix_drama:    'Streaming platform music supervisors and prestige TV production companies are the core buyers. This audience prioritizes emotional depth, character alignment, and scene-specific suitability.',
+      documentary:      'Independent documentary filmmakers, streaming documentary divisions, and editorial content producers. Budget ranges are moderate but volume is consistent for tracks that serve authentic storytelling.',
+      sports_content:   'Sports media brands (ESPN, Sky Sports), athlete-facing marketing agencies, and fitness content creators. This audience rewards high energy, triumph, and motivational emotional profiles.',
+      gaming:           'AAA game studio music directors, esports production teams, and gaming content creators. Technical precision and dynamic range are prioritized alongside emotional impact.',
+      fashion:          'Fashion brand creative directors, editorial production agencies, and runway event producers. Aesthetic coherence and visual-music alignment drive purchasing decisions.',
+      luxury_brands:    'Premium automotive, fragrance, and jewelry brand campaigns. This is the highest per-placement revenue category with the most selective buyer criteria.',
+      travel_campaigns: 'Airline, hotel, and tourism board creative teams. Seasonal purchasing peaks, with preference for aspirational, warm emotional profiles.',
+      commercial_ads:   'National advertising agencies, digital campaign producers, and in-house brand teams. Highest volume category — diverse emotional range is acceptable, but commercial clarity is essential.',
+      social_content:   'Content creators, brand social media teams, and influencer partnerships. Fastest-moving category — hook-forward, short-form suitability is a primary driver.',
+    };
+    let summary = audienceMap[primary];
+    if (secondaryLabel) {
+      summary += ` Secondary audience opportunity in ${secondaryLabel.toLowerCase()} adds breadth to the outreach strategy.`;
+    }
+    return summary;
+  })();
+
+  const marketSummary = (() => {
+    const topTwo = cats.slice(0, 2).map(c => SYNC_CATEGORY_LABELS[c]).join(' and ');
+    const demand = overallScore >= 65 ? 'high demand with limited competition in this emotional tier' : 'moderate demand with clear category-specific niche';
+    return `Primary market strength lies in ${topTwo} contexts, where current market conditions show ${demand}. ${overallScore >= 60 ? `The ${genre} genre continues to perform well in ${primaryLabel.toLowerCase()} placements, with buyer appetite for ${mood} emotional profiles remaining strong through 2025–2026.` : `The ${genre} genre occupies a specialist position in the ${primaryLabel.toLowerCase()} category, where targeted placement through specialist channels will outperform broad-market submissions.`}`;
+  })();
+
+  const revenueSummary = (() => {
+    if (overallScore >= 70) {
+      return `Based on current market rates and commercial score, expected annual sync revenue in the ${primaryLabel} category ranges from $8,000–$45,000/yr under realistic placement scenarios. Total cross-category potential (including brand, sports, and creator licensing) projects to $20,000–$80,000/yr with active representation. Aggressive scenario with major brand placement: $100,000+/yr.`;
+    }
+    if (overallScore >= 50) {
+      return `Estimated annual sync potential of $3,000–$18,000/yr based on primary category rates and placement frequency. With targeted outreach and library placement across 2–3 categories, creator and brand licensing can add $5,000–$15,000/yr. Conservative library submission approach projects $2,000–$8,000/yr.`;
+    }
+    return `At current commercial score, passive library licensing represents the primary near-term revenue path, projecting $500–$4,000/yr. Active development of a commercial edit and instrumental version could unlock $3,000–$12,000/yr in improved placement scenarios.`;
+  })();
+
+  const improvementPlan: string[] = [];
+  if (d.aggression > 70 || d.darkness > 70) improvementPlan.push('Create brand-safe edit with reduced aggression and darkness for mainstream commercial use');
+  if (overallScore < 70) improvementPlan.push('Develop instrumental version to unlock underscore, trailer, and brand placement categories');
+  if (d.dropStrength < 50) improvementPlan.push('Strengthen chorus and drop sections to improve hook score and immediate commercial appeal');
+  if (d.retention < 50) improvementPlan.push('Improve arrangement dynamics and variation to increase replay value and campaign durability');
+  if (overallScore < 65) improvementPlan.push('Create 30-second and 60-second commercial edits optimized for ad placement');
+  improvementPlan.push(`Register all rights and metadata with PRO and music licensing databases before active pitching`);
+  if (overallScore >= 55) improvementPlan.push('Engage specialized sync licensing agency for representation in primary target categories');
+  if (cats[0] === 'sports_content' || cats[0] === 'gaming') improvementPlan.push('Target sports media and gaming editorial calendars for seasonal placement opportunities');
+
+  return { commercialSummary, audienceSummary, marketSummary, revenueSummary, improvementPlan: improvementPlan.slice(0, 5) };
 }

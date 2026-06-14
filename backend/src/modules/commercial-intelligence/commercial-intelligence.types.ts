@@ -1,5 +1,142 @@
 import type { SyncCategory } from '../sync-intelligence/sync-intelligence.types';
 
+// ── SYNC READINESS ENGINE™ ────────────────────────────────────────────────────
+
+export interface ReadinessFactor {
+  factor: string;
+  points: number;
+  direction: 'positive' | 'negative';
+}
+
+export interface SyncReadinessScore {
+  key: string;
+  label: string;
+  score: number;
+  description: string;
+  factors: ReadinessFactor[];
+}
+
+export interface SyncReadinessScores {
+  hookStrength: SyncReadinessScore;
+  energyCurve: SyncReadinessScore;
+  vocalClarity: SyncReadinessScore;
+  instrumentalValue: SyncReadinessScore;
+  replayValue: SyncReadinessScore;
+  brandSuitability: SyncReadinessScore;
+  overallReadiness: number;
+}
+
+// ── MARKET MATCHING ENGINE™ ───────────────────────────────────────────────────
+
+export type MarketCategory =
+  | 'sports_content'
+  | 'fitness_brands'
+  | 'lifestyle_brands'
+  | 'luxury_brands'
+  | 'fashion_brands'
+  | 'gaming_content'
+  | 'film_tv'
+  | 'commercial_ads'
+  | 'documentary'
+  | 'trailer_music';
+
+export const MARKET_CATEGORIES: MarketCategory[] = [
+  'sports_content', 'fitness_brands', 'lifestyle_brands', 'luxury_brands',
+  'fashion_brands', 'gaming_content', 'film_tv', 'commercial_ads', 'documentary', 'trailer_music',
+];
+
+export const MARKET_CATEGORY_LABELS: Record<MarketCategory, string> = {
+  sports_content:   'Sports Content',
+  fitness_brands:   'Fitness Brands',
+  lifestyle_brands: 'Lifestyle Brands',
+  luxury_brands:    'Luxury Brands',
+  fashion_brands:   'Fashion Brands',
+  gaming_content:   'Gaming Content',
+  film_tv:          'Film & TV',
+  commercial_ads:   'Commercial Ads',
+  documentary:      'Documentary',
+  trailer_music:    'Trailer Music',
+};
+
+export interface MarketMatch {
+  market: MarketCategory;
+  label: string;
+  matchScore: number;
+  confidenceScore: number;
+  ranking: number;
+  matchReasons: string[];
+}
+
+// ── DATIAM VERDICT V2™ ────────────────────────────────────────────────────────
+
+export interface VerdictStrengthFactor {
+  label: string;
+  description: string;
+  impact: number;
+}
+
+export interface VerdictRiskFactor {
+  label: string;
+  description: string;
+  impact: number;
+}
+
+export interface VerdictRecommendedAction {
+  priority: number;
+  action: string;
+  rationale: string;
+}
+
+// ── REVENUE TIER FORECAST™ ────────────────────────────────────────────────────
+
+export interface RevenueTierBreakdown {
+  syncPotential:    { min: number; max: number; formatted: string };
+  creatorLicensing: { min: number; max: number; formatted: string };
+  sportsContent:    { min: number; max: number; formatted: string };
+  brandPlacement:   { min: number; max: number; formatted: string };
+}
+
+export interface RevenueTierEntry {
+  totalMin: number;
+  totalMax: number;
+  formattedTotal: string;
+  breakdown: RevenueTierBreakdown;
+  assumptions: string;
+}
+
+export interface RevenueTierForecast {
+  conservative: RevenueTierEntry;
+  expected:     RevenueTierEntry;
+  aggressive:   RevenueTierEntry;
+}
+
+// ── PROSPECT DISCOVERY ENGINE™ ────────────────────────────────────────────────
+
+export interface ProspectTarget {
+  companyName: string;
+  category: string;
+  matchScore: number;
+  reason: string;
+  type: 'sync' | 'brand' | 'creator' | 'sports';
+}
+
+export interface ProspectDiscovery {
+  syncTargets:    ProspectTarget[];
+  brandTargets:   ProspectTarget[];
+  creatorTargets: ProspectTarget[];
+  sportsTargets:  ProspectTarget[];
+}
+
+// ── EXECUTIVE REPORT V2™ ──────────────────────────────────────────────────────
+
+export interface ExecutiveReportV2 {
+  commercialSummary: string;
+  audienceSummary:   string;
+  marketSummary:     string;
+  revenueSummary:    string;
+  improvementPlan:   string[];
+}
+
 // ── WHY ENGINE™ ───────────────────────────────────────────────────────────────
 
 export interface ScoreFactor {
@@ -145,6 +282,10 @@ export interface DatiamVerdict {
   recommendation: VerdictRecommendation;
   executiveSummary: string;
   confidenceScore: number;
+  // V2 fields — always present in upgraded engine
+  strengthFactors:     VerdictStrengthFactor[];
+  riskFactors:         VerdictRiskFactor[];
+  recommendedActions:  VerdictRecommendedAction[];
 }
 
 // ── FULL COMMERCIAL INTELLIGENCE REPORT ──────────────────────────────────────
@@ -155,6 +296,7 @@ export interface CommercialIntelligenceReport {
   overallSyncScore: number;
   generatedAt: string;
 
+  // V1 engines (preserved)
   whyScores: WhyScore[];
   executiveSyncAssessment: ExecutiveSyncAssessment;
   commercialPlacementPotential: CommercialPlacementPotential;
@@ -164,6 +306,13 @@ export interface CommercialIntelligenceReport {
   syncRiskAssessment: SyncRiskAssessment;
   decisionEngine: DecisionEngineOutput;
   datiamVerdict: DatiamVerdict;
+
+  // V2 engines (new in Music Intelligence upgrade)
+  syncReadinessScores: SyncReadinessScores;
+  marketMatches: MarketMatch[];
+  revenueTierForecast: RevenueTierForecast;
+  prospectDiscovery: ProspectDiscovery;
+  executiveReportV2: ExecutiveReportV2;
 }
 
 // ── DNA INPUT CONTRACT (re-export friendly alias) ─────────────────────────────

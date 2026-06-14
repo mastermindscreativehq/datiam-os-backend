@@ -10,6 +10,12 @@ import ComparableArtists from '../components/commercial-intelligence/ComparableA
 import SyncRiskAssessment from '../components/commercial-intelligence/SyncRiskAssessment'
 import DecisionEngine from '../components/commercial-intelligence/DecisionEngine'
 import DatiamVerdict from '../components/commercial-intelligence/DatiamVerdict'
+import SyncReadinessScores from '../components/commercial-intelligence/SyncReadinessScores'
+import MarketHeatmap from '../components/commercial-intelligence/MarketHeatmap'
+import RevenueTierForecast from '../components/commercial-intelligence/RevenueTierForecast'
+import ProspectDiscoveryTable from '../components/commercial-intelligence/ProspectDiscoveryTable'
+import VerdictV2Card from '../components/commercial-intelligence/VerdictV2Card'
+import ExecutiveReportV2 from '../components/commercial-intelligence/ExecutiveReportV2'
 
 interface Artist { id: string; stage_name: string }
 
@@ -35,18 +41,35 @@ interface CommercialReport {
   syncRiskAssessment: any
   decisionEngine: any
   datiamVerdict: any
+  // V2
+  syncReadinessScores: any
+  marketMatches: any[]
+  revenueTierForecast: any
+  prospectDiscovery: any
+  executiveReportV2: any
 }
 
 const TABS = [
-  { key: 'verdict',    label: 'DATIAM Verdict' },
-  { key: 'why',        label: 'Why Engine' },
-  { key: 'assessment', label: 'Exec Assessment' },
-  { key: 'market',     label: 'Market Alignment' },
+  { key: 'overview',   label: 'Overview' },
+  { key: 'readiness',  label: 'Sync Readiness' },
+  { key: 'markets',    label: 'Market Match' },
   { key: 'revenue',    label: 'Revenue Forecast' },
-  { key: 'artists',    label: 'Comparable Artists' },
-  { key: 'risk',       label: 'Risk Assessment' },
-  { key: 'actions',    label: 'Decision Engine' },
+  { key: 'prospects',  label: 'Prospects' },
+  { key: 'executive',  label: 'Executive Report' },
+  { key: 'why',        label: 'Why Engine' },
+  { key: 'risk',       label: 'Risk Panel' },
+  { key: 'artists',    label: 'Artists' },
+  { key: 'actions',    label: 'Actions' },
 ]
+
+function ScoreKpi({ label, value, unit = '', color = 'text-cyan-400' }: { label: string; value: string | number; unit?: string; color?: string }) {
+  return (
+    <div className="bg-gray-900 border border-gray-800 rounded-lg p-3 text-center">
+      <div className="text-[9px] font-mono text-gray-600 uppercase tracking-wider mb-1">{label}</div>
+      <div className={`text-lg font-bold font-mono ${color}`}>{value}{unit}</div>
+    </div>
+  )
+}
 
 export default function CommercialIntelligence() {
   const [artists, setArtists] = useState<Artist[]>([])
@@ -54,12 +77,11 @@ export default function CommercialIntelligence() {
   const [records, setRecords] = useState<SyncRecord[]>([])
   const [selectedRecord, setSelectedRecord] = useState<SyncRecord | null>(null)
   const [report, setReport] = useState<CommercialReport | null>(null)
-  const [activeTab, setActiveTab] = useState('verdict')
+  const [activeTab, setActiveTab] = useState('overview')
   const [loading, setLoading] = useState(false)
   const [reportLoading, setReportLoading] = useState(false)
   const [error, setError] = useState('')
 
-  // Load artists
   useEffect(() => {
     artistsApi.list().then(r => {
       const list: Artist[] = r.data?.data ?? r.data ?? []
@@ -68,7 +90,6 @@ export default function CommercialIntelligence() {
     }).catch(() => setError('Failed to load artists'))
   }, [])
 
-  // Load sync records for artist
   useEffect(() => {
     if (!selectedArtist) return
     setLoading(true)
@@ -84,7 +105,6 @@ export default function CommercialIntelligence() {
       .finally(() => setLoading(false))
   }, [selectedArtist])
 
-  // Load commercial intelligence report when track selected
   useEffect(() => {
     if (!selectedRecord) return
     setReportLoading(true)
@@ -107,10 +127,10 @@ export default function CommercialIntelligence() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-white tracking-wide">
-            Commercial Intelligence
+            Music Intelligence
           </h1>
           <p className="text-gray-400 text-sm mt-1 font-mono">
-            Music Intelligence · Revenue Forecast · Decision Engine · DATIAM Verdict™
+            Sync Readiness · Market Matching · Revenue Forecast · Prospect Discovery · DATIAM Verdict™
           </p>
         </div>
         <select
@@ -123,6 +143,7 @@ export default function CommercialIntelligence() {
       </div>
 
       {loading && <div className="flex justify-center py-12"><LoadingSpinner /></div>}
+
       {error && (
         <div className="bg-red-900/20 border border-red-700/50 rounded-lg p-4">
           <p className="text-red-400 text-sm">{error}</p>
@@ -134,7 +155,7 @@ export default function CommercialIntelligence() {
         <div className="text-center py-16 text-gray-500">
           <div className="text-5xl mb-4">◈</div>
           <p className="text-lg font-mono">No sync analyses found.</p>
-          <p className="text-sm mt-2">Upload a track → Run Audio DNA → Run Sync Intelligence to generate commercial intelligence.</p>
+          <p className="text-sm mt-2">Upload a track → Run Audio DNA → Run Sync Intelligence to generate music intelligence.</p>
         </div>
       )}
 
@@ -177,7 +198,7 @@ export default function CommercialIntelligence() {
                 <div className="text-center">
                   <LoadingSpinner />
                   <p className="text-gray-500 text-xs font-mono mt-4 tracking-widest">
-                    GENERATING COMMERCIAL INTELLIGENCE…
+                    GENERATING MUSIC INTELLIGENCE…
                   </p>
                 </div>
               </div>
@@ -191,37 +212,56 @@ export default function CommercialIntelligence() {
 
             {!reportLoading && report && (
               <div className="space-y-5">
-                {/* Track header + Commercial Placement Potential */}
-                <div className="flex items-start gap-4">
-                  <div className="flex-1">
-                    <div className="text-[9px] font-mono text-gray-600 uppercase tracking-widest mb-1">
-                      Analyzing Track
+                {/* Track header + KPI bar */}
+                <div className="space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="text-[9px] font-mono text-gray-600 uppercase tracking-widest mb-1">Analyzing Track</div>
+                      <h2 className="text-lg font-bold text-white">{report.fileName ?? trackName}</h2>
                     </div>
-                    <h2 className="text-lg font-bold text-white">{report.fileName ?? trackName}</h2>
+                    <div className="text-[10px] font-mono text-gray-600">
+                      Generated {new Date(report.generatedAt).toLocaleString()}
+                    </div>
                   </div>
-                  <div className="text-[10px] font-mono text-gray-600">
-                    Generated {new Date(report.generatedAt).toLocaleString()}
+
+                  {/* KPI bar */}
+                  <div className="grid grid-cols-5 gap-2">
+                    <ScoreKpi label="Sync Score" value={report.overallSyncScore.toFixed(0)} />
+                    <ScoreKpi
+                      label="Readiness"
+                      value={report.syncReadinessScores?.overallReadiness ?? '—'}
+                      color={report.syncReadinessScores?.overallReadiness >= 65 ? 'text-green-400' : 'text-yellow-400'}
+                    />
+                    <ScoreKpi
+                      label="Top Market"
+                      value={`${report.marketMatches?.[0]?.matchScore ?? '—'}%`}
+                      color="text-purple-400"
+                    />
+                    <ScoreKpi
+                      label="Outlook"
+                      value={report.datiamVerdict?.commercialOutlook ?? '—'}
+                      color={
+                        report.datiamVerdict?.commercialOutlook === 'Exceptional' ? 'text-cyan-400' :
+                        report.datiamVerdict?.commercialOutlook === 'Strong' ? 'text-green-400' :
+                        report.datiamVerdict?.commercialOutlook === 'Moderate' ? 'text-yellow-400' :
+                        'text-orange-400'
+                      }
+                    />
+                    <ScoreKpi
+                      label="Confidence"
+                      value={`${report.datiamVerdict?.confidenceScore ?? '—'}%`}
+                      color="text-gray-300"
+                    />
                   </div>
+
+                  {/* Placement potential always visible */}
+                  <CommercialPlacementPotential
+                    score={report.commercialPlacementPotential.score}
+                    classification={report.commercialPlacementPotential.classification}
+                    description={report.commercialPlacementPotential.description}
+                    colorKey={report.commercialPlacementPotential.colorKey}
+                  />
                 </div>
-
-                {/* Top section: CPP + Verdict always visible */}
-                <CommercialPlacementPotential
-                  score={report.commercialPlacementPotential.score}
-                  classification={report.commercialPlacementPotential.classification}
-                  description={report.commercialPlacementPotential.description}
-                  colorKey={report.commercialPlacementPotential.colorKey}
-                />
-
-                <DatiamVerdict
-                  commercialOutlook={report.datiamVerdict.commercialOutlook}
-                  bestOpportunity={report.datiamVerdict.bestOpportunity}
-                  bestRevenuePath={report.datiamVerdict.bestRevenuePath}
-                  bestAudience={report.datiamVerdict.bestAudience}
-                  syncReadiness={report.datiamVerdict.syncReadiness}
-                  recommendation={report.datiamVerdict.recommendation}
-                  executiveSummary={report.datiamVerdict.executiveSummary}
-                  confidenceScore={report.datiamVerdict.confidenceScore}
-                />
 
                 {/* Tab navigation */}
                 <div className="border-b border-gray-800">
@@ -243,43 +283,80 @@ export default function CommercialIntelligence() {
                 </div>
 
                 {/* Tab content */}
-                <div className="min-h-[300px]">
-                  {activeTab === 'verdict' && (
-                    <DatiamVerdict
-                      commercialOutlook={report.datiamVerdict.commercialOutlook}
-                      bestOpportunity={report.datiamVerdict.bestOpportunity}
-                      bestRevenuePath={report.datiamVerdict.bestRevenuePath}
-                      bestAudience={report.datiamVerdict.bestAudience}
-                      syncReadiness={report.datiamVerdict.syncReadiness}
-                      recommendation={report.datiamVerdict.recommendation}
-                      executiveSummary={report.datiamVerdict.executiveSummary}
-                      confidenceScore={report.datiamVerdict.confidenceScore}
-                    />
+                <div className="min-h-[400px]">
+
+                  {activeTab === 'overview' && (
+                    <div className="space-y-5">
+                      <DatiamVerdict
+                        commercialOutlook={report.datiamVerdict.commercialOutlook}
+                        bestOpportunity={report.datiamVerdict.bestOpportunity}
+                        bestRevenuePath={report.datiamVerdict.bestRevenuePath}
+                        bestAudience={report.datiamVerdict.bestAudience}
+                        syncReadiness={report.datiamVerdict.syncReadiness}
+                        recommendation={report.datiamVerdict.recommendation}
+                        executiveSummary={report.datiamVerdict.executiveSummary}
+                        confidenceScore={report.datiamVerdict.confidenceScore}
+                      />
+                      {report.datiamVerdict?.strengthFactors && (
+                        <VerdictV2Card
+                          strengthFactors={report.datiamVerdict.strengthFactors}
+                          riskFactors={report.datiamVerdict.riskFactors}
+                          recommendedActions={report.datiamVerdict.recommendedActions}
+                        />
+                      )}
+                    </div>
+                  )}
+
+                  {activeTab === 'readiness' && report.syncReadinessScores && (
+                    <SyncReadinessScores scores={report.syncReadinessScores} />
+                  )}
+
+                  {activeTab === 'markets' && (
+                    <div className="space-y-5">
+                      {report.marketMatches?.length > 0 && (
+                        <MarketHeatmap matches={report.marketMatches} />
+                      )}
+                      <div className="border-t border-gray-800 pt-5">
+                        <div className="text-[9px] font-mono text-gray-600 uppercase tracking-widest mb-3">Legacy Market Alignment</div>
+                        <MarketAlignmentCard alignments={report.marketAlignment} />
+                      </div>
+                    </div>
+                  )}
+
+                  {activeTab === 'revenue' && (
+                    <div className="space-y-5">
+                      {report.revenueTierForecast && (
+                        <RevenueTierForecast forecast={report.revenueTierForecast} />
+                      )}
+                      <div className="border-t border-gray-800 pt-5">
+                        <div className="text-[9px] font-mono text-gray-600 uppercase tracking-widest mb-3">Category Revenue Breakdown</div>
+                        <RevenueForecast forecasts={report.revenueForecast} />
+                      </div>
+                    </div>
+                  )}
+
+                  {activeTab === 'prospects' && report.prospectDiscovery && (
+                    <ProspectDiscoveryTable prospects={report.prospectDiscovery} />
+                  )}
+
+                  {activeTab === 'executive' && (
+                    <div className="space-y-5">
+                      {report.executiveReportV2 && (
+                        <ExecutiveReportV2 report={report.executiveReportV2} />
+                      )}
+                      <div className="border-t border-gray-800 pt-5">
+                        <ExecutiveSyncAssessment
+                          headline={report.executiveSyncAssessment.headline}
+                          body={report.executiveSyncAssessment.body}
+                          primaryOpportunities={report.executiveSyncAssessment.primaryOpportunities}
+                          supervisorVerdict={report.executiveSyncAssessment.supervisorVerdict}
+                        />
+                      </div>
+                    </div>
                   )}
 
                   {activeTab === 'why' && (
                     <WhyEngine whyScores={report.whyScores} />
-                  )}
-
-                  {activeTab === 'assessment' && (
-                    <ExecutiveSyncAssessment
-                      headline={report.executiveSyncAssessment.headline}
-                      body={report.executiveSyncAssessment.body}
-                      primaryOpportunities={report.executiveSyncAssessment.primaryOpportunities}
-                      supervisorVerdict={report.executiveSyncAssessment.supervisorVerdict}
-                    />
-                  )}
-
-                  {activeTab === 'market' && (
-                    <MarketAlignmentCard alignments={report.marketAlignment} />
-                  )}
-
-                  {activeTab === 'revenue' && (
-                    <RevenueForecast forecasts={report.revenueForecast} />
-                  )}
-
-                  {activeTab === 'artists' && (
-                    <ComparableArtists artists={report.comparableArtists} />
                   )}
 
                   {activeTab === 'risk' && (
@@ -291,6 +368,10 @@ export default function CommercialIntelligence() {
                     />
                   )}
 
+                  {activeTab === 'artists' && (
+                    <ComparableArtists artists={report.comparableArtists} />
+                  )}
+
                   {activeTab === 'actions' && (
                     <DecisionEngine
                       actions={report.decisionEngine.actions}
@@ -298,6 +379,7 @@ export default function CommercialIntelligence() {
                       strategyType={report.decisionEngine.strategyType}
                     />
                   )}
+
                 </div>
               </div>
             )}
