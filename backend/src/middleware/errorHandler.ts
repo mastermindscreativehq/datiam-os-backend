@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { captureException, captureMessage } from '../lib/sentry';
 
 export class AppError extends Error {
   constructor(
@@ -32,6 +33,16 @@ export const errorHandler = (
       requestId,
       ...(isDev && { stack: err.stack }),
     }));
+
+    // Auth failures → Sentry message (low noise, high signal)
+    if (err.statusCode === 401) {
+      captureMessage('Authentication failure', 'warning', { path: req.path, requestId });
+    }
+    // Server errors → Sentry exception
+    if (err.statusCode >= 500) {
+      captureException(err, { path: req.path, method: req.method, requestId });
+    }
+
     res.status(err.statusCode).json({
       success: false,
       error: err.message,
@@ -51,6 +62,9 @@ export const errorHandler = (
     requestId,
     ...(isDev && { stack: err.stack }),
   }));
+
+  // Unhandled exceptions always go to Sentry
+  captureException(err, { path: req.path, method: req.method, requestId });
 
   res.status(500).json({
     success: false,

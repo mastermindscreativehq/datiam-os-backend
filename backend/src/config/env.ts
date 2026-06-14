@@ -14,6 +14,8 @@ const envSchema = z.object({
   N8N_WEBHOOK_SECRET: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
   ANTHROPIC_API_KEY: z.string().optional(),
+  SENTRY_DSN: z.string().optional(),
+  APP_VERSION: z.string().default('1.0.0'),
 });
 
 export const env = envSchema.parse(process.env);

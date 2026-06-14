@@ -2,12 +2,11 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
-import { sql } from 'drizzle-orm';
 
 import { requestId } from './middleware/requestId';
 import { requestLogger } from './middleware/requestLogger';
 import { errorHandler } from './middleware/errorHandler';
-import { db } from './db';
+import { healthRouter, monitoringRouter } from './modules/monitoring/health.routes';
 
 // Phase 1 routers
 import authRouter from './modules/auth/auth.routes';
@@ -37,7 +36,6 @@ import energyRouter from './modules/energy/energy.routes';
 import audioDnaRouter from './modules/audio-dna/audio-dna.routes';
 import syncIntelligenceRouter from './modules/sync-intelligence/sync-intelligence.routes';
 import commercialIntelligenceRouter from './modules/commercial-intelligence/commercial-intelligence.router';
-import { verifySchema } from './db/schemaVerifier';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -81,44 +79,8 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', service: 'datiam-os', timestamp: new Date().toISOString() });
-});
-
-app.get('/health/deep', async (_req, res) => {
-  const timestamp = new Date().toISOString();
-  try {
-    await db.execute(sql`SELECT 1`);
-
-    let schemaStatus: 'healthy' | 'drift_detected' = 'healthy';
-    try {
-      const report = await verifySchema();
-      schemaStatus = report.healthy ? 'healthy' : 'drift_detected';
-    } catch {
-      // Non-fatal — schema check failure doesn't bring down health endpoint.
-    }
-
-    res.json({
-      success: true,
-      status: 'ok',
-      environment: process.env.NODE_ENV ?? 'unknown',
-      database: 'connected',
-      schema: schemaStatus,
-      timestamp,
-    });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    res.status(503).json({
-      success: false,
-      status: 'degraded',
-      environment: process.env.NODE_ENV ?? 'unknown',
-      database: 'disconnected',
-      schema: 'unknown',
-      error: message,
-      timestamp,
-    });
-  }
-});
+// ── Health & Monitoring ───────────────────────────────────────────────────────
+app.use('/health', healthRouter);
 
 // ---- Phase 1 Routes ----
 app.use('/api/auth', authRouter);
@@ -159,6 +121,9 @@ app.use('/api/commercial-intelligence', commercialIntelligenceRouter);
 
 // ---- System Routes ----
 app.use('/api/system/migrations', migrationsRouter);
+
+// ---- Monitoring API ----
+app.use('/api/monitoring', monitoringRouter);
 
 app.use(errorHandler);
 

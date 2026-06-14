@@ -1918,3 +1918,50 @@ export const syncIntelligenceJobsRelations = relations(sync_intelligence_jobs, (
 
 export type SyncIntelligenceJob    = typeof sync_intelligence_jobs.$inferSelect;
 export type NewSyncIntelligenceJob = typeof sync_intelligence_jobs.$inferInsert;
+
+// ── Monitoring: health check history ─────────────────────────────────────────
+
+export const health_checks = pgTable(
+  'health_checks',
+  {
+    id:               uuid('id').primaryKey().defaultRandom(),
+    status:           text('status').notNull().default('healthy'),
+    database_status:  text('database_status').notNull().default('unknown'),
+    redis_status:     text('redis_status').notNull().default('unknown'),
+    queue_status:     text('queue_status').notNull().default('unknown'),
+    response_time_ms: integer('response_time_ms'),
+    details:          jsonb('details'),
+    created_at:       timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    createdAtIdx: index('health_checks_created_at_idx').on(t.created_at),
+  }),
+);
+
+export type HealthCheck    = typeof health_checks.$inferSelect;
+export type NewHealthCheck = typeof health_checks.$inferInsert;
+
+// ── Monitoring: incidents ─────────────────────────────────────────────────────
+
+export const incidents = pgTable(
+  'incidents',
+  {
+    id:           uuid('id').primaryKey().defaultRandom(),
+    incident_key: text('incident_key').notNull(),
+    severity:     text('severity').notNull().default('warning'),
+    title:        text('title').notNull(),
+    description:  text('description'),
+    status:       text('status').notNull().default('open'),
+    started_at:   timestamp('started_at',  { withTimezone: true }).defaultNow().notNull(),
+    resolved_at:  timestamp('resolved_at', { withTimezone: true }),
+    metadata:     jsonb('metadata'),
+    created_at:   timestamp('created_at',  { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    statusIdx:    index('incidents_status_idx').on(t.status),
+    keyStatusIdx: index('incidents_key_status_idx').on(t.incident_key, t.status),
+  }),
+);
+
+export type Incident    = typeof incidents.$inferSelect;
+export type NewIncident = typeof incidents.$inferInsert;

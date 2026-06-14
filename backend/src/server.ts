@@ -1,4 +1,6 @@
 import 'dotenv/config';
+import { initSentry, captureException } from './lib/sentry';
+initSentry(); // must run before other imports
 import './lib/node-websocket';
 import path from 'path';
 import postgres from 'postgres';
@@ -12,6 +14,7 @@ import { startAudioWorker, stopAudioWorker } from './modules/audio/audio.worker'
 import { startEnergyWorker, stopEnergyWorker } from './modules/energy/energy.worker';
 import { startDnaWorker, stopDnaWorker } from './modules/audio-dna/audio-dna.worker';
 import { startSyncWorker, stopSyncWorker } from './modules/sync-intelligence/sync-intelligence.worker';
+import { startWatchdog, stopWatchdog } from './modules/monitoring/watchdog.service';
 import { verifySchema } from './db/schemaVerifier';
 import { logActivity } from './lib/activityLogger';
 
@@ -79,6 +82,12 @@ async function main(): Promise<void> {
       console.warn('[SyncWorker] Worker failed to start (non-fatal):', err);
     }
 
+    try {
+      startWatchdog();
+    } catch (err) {
+      console.warn('[Watchdog] Failed to start (non-fatal):', err);
+    }
+
     verifySchema()
       .then(report => {
         if (report.healthy) {
@@ -109,17 +118,20 @@ async function main(): Promise<void> {
 
   process.on('unhandledRejection', (err) => {
     console.error('[Unhandled Rejection]', err);
+    captureException(err, { source: 'unhandledRejection' });
   });
 
   process.on('SIGTERM', () => {
     console.log('SIGTERM received. Shutting down gracefully...');
     stopSchedulerWorker();
+    stopWatchdog();
     void Promise.allSettled([stopSonicWorkers(), stopAudioWorker(), stopEnergyWorker(), stopDnaWorker(), stopSyncWorker()])
       .finally(() => server.close(() => process.exit(0)));
   });
 
   process.on('SIGINT', () => {
     stopSchedulerWorker();
+    stopWatchdog();
     void Promise.allSettled([stopSonicWorkers(), stopAudioWorker(), stopEnergyWorker(), stopDnaWorker(), stopSyncWorker()])
       .finally(() => server.close(() => process.exit(0)));
   });

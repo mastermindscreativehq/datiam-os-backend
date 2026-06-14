@@ -322,6 +322,14 @@ export const commercialIntelligence = {
     apiClient.get(`/commercial-intelligence/artist/${artist_id}`, { params: { limit }, timeout: 60_000 }),
 }
 
+// ── Monitoring & Diagnostics ─────────────────────────────────────────────────
+export const monitoring = {
+  status:          () => apiClient.get('/monitoring/status'),
+  history:         () => apiClient.get('/monitoring/history'),
+  incidents:       () => apiClient.get('/monitoring/incidents'),
+  resolveIncident: (id: string) => apiClient.post(`/monitoring/incidents/${id}/resolve`),
+}
+
 // ── Music Intelligence ───────────────────────────────────────────────────────
 export const musicIntelligence = {
   dashboard:           (artistId?: string) => apiClient.get('/music-intelligence/dashboard', { params: artistId ? { artist_id: artistId } : {} }),

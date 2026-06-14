@@ -134,6 +134,13 @@
       "when": 1749600001000,
       "tag": "0022_sync_intelligence",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1750000000000,
+      "tag": "0023_monitoring_health_history",
+      "breakpoints": true
     }
   ]
 }

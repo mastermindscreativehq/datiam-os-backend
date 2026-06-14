@@ -25,6 +25,7 @@ const NAV = [
   { to: '/suitability-matrix',       label: 'SUITABILITY',          icon: '⬡' },
   { to: '/commercial-intelligence',  label: 'COMMERCIAL INTEL',     icon: '◆' },
   { to: '/activity',                 label: 'ACTIVITY',             icon: '◈' },
+  { to: '/admin/diagnostics',        label: 'DIAGNOSTICS',          icon: '⬡' },
 ]
 
 export default function Sidebar() {
