@@ -37,6 +37,12 @@ import audioDnaRouter from './modules/audio-dna/audio-dna.routes';
 import syncIntelligenceRouter from './modules/sync-intelligence/sync-intelligence.routes';
 import commercialIntelligenceRouter from './modules/commercial-intelligence/commercial-intelligence.router';
 
+// Phase 1.5 Grounding Foundation routers
+import companiesRouter from './modules/companies/companies.routes';
+import licensingContactsRouter from './modules/licensing-contacts/licensing-contacts.routes';
+import placementOutcomesRouter from './modules/placement-outcomes/placement-outcomes.routes';
+import predictionAccuracyRouter from './modules/prediction-accuracy/prediction-accuracy.routes';
+
 const app = express();
 app.set('trust proxy', 1);
 
@@ -118,6 +124,12 @@ app.use('/api/sync-intelligence', syncIntelligenceRouter);
 
 // ---- Commercial Intelligence Engine (DATIAM OS v4) ----
 app.use('/api/commercial-intelligence', commercialIntelligenceRouter);
+
+// ---- Phase 1.5 Grounding Foundation ----
+app.use('/api/companies',          companiesRouter);
+app.use('/api/licensing-contacts', licensingContactsRouter);
+app.use('/api/placement-outcomes', placementOutcomesRouter);
+app.use('/api/prediction-accuracy', predictionAccuracyRouter);
 
 // ---- System Routes ----
 app.use('/api/system/migrations', migrationsRouter);

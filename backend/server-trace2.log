@@ -1,0 +1,87 @@
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P06',
+  message: 'schema "drizzle" already exists, skipping',
+  file: 'schemacmds.c',
+  line: '132',
+  routine: 'CreateSchemaCommand'
+}
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "__drizzle_migrations" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '207',
+  routine: 'transformCreateStmt'
+}
+[Redis] CONNECTED
+[Migrations] All pending migrations applied
+[Redis] READY
+
+DATIAM OS Backend
+   Environment : development
+   Port        : 4000
+   Health      : http://localhost:4000/health
+
+[Scheduler] Worker started — ticking every 60s
+[SonicQueue] Workers started: simulation, analytics, memory, ranking
+[AudioProcessor] ffmpeg  → ffmpeg
+[AudioProcessor] ffprobe → ffprobe
+[AudioProcessor] ffmpeg: OK
+[AudioProcessor] ffprobe: OK
+[AudioWorker] Started: audio-processing (concurrency=2)
+[EnergyWorker] Started: energy-analysis (concurrency=1)
+[DnaWorker] Started: audio-dna (concurrency=2)
+[SyncWorker] Started: sync-intelligence (concurrency=2)
+[SchemaVerifier] schema healthy
+{"timestamp":"2026-06-13T19:53:47.480Z","requestId":"967097a1-e075-4b1b-895b-dc7cd2e302c9","method":"GET","path":"/health","statusCode":200,"durationMs":6,"userId":null}
+{"timestamp":"2026-06-13T19:54:36.161Z","requestId":"7d223368-2878-4d3d-9a5e-4f02642ba9d6","method":"GET","path":"/api/commercial-intelligence/0a25871f-4dd0-401f-a7f4-612836a1c11b","statusCode":401,"durationMs":4,"userId":null}
+{"timestamp":"2026-06-13T19:54:36.709Z","requestId":"b8799922-0633-49e2-a631-ad0a2ba8ea78","method":"GET","path":"/api/commercial-intelligence/0a25871f-4dd0-401f-a7f4-612836a1c11b","statusCode":401,"durationMs":64,"userId":null}
+{"timestamp":"2026-06-13T19:54:38.098Z","requestId":"907f3d96-5d17-4e8b-bf37-ba33fabc0508","method":"GET","path":"/api/commercial-intelligence/0a25871f-4dd0-401f-a7f4-612836a1c11b","statusCode":401,"durationMs":1133,"userId":null}
+{"timestamp":"2026-06-13T19:54:39.394Z","requestId":"d8173910-2281-42e3-b4a2-43892c242018","method":"GET","path":"/api/commercial-intelligence/0a25871f-4dd0-401f-a7f4-612836a1c11b","statusCode":403,"durationMs":1037,"userId":"b1a1b5b1-d9f0-4879-9b8a-af1df5b51629"}
+{"timestamp":"2026-06-13T19:54:43.937Z","requestId":"7fc95a40-d89d-4dbc-8363-2999a6262a57","method":"GET","path":"/0a25871f-4dd0-401f-a7f4-612836a1c11b","statusCode":200,"durationMs":3241,"userId":"b1a1b5b1-d9f0-4879-9b8a-af1df5b51629"}
+{"timestamp":"2026-06-13T19:55:21.685Z","requestId":"18d8910a-cce9-4062-ab10-fdd64d727a8c","method":"GET","path":"/recent","statusCode":200,"durationMs":2308,"userId":"b1a1b5b1-d9f0-4879-9b8a-af1df5b51629"}
+{"timestamp":"2026-06-13T19:55:50.189Z","requestId":"c5c11f09-3837-4db8-827b-129e20bf50f2","method":"GET","path":"/recent","statusCode":200,"durationMs":558,"userId":"b1a1b5b1-d9f0-4879-9b8a-af1df5b51629"}
+[Redis] CONNECTED
+[Redis] READY
+[Redis] CONNECTED
+[Redis] READY
+[Redis] CONNECTED
+[Redis] READY
+[Redis] CONNECTED
+[Redis] READY
+[Redis] CONNECTED
+[Redis] READY
+[Redis] CONNECTED
+[Redis] READY
+[Redis] CONNECTED
+[Redis] READY
+[Redis] CONNECTED
+[Redis] READY
+[Redis] CONNECTED
+[Redis] READY
+[Redis] CONNECTED
+[Redis] READY
+[Redis] CONNECTED
+[Redis] READY
+[Redis] CONNECTED
+[Redis] READY
+[Redis] CONNECTED
+[Redis] READY
+[Redis] CONNECTED
+[Redis] READY
+[Redis] CONNECTED
+[Redis] CONNECTED
+[Redis] READY
+[Redis] CONNECTED
+[Redis] READY
+[Redis] CONNECTED
+[Redis] READY
+[Redis] CONNECTED
+[Redis] READY
+[Redis] CONNECTED
+[Redis] READY
+[Redis] CONNECTED
+[Redis] READY

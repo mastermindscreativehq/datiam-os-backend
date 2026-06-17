@@ -1965,3 +1965,325 @@ export const incidents = pgTable(
 
 export type Incident    = typeof incidents.$inferSelect;
 export type NewIncident = typeof incidents.$inferInsert;
+
+// ── Phase 1.5 Grounding Foundation ───────────────────────────────────────────
+
+export const companyTypeEnum = pgEnum('company_type', [
+  'production_house', 'ad_agency', 'music_supervisor_firm', 'brand',
+  'streaming_platform', 'game_studio', 'trailer_house', 'music_library',
+  'tv_network', 'film_studio', 'other',
+]);
+
+export const companyTierEnum = pgEnum('company_tier', [
+  'tier_a', 'tier_b', 'tier_c', 'unrated',
+]);
+
+export const contactRelationshipStatusEnum = pgEnum('contact_relationship_status', [
+  'prospect', 'active', 'dormant', 'unresponsive', 'blacklisted',
+]);
+
+export const syncLicenseTypeEnum = pgEnum('sync_license_type', [
+  'film_trailer', 'netflix_drama', 'documentary', 'sports_content', 'gaming',
+  'fashion', 'luxury_brand', 'travel_campaign', 'commercial_ad', 'social_content',
+  'tv_drama', 'tv_comedy', 'reality_tv', 'podcast', 'youtube', 'music_library',
+]);
+
+export const placementStatusEnum = pgEnum('placement_status', [
+  'identified', 'pitched', 'negotiating', 'contracted', 'rejected', 'withdrawn', 'expired',
+]);
+
+export const placementSourceEnum = pgEnum('placement_source', [
+  'inbound', 'outbound_pitch', 'agent', 'platform', 'network_referral',
+]);
+
+export const placementOutcomeTypeEnum = pgEnum('placement_outcome_type', [
+  'placed', 'rejected', 'expired', 'negotiation_failed', 'withdrawn_by_artist',
+]);
+
+export const predictionTypeEnum = pgEnum('prediction_type', [
+  'sync_suitability', 'placement_likelihood', 'fee_estimate', 'rejection_risk', 'time_to_placement',
+]);
+
+// ── companies ─────────────────────────────────────────────────────────────────
+
+export const companies = pgTable(
+  'companies',
+  {
+    id:                   uuid('id').primaryKey().defaultRandom(),
+    org_id:               uuid('org_id'),
+    name:                 text('name').notNull(),
+    type:                 companyTypeEnum('type').notNull().default('other'),
+    tier:                 companyTierEnum('tier').notNull().default('unrated'),
+    website:              text('website'),
+    country:              text('country'),
+    city:                 text('city'),
+    genre_focus:          jsonb('genre_focus'),
+    deal_volume_per_year: integer('deal_volume_per_year'),
+    avg_license_fee_usd:  numeric('avg_license_fee_usd', { precision: 12, scale: 2 }),
+    notes:                text('notes'),
+    deleted_at:           timestamp('deleted_at',  { withTimezone: true }),
+    created_at:           timestamp('created_at',  { withTimezone: true }).defaultNow().notNull(),
+    updated_at:           timestamp('updated_at',  { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    nameIdx:        index('companies_name_idx').on(t.name),
+    typeIdx:        index('companies_type_idx').on(t.type),
+    tierIdx:        index('companies_tier_idx').on(t.tier),
+    orgIdIdx:       index('companies_org_id_idx').on(t.org_id),
+    deletedAtIdx:   index('companies_deleted_at_idx').on(t.deleted_at),
+    countryTypeIdx: index('companies_country_type_idx').on(t.country, t.type),
+  }),
+);
+
+export type Company    = typeof companies.$inferSelect;
+export type NewCompany = typeof companies.$inferInsert;
+
+// ── licensing_contacts ────────────────────────────────────────────────────────
+
+export const licensing_contacts = pgTable(
+  'licensing_contacts',
+  {
+    id:                  uuid('id').primaryKey().defaultRandom(),
+    artist_id:           uuid('artist_id').references(() => artist_profiles.id, { onDelete: 'set null' }),
+    company_id:          uuid('company_id').references((): AnyPgColumn => companies.id, { onDelete: 'set null' }),
+    full_name:           text('full_name').notNull(),
+    email:               text('email'),
+    phone:               text('phone'),
+    role:                text('role'),
+    linkedin_url:        text('linkedin_url'),
+    imdb_url:            text('imdb_url'),
+    relationship_status: contactRelationshipStatusEnum('relationship_status').notNull().default('prospect'),
+    relationship_score:  integer('relationship_score'),
+    last_contacted_at:   timestamp('last_contacted_at',  { withTimezone: true }),
+    next_follow_up_at:   timestamp('next_follow_up_at',  { withTimezone: true }),
+    genre_preferences:   jsonb('genre_preferences'),
+    placement_history:   jsonb('placement_history'),
+    notes:               text('notes'),
+    deleted_at:          timestamp('deleted_at',  { withTimezone: true }),
+    created_at:          timestamp('created_at',  { withTimezone: true }).defaultNow().notNull(),
+    updated_at:          timestamp('updated_at',  { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    artistIdIdx:           index('lc_artist_id_idx').on(t.artist_id),
+    companyIdIdx:          index('lc_company_id_idx').on(t.company_id),
+    emailIdx:              index('lc_email_idx').on(t.email),
+    relationshipStatusIdx: index('lc_relationship_status_idx').on(t.relationship_status),
+    nextFollowUpIdx:       index('lc_next_follow_up_idx').on(t.next_follow_up_at),
+    deletedAtIdx:          index('lc_deleted_at_idx').on(t.deleted_at),
+    artistCompanyIdx:      index('lc_artist_company_idx').on(t.artist_id, t.company_id),
+  }),
+);
+
+export type LicensingContact    = typeof licensing_contacts.$inferSelect;
+export type NewLicensingContact = typeof licensing_contacts.$inferInsert;
+
+// ── sync_rate_benchmarks ──────────────────────────────────────────────────────
+
+export const sync_rate_benchmarks = pgTable(
+  'sync_rate_benchmarks',
+  {
+    id:                 uuid('id').primaryKey().defaultRandom(),
+    org_id:             uuid('org_id'),
+    license_type:       syncLicenseTypeEnum('license_type').notNull(),
+    territory:          text('territory').notNull().default('worldwide'),
+    artist_tier:        text('artist_tier').notNull().default('emerging'),
+    genre:              text('genre'),
+    track_duration_min: integer('track_duration_min'),
+    track_duration_max: integer('track_duration_max'),
+    min_fee_usd:        numeric('min_fee_usd', { precision: 12, scale: 2 }).notNull(),
+    max_fee_usd:        numeric('max_fee_usd', { precision: 12, scale: 2 }).notNull(),
+    avg_fee_usd:        numeric('avg_fee_usd', { precision: 12, scale: 2 }).notNull(),
+    currency:           text('currency').notNull().default('USD'),
+    source:             text('source').notNull().default('industry_report'),
+    source_url:         text('source_url'),
+    effective_from:     date('effective_from').notNull(),
+    effective_to:       date('effective_to'),
+    sample_size:        integer('sample_size'),
+    notes:              text('notes'),
+    created_at:         timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updated_at:         timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    licenseTypeIdx:       index('srb_license_type_idx').on(t.license_type),
+    territoryIdx:         index('srb_territory_idx').on(t.territory),
+    artistTierIdx:        index('srb_artist_tier_idx').on(t.artist_tier),
+    genreIdx:             index('srb_genre_idx').on(t.genre),
+    effectiveFromIdx:     index('srb_effective_from_idx').on(t.effective_from),
+    orgIdIdx:             index('srb_org_id_idx').on(t.org_id),
+    typeTerritoryTierIdx: index('srb_type_territory_tier_idx').on(t.license_type, t.territory, t.artist_tier),
+  }),
+);
+
+export type SyncRateBenchmark    = typeof sync_rate_benchmarks.$inferSelect;
+export type NewSyncRateBenchmark = typeof sync_rate_benchmarks.$inferInsert;
+
+// ── placement_opportunities ───────────────────────────────────────────────────
+
+export const placement_opportunities = pgTable(
+  'placement_opportunities',
+  {
+    id:                uuid('id').primaryKey().defaultRandom(),
+    artist_id:         uuid('artist_id').notNull().references(() => artist_profiles.id, { onDelete: 'cascade' }),
+    song_id:           uuid('song_id').references(() => songs.id, { onDelete: 'set null' }),
+    upload_id:         uuid('upload_id').references((): AnyPgColumn => audio_uploads.id, { onDelete: 'set null' }),
+    company_id:        uuid('company_id').references((): AnyPgColumn => companies.id, { onDelete: 'set null' }),
+    contact_id:        uuid('contact_id').references((): AnyPgColumn => licensing_contacts.id, { onDelete: 'set null' }),
+    title:             text('title').notNull(),
+    license_type:      syncLicenseTypeEnum('license_type').notNull(),
+    status:            placementStatusEnum('status').notNull().default('identified'),
+    source:            placementSourceEnum('source').notNull().default('outbound_pitch'),
+    territory:         text('territory').notNull().default('worldwide'),
+    term_years:        integer('term_years'),
+    exclusivity:       boolean('exclusivity').notNull().default(false),
+    budget_min_usd:    numeric('budget_min_usd', { precision: 12, scale: 2 }),
+    budget_max_usd:    numeric('budget_max_usd', { precision: 12, scale: 2 }),
+    currency:          text('currency').notNull().default('USD'),
+    ai_sync_score:     numeric('ai_sync_score',  { precision: 5, scale: 2 }),
+    ai_confidence:     numeric('ai_confidence',  { precision: 5, scale: 2 }),
+    ai_top_categories: jsonb('ai_top_categories'),
+    pitched_at:        timestamp('pitched_at',       { withTimezone: true }),
+    response_due_at:   timestamp('response_due_at',  { withTimezone: true }),
+    contracted_at:     timestamp('contracted_at',    { withTimezone: true }),
+    deadline_at:       timestamp('deadline_at',      { withTimezone: true }),
+    notes:             text('notes'),
+    metadata:          jsonb('metadata'),
+    deleted_at:        timestamp('deleted_at',       { withTimezone: true }),
+    created_at:        timestamp('created_at',       { withTimezone: true }).defaultNow().notNull(),
+    updated_at:        timestamp('updated_at',       { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    artistIdIdx:    index('po_artist_id_idx').on(t.artist_id),
+    songIdIdx:      index('po_song_id_idx').on(t.song_id),
+    uploadIdIdx:    index('po_upload_id_idx').on(t.upload_id),
+    companyIdIdx:   index('po_company_id_idx').on(t.company_id),
+    contactIdIdx:   index('po_contact_id_idx').on(t.contact_id),
+    statusIdx:      index('po_status_idx').on(t.status),
+    licenseTypeIdx: index('po_license_type_idx').on(t.license_type),
+    deletedAtIdx:   index('po_deleted_at_idx').on(t.deleted_at),
+    responseDueIdx: index('po_response_due_idx').on(t.response_due_at),
+    aiScoreIdx:     index('po_ai_score_idx').on(t.ai_sync_score),
+    artistStatusIdx: index('po_artist_status_idx').on(t.artist_id, t.status),
+  }),
+);
+
+export type PlacementOpportunity    = typeof placement_opportunities.$inferSelect;
+export type NewPlacementOpportunity = typeof placement_opportunities.$inferInsert;
+
+// ── placement_outcomes ────────────────────────────────────────────────────────
+
+export const placement_outcomes = pgTable(
+  'placement_outcomes',
+  {
+    id:                      uuid('id').primaryKey().defaultRandom(),
+    opportunity_id:          uuid('opportunity_id').notNull().unique()
+                               .references((): AnyPgColumn => placement_opportunities.id, { onDelete: 'cascade' }),
+    artist_id:               uuid('artist_id').notNull().references(() => artist_profiles.id, { onDelete: 'cascade' }),
+    song_id:                 uuid('song_id').references(() => songs.id, { onDelete: 'set null' }),
+    outcome:                 placementOutcomeTypeEnum('outcome').notNull(),
+    rejection_reason:        text('rejection_reason'),
+    final_fee_usd:           numeric('final_fee_usd',           { precision: 12, scale: 2 }),
+    currency:                text('currency').notNull().default('USD'),
+    royalties_collected_usd: numeric('royalties_collected_usd', { precision: 12, scale: 2 }),
+    license_type:            syncLicenseTypeEnum('license_type'),
+    territory:               text('territory'),
+    term_start:              date('term_start'),
+    term_end:                date('term_end'),
+    exclusivity:             boolean('exclusivity').default(false),
+    contract_url:            text('contract_url'),
+    contract_reference:      text('contract_reference'),
+    ai_score_at_pitch:       numeric('ai_score_at_pitch',      { precision: 5, scale: 2 }),
+    outcome_quality_score:   numeric('outcome_quality_score',  { precision: 5, scale: 2 }),
+    notes:                   text('notes'),
+    metadata:                jsonb('metadata'),
+    created_at:              timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updated_at:              timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    opportunityIdIdx: index('pout_opportunity_id_idx').on(t.opportunity_id),
+    artistIdIdx:      index('pout_artist_id_idx').on(t.artist_id),
+    songIdIdx:        index('pout_song_id_idx').on(t.song_id),
+    outcomeIdx:       index('pout_outcome_idx').on(t.outcome),
+    artistOutcomeIdx: index('pout_artist_outcome_idx').on(t.artist_id, t.outcome),
+    termStartIdx:     index('pout_term_start_idx').on(t.term_start),
+  }),
+);
+
+export type PlacementOutcome    = typeof placement_outcomes.$inferSelect;
+export type NewPlacementOutcome = typeof placement_outcomes.$inferInsert;
+
+// ── prediction_accuracy_log ───────────────────────────────────────────────────
+
+export const prediction_accuracy_log = pgTable(
+  'prediction_accuracy_log',
+  {
+    id:               uuid('id').primaryKey().defaultRandom(),
+    model_version:    text('model_version').notNull(),
+    prediction_type:  predictionTypeEnum('prediction_type').notNull(),
+    analyzer_version: text('analyzer_version'),
+    upload_id:        uuid('upload_id').references((): AnyPgColumn => audio_uploads.id,           { onDelete: 'set null' }),
+    song_id:          uuid('song_id').references(() => songs.id,                                  { onDelete: 'set null' }),
+    opportunity_id:   uuid('opportunity_id').references((): AnyPgColumn => placement_opportunities.id, { onDelete: 'set null' }),
+    outcome_id:       uuid('outcome_id').references((): AnyPgColumn => placement_outcomes.id,     { onDelete: 'set null' }),
+    predicted_value:  numeric('predicted_value', { precision: 10, scale: 4 }).notNull(),
+    predicted_label:  text('predicted_label'),
+    actual_value:     numeric('actual_value',    { precision: 10, scale: 4 }),
+    actual_label:     text('actual_label'),
+    error_margin:     numeric('error_margin',    { precision: 10, scale: 4 }),
+    accuracy_score:   numeric('accuracy_score',  { precision: 5,  scale: 2 }),
+    feature_vector:   jsonb('feature_vector'),
+    raw_model_output: jsonb('raw_model_output'),
+    resolved:         boolean('resolved').notNull().default(false),
+    resolved_at:      timestamp('resolved_at', { withTimezone: true }),
+    notes:            text('notes'),
+    created_at:       timestamp('created_at',  { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    modelVersionIdx:      index('pal_model_version_idx').on(t.model_version),
+    predictionTypeIdx:    index('pal_prediction_type_idx').on(t.prediction_type),
+    uploadIdIdx:          index('pal_upload_id_idx').on(t.upload_id),
+    songIdIdx:            index('pal_song_id_idx').on(t.song_id),
+    opportunityIdIdx:     index('pal_opportunity_id_idx').on(t.opportunity_id),
+    outcomeIdIdx:         index('pal_outcome_id_idx').on(t.outcome_id),
+    resolvedIdx:          index('pal_resolved_idx').on(t.resolved),
+    createdAtIdx:         index('pal_created_at_idx').on(t.created_at),
+    modelTypeResolvedIdx: index('pal_model_type_resolved_idx').on(t.model_version, t.prediction_type, t.resolved),
+  }),
+);
+
+export type PredictionAccuracyLog    = typeof prediction_accuracy_log.$inferSelect;
+export type NewPredictionAccuracyLog = typeof prediction_accuracy_log.$inferInsert;
+
+// ── Phase 1.5 Relations ───────────────────────────────────────────────────────
+
+export const companiesRelations = relations(companies, ({ many }) => ({
+  contacts:      many(licensing_contacts),
+  opportunities: many(placement_opportunities),
+}));
+
+export const licensingContactsRelations = relations(licensing_contacts, ({ one, many }) => ({
+  artist:        one(artist_profiles, { fields: [licensing_contacts.artist_id],  references: [artist_profiles.id] }),
+  company:       one(companies,       { fields: [licensing_contacts.company_id], references: [companies.id] }),
+  opportunities: many(placement_opportunities),
+}));
+
+export const placementOpportunitiesRelations = relations(placement_opportunities, ({ one, many }) => ({
+  artist:     one(artist_profiles,    { fields: [placement_opportunities.artist_id],  references: [artist_profiles.id] }),
+  song:       one(songs,              { fields: [placement_opportunities.song_id],    references: [songs.id] }),
+  company:    one(companies,          { fields: [placement_opportunities.company_id], references: [companies.id] }),
+  contact:    one(licensing_contacts, { fields: [placement_opportunities.contact_id], references: [licensing_contacts.id] }),
+  outcome:    many(placement_outcomes),
+  predictions: many(prediction_accuracy_log),
+}));
+
+export const placementOutcomesRelations = relations(placement_outcomes, ({ one, many }) => ({
+  opportunity: one(placement_opportunities, { fields: [placement_outcomes.opportunity_id], references: [placement_opportunities.id] }),
+  artist:      one(artist_profiles,         { fields: [placement_outcomes.artist_id],      references: [artist_profiles.id] }),
+  song:        one(songs,                   { fields: [placement_outcomes.song_id],         references: [songs.id] }),
+  predictions: many(prediction_accuracy_log),
+}));
+
+export const predictionAccuracyLogRelations = relations(prediction_accuracy_log, ({ one }) => ({
+  song:        one(songs,                   { fields: [prediction_accuracy_log.song_id],        references: [songs.id] }),
+  opportunity: one(placement_opportunities, { fields: [prediction_accuracy_log.opportunity_id], references: [placement_opportunities.id] }),
+  outcome:     one(placement_outcomes,      { fields: [prediction_accuracy_log.outcome_id],     references: [placement_outcomes.id] }),
+}));
