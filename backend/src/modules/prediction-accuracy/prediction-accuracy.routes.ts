@@ -11,6 +11,7 @@ router.use(authenticate);
 router.get('/',            controller.list);
 router.get('/pending',     controller.getPending);
 router.get('/stats',       controller.getStats);
+router.get('/:id',         controller.getPredictionById);
 router.post('/',           validate(logPredictionSchema), controller.log);
 router.patch('/:id/resolve', validate(resolvePredictionSchema), controller.resolve);
 

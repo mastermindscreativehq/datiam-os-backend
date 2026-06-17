@@ -39,6 +39,15 @@ export const getStats = async (req: Request, res: Response, next: NextFunction) 
   }
 };
 
+export const getPredictionById = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const entry = await service.getPredictionById(req.params.id);
+    success(res, entry);
+  } catch (err) {
+    next(err);
+  }
+};
+
 export const log = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const entry = await service.logPrediction(req.body);

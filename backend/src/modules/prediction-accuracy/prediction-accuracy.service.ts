@@ -14,6 +14,18 @@ export interface PredictionListQuery {
   limit?:           number;
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export const getPredictionById = async (id: string) => {
+  if (!UUID_RE.test(id)) throw new AppError('Invalid UUID format', 400);
+  const [entry] = await db
+    .select()
+    .from(prediction_accuracy_log)
+    .where(eq(prediction_accuracy_log.id, id));
+  if (!entry) throw new AppError('Prediction record not found', 404);
+  return entry;
+};
+
 export const logPrediction = async (input: LogPredictionInput) => {
   const [entry] = await db
     .insert(prediction_accuracy_log)
