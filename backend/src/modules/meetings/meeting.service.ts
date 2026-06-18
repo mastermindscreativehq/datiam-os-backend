@@ -12,6 +12,7 @@ import {
 import { AppError } from '../../middleware/errorHandler';
 import { logActivity } from '../../lib/activityLogger';
 import type { CreateMeetingInput } from './meeting.schema';
+import { autoCreateDealFromMeeting } from '../deals/deal.service';
 
 const ENGINE_VERSION = 'meeting-intelligence-v1';
 
@@ -723,6 +724,13 @@ export const updateMeetingStatus = async (id: string, status: string) => {
 
   if (status === 'completed' || status === 'no_show') {
     await updateAdaptiveMeetingSignals(status as MeetingStatus);
+  }
+
+  // Auto-create a deal when meeting is marked completed
+  if (status === 'completed') {
+    autoCreateDealFromMeeting(id).catch(err =>
+      console.error('[MeetingService] autoCreateDealFromMeeting error:', err),
+    );
   }
 
   logActivity({

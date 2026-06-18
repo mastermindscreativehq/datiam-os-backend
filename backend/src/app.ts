@@ -48,6 +48,7 @@ import outreachRouter from './modules/outreach/outreach.routes';
 import executionRouter from './modules/execution/execution.routes';
 import repliesRouter from './modules/replies/reply.routes';
 import meetingsRouter from './modules/meetings/meeting.routes';
+import dealsRouter from './modules/deals/deal.routes';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -147,6 +148,7 @@ app.use('/api/outreach',   outreachRouter);
 app.use('/api/execution', executionRouter);
 app.use('/api/replies',   repliesRouter);
 app.use('/api/meetings',  meetingsRouter);
+app.use('/api/deals',     dealsRouter);
 
 // ---- System Routes ----
 app.use('/api/system/migrations', migrationsRouter);

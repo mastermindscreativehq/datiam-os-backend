@@ -2307,6 +2307,10 @@ export const company_memory = pgTable(
     response_rate:           numeric('response_rate', { precision: 5, scale: 4 }).notNull().default('0'),
     placement_rate:          numeric('placement_rate', { precision: 5, scale: 4 }).notNull().default('0'),
     last_contacted_at:       timestamp('last_contacted_at', { withTimezone: true }),
+    deals_created:           integer('deals_created').notNull().default(0),
+    deals_won:               integer('deals_won').notNull().default(0),
+    deals_lost:              integer('deals_lost').notNull().default(0),
+    revenue_generated:       numeric('revenue_generated', { precision: 14, scale: 2 }).notNull().default('0'),
     memory_updated_at:       timestamp('memory_updated_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => ({
@@ -2337,6 +2341,10 @@ export const contact_memory = pgTable(
     meetings_completed:       integer('meetings_completed').notNull().default(0),
     meetings_cancelled:       integer('meetings_cancelled').notNull().default(0),
     meeting_conversion_rate:  numeric('meeting_conversion_rate', { precision: 5, scale: 4 }).notNull().default('0'),
+    deals_created:            integer('deals_created').notNull().default(0),
+    deals_won:                integer('deals_won').notNull().default(0),
+    deals_lost:               integer('deals_lost').notNull().default(0),
+    revenue_generated:        numeric('revenue_generated', { precision: 14, scale: 2 }).notNull().default('0'),
     memory_updated_at:        timestamp('memory_updated_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => ({
@@ -2640,3 +2648,76 @@ export const meetingsRelations = relations(meetings, ({ one }) => ({
 
 export type Meeting    = typeof meetings.$inferSelect;
 export type NewMeeting = typeof meetings.$inferInsert;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DATIAM Deal Intelligence Engine v1
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const dealStatusEnum = pgEnum('deal_status', [
+  'open',
+  'won',
+  'lost',
+  'cancelled',
+]);
+
+export const dealStageEnum = pgEnum('deal_stage', [
+  'lead',
+  'contacted',
+  'replied',
+  'meeting_scheduled',
+  'meeting_completed',
+  'proposal_sent',
+  'negotiation',
+  'contract_sent',
+  'contract_signed',
+  'won',
+  'lost',
+]);
+
+export const deals = pgTable(
+  'deals',
+  {
+    id:                      uuid('id').primaryKey().defaultRandom().notNull(),
+    meeting_id:              uuid('meeting_id').references(() => meetings.id, { onDelete: 'set null' }),
+    campaign_id:             uuid('campaign_id').references(() => outreach_campaign.id, { onDelete: 'set null' }),
+    contact_id:              uuid('contact_id').references(() => licensing_contacts.id, { onDelete: 'set null' }),
+    company_id:              uuid('company_id').references(() => companies.id, { onDelete: 'set null' }),
+    deal_name:               text('deal_name').notNull(),
+    deal_type:               text('deal_type'),
+    status:                  dealStatusEnum('status').notNull().default('open'),
+    stage:                   dealStageEnum('stage').notNull().default('meeting_completed'),
+    projected_value:         numeric('projected_value', { precision: 14, scale: 2 }),
+    actual_value:            numeric('actual_value', { precision: 14, scale: 2 }),
+    probability:             numeric('probability', { precision: 5, scale: 2 }),
+    expected_close_date:     date('expected_close_date'),
+    closed_at:               timestamp('closed_at', { withTimezone: true }),
+    notes:                   text('notes'),
+    deal_score:              numeric('deal_score', { precision: 3, scale: 2 }),
+    win_probability:         numeric('win_probability', { precision: 5, scale: 2 }),
+    recommended_next_action: text('recommended_next_action'),
+    revenue_forecast:        numeric('revenue_forecast', { precision: 14, scale: 2 }),
+    intelligence_context:    jsonb('intelligence_context'),
+    engine_version:          text('engine_version').notNull().default('deal-intelligence-v1'),
+    created_at:              timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updated_at:              timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    meetingIdx:    index('deals_meeting_id_idx').on(t.meeting_id),
+    campaignIdx:   index('deals_campaign_id_idx').on(t.campaign_id),
+    contactIdx:    index('deals_contact_id_idx').on(t.contact_id),
+    companyIdx:    index('deals_company_id_idx').on(t.company_id),
+    statusIdx:     index('deals_status_idx').on(t.status),
+    stageIdx:      index('deals_stage_idx').on(t.stage),
+    createdAtIdx:  index('deals_created_at_idx').on(t.created_at),
+  }),
+);
+
+export type Deal    = typeof deals.$inferSelect;
+export type NewDeal = typeof deals.$inferInsert;
+
+export const dealsRelations = relations(deals, ({ one }) => ({
+  meeting:  one(meetings,          { fields: [deals.meeting_id],  references: [meetings.id] }),
+  campaign: one(outreach_campaign, { fields: [deals.campaign_id], references: [outreach_campaign.id] }),
+  contact:  one(licensing_contacts, { fields: [deals.contact_id], references: [licensing_contacts.id] }),
+  company:  one(companies,         { fields: [deals.company_id],  references: [companies.id] }),
+}));
