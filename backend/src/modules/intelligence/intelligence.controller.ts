@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { analyzeOpportunity } from './intelligence.service';
 import { resolveOutcome, getModelPerformance } from './outcome-resolution.service';
 import { getAdaptiveWeights, recalculateWeights } from './adaptive-weights.service';
+import { discoverOpportunities } from './opportunity-discovery.service';
 import { success } from '../../utils/response';
 import { logActivity } from '../../lib/activityLogger';
 import type { AnalyzeOpportunityInput } from './intelligence.schema';
@@ -62,6 +63,19 @@ export const adaptiveWeightsHandler = async (
   try {
     const weights = await getAdaptiveWeights();
     success(res, { adaptive_weights: weights, count: weights.length });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const discoverOpportunitiesHandler = async (
+  _req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const result = await discoverOpportunities();
+    success(res, result);
   } catch (err) {
     next(err);
   }

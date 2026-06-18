@@ -9,6 +9,7 @@ import {
   modelPerformanceHandler,
   adaptiveWeightsHandler,
   recalculateWeightsHandler,
+  discoverOpportunitiesHandler,
 } from './intelligence.controller';
 
 const router = Router();
@@ -22,5 +23,6 @@ router.post('/resolve-outcome',       canWrite, validate(resolveOutcomeSchema), 
 router.get('/model-performance',      canWrite,                                     modelPerformanceHandler);
 router.get('/adaptive-weights',       canWrite,                                     adaptiveWeightsHandler);
 router.post('/recalculate-weights',   canWrite,                                     recalculateWeightsHandler);
+router.get('/discover-opportunities', canWrite,                                     discoverOpportunitiesHandler);
 
 export default router;
