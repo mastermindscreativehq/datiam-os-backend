@@ -47,6 +47,7 @@ import memoryRouter from './modules/memory/memory.routes';
 import outreachRouter from './modules/outreach/outreach.routes';
 import executionRouter from './modules/execution/execution.routes';
 import repliesRouter from './modules/replies/reply.routes';
+import meetingsRouter from './modules/meetings/meeting.routes';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -145,6 +146,7 @@ app.use('/api/memory', memoryRouter);
 app.use('/api/outreach',   outreachRouter);
 app.use('/api/execution', executionRouter);
 app.use('/api/replies',   repliesRouter);
+app.use('/api/meetings',  meetingsRouter);
 
 // ---- System Routes ----
 app.use('/api/system/migrations', migrationsRouter);

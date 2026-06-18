@@ -190,6 +190,13 @@
       "when": 1750900802000,
       "tag": "0030_reply_intelligence",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1750986000000,
+      "tag": "0031_meeting_intelligence",
+      "breakpoints": true
     }
   ]
 }

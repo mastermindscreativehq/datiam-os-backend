@@ -2330,10 +2330,14 @@ export const contact_memory = pgTable(
     relationship_strength:   numeric('relationship_strength', { precision: 3, scale: 2 }).notNull().default('0'),
     success_rate:            numeric('success_rate', { precision: 5, scale: 4 }).notNull().default('0'),
     notes_summary:           text('notes_summary'),
-    total_replies:           integer('total_replies').notNull().default(0),
-    positive_replies:        integer('positive_replies').notNull().default(0),
-    negative_replies:        integer('negative_replies').notNull().default(0),
-    memory_updated_at:       timestamp('memory_updated_at', { withTimezone: true }).defaultNow().notNull(),
+    total_replies:            integer('total_replies').notNull().default(0),
+    positive_replies:         integer('positive_replies').notNull().default(0),
+    negative_replies:         integer('negative_replies').notNull().default(0),
+    meetings_scheduled:       integer('meetings_scheduled').notNull().default(0),
+    meetings_completed:       integer('meetings_completed').notNull().default(0),
+    meetings_cancelled:       integer('meetings_cancelled').notNull().default(0),
+    meeting_conversion_rate:  numeric('meeting_conversion_rate', { precision: 5, scale: 4 }).notNull().default('0'),
+    memory_updated_at:        timestamp('memory_updated_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => ({
     contactMemoryContactIdx: index('contact_memory_contact_id_idx').on(t.contact_id),
@@ -2571,3 +2575,68 @@ export const replyLogRelations = relations(reply_log, ({ one }) => ({
   campaign: one(outreach_campaign, { fields: [reply_log.campaign_id], references: [outreach_campaign.id] }),
   contact:  one(licensing_contacts, { fields: [reply_log.contact_id],  references: [licensing_contacts.id] }),
 }));
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DATIAM Meeting Intelligence Engine v1
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const meetingStatusEnum = pgEnum('meeting_status', [
+  'scheduled',
+  'confirmed',
+  'completed',
+  'cancelled',
+  'no_show',
+]);
+
+export const meetingTypeEnum = pgEnum('meeting_type', [
+  'discovery',
+  'pitch',
+  'licensing',
+  'sync',
+  'partnership',
+  'followup',
+]);
+
+export const meetings = pgTable(
+  'meetings',
+  {
+    id:                        uuid('id').primaryKey().defaultRandom().notNull(),
+    campaign_id:               uuid('campaign_id').notNull().references(() => outreach_campaign.id, { onDelete: 'cascade' }),
+    contact_id:                uuid('contact_id').references(() => licensing_contacts.id, { onDelete: 'set null' }),
+    reply_log_id:              uuid('reply_log_id').references(() => reply_log.id, { onDelete: 'set null' }),
+    meeting_title:             text('meeting_title').notNull(),
+    meeting_type:              meetingTypeEnum('meeting_type').notNull().default('discovery'),
+    scheduled_at:              timestamp('scheduled_at', { withTimezone: true }),
+    timezone:                  text('timezone').notNull().default('UTC'),
+    meeting_link:              text('meeting_link'),
+    status:                    meetingStatusEnum('status').notNull().default('scheduled'),
+    notes:                     text('notes'),
+    meeting_brief:             jsonb('meeting_brief'),
+    meeting_preparation_score: numeric('meeting_preparation_score', { precision: 3, scale: 2 }),
+    recommended_next_action:   text('recommended_next_action'),
+    contact_context:           jsonb('contact_context'),
+    campaign_context:          jsonb('campaign_context'),
+    reply_context:             jsonb('reply_context'),
+    confidence_score:          numeric('confidence_score', { precision: 3, scale: 2 }),
+    engine_version:            text('engine_version').notNull().default('meeting-intelligence-v1'),
+    created_at:                timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updated_at:                timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    campaignIdx:    index('meetings_campaign_id_idx').on(t.campaign_id),
+    contactIdx:     index('meetings_contact_id_idx').on(t.contact_id),
+    statusIdx:      index('meetings_status_idx').on(t.status),
+    scheduledAtIdx: index('meetings_scheduled_at_idx').on(t.scheduled_at),
+    replyLogIdx:    index('meetings_reply_log_id_idx').on(t.reply_log_id),
+    createdAtIdx:   index('meetings_created_at_idx').on(t.created_at),
+  }),
+);
+
+export const meetingsRelations = relations(meetings, ({ one }) => ({
+  campaign:  one(outreach_campaign,  { fields: [meetings.campaign_id],  references: [outreach_campaign.id] }),
+  contact:   one(licensing_contacts, { fields: [meetings.contact_id],   references: [licensing_contacts.id] }),
+  reply_log: one(reply_log,          { fields: [meetings.reply_log_id], references: [reply_log.id] }),
+}));
+
+export type Meeting    = typeof meetings.$inferSelect;
+export type NewMeeting = typeof meetings.$inferInsert;

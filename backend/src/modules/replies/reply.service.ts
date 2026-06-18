@@ -8,6 +8,7 @@ import {
   adaptive_weight,
 } from '../../db/schema';
 import { AppError } from '../../middleware/errorHandler';
+import { autoCreateMeetingFromReply } from '../meetings/meeting.service';
 import type { IngestReplyInput } from './reply.schema';
 
 const ENGINE_VERSION = 'reply-intelligence-v1';
@@ -386,12 +387,37 @@ export const ingestReply = async (input: IngestReplyInput) => {
   // 7. Update adaptive learning signals
   await updateAdaptiveSignals(classification.status);
 
+  // 8. Auto-create meeting when reply signals a meeting request
+  let autoMeeting: Record<string, unknown> | null = null;
+  if (classification.status === 'meeting_requested') {
+    const created = await autoCreateMeetingFromReply({
+      campaign_id:      campaign_id,
+      contact_id:       resolvedContactId,
+      reply_log_id:     logRow.id,
+      reply_status:     classification.status,
+      reply_confidence: classification.confidence,
+      reply_reasoning:  classification.reasoning,
+    });
+    if (created) {
+      autoMeeting = {
+        id:                        created.id,
+        meeting_title:             created.meeting_title,
+        meeting_type:              created.meeting_type,
+        status:                    created.status,
+        meeting_preparation_score: created.meeting_preparation_score,
+        recommended_next_action:   created.recommended_next_action,
+        engine_version:            created.engine_version,
+      };
+    }
+  }
+
   return {
     reply_log:       logRow,
     classification,
     campaign_status: newCampaignStatus ?? campaign.status,
     used_ai:         usedAI,
     engine_version:  ENGINE_VERSION,
+    meeting_created: autoMeeting,
   };
 };
 
