@@ -2314,6 +2314,9 @@ export const company_memory = pgTable(
     contracts_created:       integer('contracts_created').notNull().default(0),
     contracts_sent:          integer('contracts_sent').notNull().default(0),
     contracts_signed:        integer('contracts_signed').notNull().default(0),
+    payments_created:        integer('payments_created').notNull().default(0),
+    payments_paid:           integer('payments_paid').notNull().default(0),
+    revenue_received:        numeric('revenue_received', { precision: 14, scale: 2 }).notNull().default('0'),
     memory_updated_at:       timestamp('memory_updated_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => ({
@@ -2351,6 +2354,9 @@ export const contact_memory = pgTable(
     contracts_created:        integer('contracts_created').notNull().default(0),
     contracts_sent:           integer('contracts_sent').notNull().default(0),
     contracts_signed:         integer('contracts_signed').notNull().default(0),
+    payments_created:         integer('payments_created').notNull().default(0),
+    payments_paid:            integer('payments_paid').notNull().default(0),
+    revenue_received:         numeric('revenue_received', { precision: 14, scale: 2 }).notNull().default('0'),
     memory_updated_at:        timestamp('memory_updated_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => ({
@@ -2778,8 +2784,66 @@ export const contracts = pgTable(
 export type Contract    = typeof contracts.$inferSelect;
 export type NewContract = typeof contracts.$inferInsert;
 
-export const contractsRelations = relations(contracts, ({ one }) => ({
-  deal:    one(deals,              { fields: [contracts.deal_id],    references: [deals.id] }),
-  company: one(companies,          { fields: [contracts.company_id], references: [companies.id] }),
-  contact: one(licensing_contacts, { fields: [contracts.contact_id], references: [licensing_contacts.id] }),
+export const contractsRelations = relations(contracts, ({ one, many }) => ({
+  deal:     one(deals,              { fields: [contracts.deal_id],    references: [deals.id] }),
+  company:  one(companies,          { fields: [contracts.company_id], references: [companies.id] }),
+  contact:  one(licensing_contacts, { fields: [contracts.contact_id], references: [licensing_contacts.id] }),
+  payments: many(payments),
+}));
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DATIAM Payment Intelligence Engine v1
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const paymentStatusEnum = pgEnum('payment_status', [
+  'pending',
+  'invoice_sent',
+  'partial',
+  'paid',
+  'overdue',
+  'refunded',
+  'cancelled',
+]);
+
+export const payments = pgTable(
+  'payments',
+  {
+    id:                    uuid('id').primaryKey().defaultRandom().notNull(),
+    contract_id:           uuid('contract_id').references(() => contracts.id, { onDelete: 'set null' }),
+    deal_id:               uuid('deal_id').references(() => deals.id, { onDelete: 'set null' }),
+    company_id:            uuid('company_id').references(() => companies.id, { onDelete: 'set null' }),
+    contact_id:            uuid('contact_id').references(() => licensing_contacts.id, { onDelete: 'set null' }),
+    invoice_number:        text('invoice_number').notNull().unique(),
+    payment_amount:        numeric('payment_amount', { precision: 14, scale: 2 }).notNull().default('0'),
+    currency:              text('currency').notNull().default('USD'),
+    payment_status:        paymentStatusEnum('payment_status').notNull().default('pending'),
+    invoice_sent_at:       timestamp('invoice_sent_at', { withTimezone: true }),
+    due_date:              timestamp('due_date', { withTimezone: true }),
+    paid_at:               timestamp('paid_at', { withTimezone: true }),
+    payment_method:        text('payment_method'),
+    transaction_reference: text('transaction_reference'),
+    notes:                 text('notes'),
+    metadata:              jsonb('metadata'),
+    created_at:            timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updated_at:            timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    contractIdx:    index('payments_contract_id_idx').on(t.contract_id),
+    dealIdx:        index('payments_deal_id_idx').on(t.deal_id),
+    companyIdx:     index('payments_company_id_idx').on(t.company_id),
+    contactIdx:     index('payments_contact_id_idx').on(t.contact_id),
+    statusIdx:      index('payments_status_idx').on(t.payment_status),
+    dueDateIdx:     index('payments_due_date_idx').on(t.due_date),
+    createdAtIdx:   index('payments_created_at_idx').on(t.created_at),
+  }),
+);
+
+export type Payment    = typeof payments.$inferSelect;
+export type NewPayment = typeof payments.$inferInsert;
+
+export const paymentsRelations = relations(payments, ({ one }) => ({
+  contract: one(contracts,          { fields: [payments.contract_id], references: [contracts.id] }),
+  deal:     one(deals,              { fields: [payments.deal_id],     references: [deals.id] }),
+  company:  one(companies,          { fields: [payments.company_id],  references: [companies.id] }),
+  contact:  one(licensing_contacts, { fields: [payments.contact_id],  references: [licensing_contacts.id] }),
 }));

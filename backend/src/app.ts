@@ -50,6 +50,7 @@ import repliesRouter from './modules/replies/reply.routes';
 import meetingsRouter from './modules/meetings/meeting.routes';
 import dealsRouter from './modules/deals/deal.routes';
 import contractsRouter from './modules/contracts/contract.routes';
+import paymentsRouter from './modules/payments/payment.routes';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -151,6 +152,7 @@ app.use('/api/replies',   repliesRouter);
 app.use('/api/meetings',  meetingsRouter);
 app.use('/api/deals',     dealsRouter);
 app.use('/api/contracts', contractsRouter);
+app.use('/api/payments',  paymentsRouter);
 
 // ---- System Routes ----
 app.use('/api/system/migrations', migrationsRouter);

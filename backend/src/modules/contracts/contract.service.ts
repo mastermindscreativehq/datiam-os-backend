@@ -13,6 +13,7 @@ import {
 } from '../../db/schema';
 import { AppError } from '../../middleware/errorHandler';
 import { logActivity } from '../../lib/activityLogger';
+import { autoCreatePaymentFromContract } from '../payments/payment.service';
 import type { CreateContractInput } from './contract.schema';
 
 const ENGINE_VERSION = 'contract-intelligence-v1';
@@ -488,7 +489,7 @@ export const updateContractStatus = async (id: string, status: ContractStatus) =
   const [updated] = await db.update(contracts).set(patch)
     .where(eq(contracts.id, id)).returning();
 
-  // When signed: update deal to contract_signed stage + won status, update memories, adaptive signals
+  // When signed: update deal, memories, adaptive signals, auto-create payment
   if (status === 'signed') {
     if (contract.deal_id) {
       await db.update(deals).set({
@@ -513,6 +514,11 @@ export const updateContractStatus = async (id: string, status: ContractStatus) =
     if (contract.company_id) await updateCompanyMemoryContracts(contract.company_id, 'signed');
     await updateAdaptiveContractSignal('contract_conversion_rate');
     await updateAdaptiveContractSignal('average_time_to_signature');
+
+    // Auto-create payment record from the signed contract
+    autoCreatePaymentFromContract(id).catch((err) =>
+      console.error('[ContractService] auto-payment creation failed:', err),
+    );
   }
 
   if (status === 'sent') {
