@@ -14,6 +14,7 @@ import {
 } from '../../db/schema';
 import { AppError } from '../../middleware/errorHandler';
 import { logActivity } from '../../lib/activityLogger';
+import { autoCreateContractFromDeal } from '../contracts/contract.service';
 import type {
   CreateDealInput,
   UpdateDealInput,
@@ -595,6 +596,11 @@ export const updateDealStatus = async (id: string, status: string) => {
       deal.contact_id ? updateAdaptiveDealSignals('revenue_per_contact') : Promise.resolve(),
       deal.company_id ? updateAdaptiveDealSignals('revenue_per_company') : Promise.resolve(),
     ]);
+
+    // Auto-generate a contract when a deal is won
+    if (status === 'won') {
+      await autoCreateContractFromDeal(id);
+    }
   }
 
   logActivity({

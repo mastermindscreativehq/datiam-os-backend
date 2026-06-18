@@ -2311,6 +2311,9 @@ export const company_memory = pgTable(
     deals_won:               integer('deals_won').notNull().default(0),
     deals_lost:              integer('deals_lost').notNull().default(0),
     revenue_generated:       numeric('revenue_generated', { precision: 14, scale: 2 }).notNull().default('0'),
+    contracts_created:       integer('contracts_created').notNull().default(0),
+    contracts_sent:          integer('contracts_sent').notNull().default(0),
+    contracts_signed:        integer('contracts_signed').notNull().default(0),
     memory_updated_at:       timestamp('memory_updated_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => ({
@@ -2345,6 +2348,9 @@ export const contact_memory = pgTable(
     deals_won:                integer('deals_won').notNull().default(0),
     deals_lost:               integer('deals_lost').notNull().default(0),
     revenue_generated:        numeric('revenue_generated', { precision: 14, scale: 2 }).notNull().default('0'),
+    contracts_created:        integer('contracts_created').notNull().default(0),
+    contracts_sent:           integer('contracts_sent').notNull().default(0),
+    contracts_signed:         integer('contracts_signed').notNull().default(0),
     memory_updated_at:        timestamp('memory_updated_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => ({
@@ -2715,9 +2721,65 @@ export const deals = pgTable(
 export type Deal    = typeof deals.$inferSelect;
 export type NewDeal = typeof deals.$inferInsert;
 
-export const dealsRelations = relations(deals, ({ one }) => ({
-  meeting:  one(meetings,          { fields: [deals.meeting_id],  references: [meetings.id] }),
-  campaign: one(outreach_campaign, { fields: [deals.campaign_id], references: [outreach_campaign.id] }),
-  contact:  one(licensing_contacts, { fields: [deals.contact_id], references: [licensing_contacts.id] }),
-  company:  one(companies,         { fields: [deals.company_id],  references: [companies.id] }),
+export const dealsRelations = relations(deals, ({ one, many }) => ({
+  meeting:   one(meetings,          { fields: [deals.meeting_id],  references: [meetings.id] }),
+  campaign:  one(outreach_campaign, { fields: [deals.campaign_id], references: [outreach_campaign.id] }),
+  contact:   one(licensing_contacts, { fields: [deals.contact_id], references: [licensing_contacts.id] }),
+  company:   one(companies,         { fields: [deals.company_id],  references: [companies.id] }),
+  contracts: many(contracts),
+}));
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DATIAM Contract Intelligence Engine v1
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const contractStatusEnum = pgEnum('contract_status', [
+  'draft',
+  'generated',
+  'sent',
+  'viewed',
+  'signed',
+  'expired',
+  'cancelled',
+]);
+
+export const contracts = pgTable(
+  'contracts',
+  {
+    id:                 uuid('id').primaryKey().defaultRandom().notNull(),
+    deal_id:            uuid('deal_id').references(() => deals.id, { onDelete: 'set null' }),
+    company_id:         uuid('company_id').references(() => companies.id, { onDelete: 'set null' }),
+    contact_id:         uuid('contact_id').references(() => licensing_contacts.id, { onDelete: 'set null' }),
+    contract_title:     text('contract_title').notNull(),
+    contract_type:      text('contract_type'),
+    contract_value:     numeric('contract_value', { precision: 14, scale: 2 }),
+    currency:           text('currency').notNull().default('USD'),
+    status:             contractStatusEnum('status').notNull().default('draft'),
+    generated_at:       timestamp('generated_at', { withTimezone: true }),
+    sent_at:            timestamp('sent_at', { withTimezone: true }),
+    viewed_at:          timestamp('viewed_at', { withTimezone: true }),
+    signed_at:          timestamp('signed_at', { withTimezone: true }),
+    expires_at:         timestamp('expires_at', { withTimezone: true }),
+    file_url:           text('file_url'),
+    signature_provider: text('signature_provider'),
+    metadata:           jsonb('metadata'),
+    created_at:         timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updated_at:         timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    dealIdx:       index('contracts_deal_id_idx').on(t.deal_id),
+    companyIdx:    index('contracts_company_id_idx').on(t.company_id),
+    contactIdx:    index('contracts_contact_id_idx').on(t.contact_id),
+    statusIdx:     index('contracts_status_idx').on(t.status),
+    createdAtIdx:  index('contracts_created_at_idx').on(t.created_at),
+  }),
+);
+
+export type Contract    = typeof contracts.$inferSelect;
+export type NewContract = typeof contracts.$inferInsert;
+
+export const contractsRelations = relations(contracts, ({ one }) => ({
+  deal:    one(deals,              { fields: [contracts.deal_id],    references: [deals.id] }),
+  company: one(companies,          { fields: [contracts.company_id], references: [companies.id] }),
+  contact: one(licensing_contacts, { fields: [contracts.contact_id], references: [licensing_contacts.id] }),
 }));
