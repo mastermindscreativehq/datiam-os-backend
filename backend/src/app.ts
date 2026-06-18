@@ -43,6 +43,7 @@ import licensingContactsRouter from './modules/licensing-contacts/licensing-cont
 import placementOutcomesRouter from './modules/placement-outcomes/placement-outcomes.routes';
 import predictionAccuracyRouter from './modules/prediction-accuracy/prediction-accuracy.routes';
 import intelligenceRouter from './modules/intelligence/intelligence.routes';
+import memoryRouter from './modules/memory/memory.routes';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -134,6 +135,9 @@ app.use('/api/prediction-accuracy', predictionAccuracyRouter);
 
 // ---- Sync Intelligence Engine ----
 app.use('/api/intelligence', intelligenceRouter);
+
+// ---- Memory Layer v1 ----
+app.use('/api/memory', memoryRouter);
 
 // ---- System Routes ----
 app.use('/api/system/migrations', migrationsRouter);

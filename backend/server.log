@@ -1,0 +1,32 @@
+[Sentry] SENTRY_DSN not configured — error monitoring disabled
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P06',
+  message: 'schema "drizzle" already exists, skipping',
+  file: 'schemacmds.c',
+  line: '132',
+  routine: 'CreateSchemaCommand'
+}
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "__drizzle_migrations" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '207',
+  routine: 'transformCreateStmt'
+}
+[Redis] CONNECTED
+[Migrations] All pending migrations applied
+
+DATIAM OS Backend
+   Environment : production
+   Port        : 4001
+   Health      : http://localhost:4001/health
+
+[Scheduler] Worker started — ticking every 60s
+[SonicQueue] Workers started: simulation, analytics, memory, ranking
+[AudioProcessor] ffmpeg  → ffmpeg
+[AudioProcessor] ffprobe → ffprobe
+[AudioProcessor] ffmpeg: OK

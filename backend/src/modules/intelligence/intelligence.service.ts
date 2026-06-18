@@ -136,6 +136,14 @@ export const analyzeOpportunity = async (
     artist_outcomes: context.artist_total_outcomes,
     placement_score: placementScores.total,
     match_score:     matchScores.total,
+    // individual factor scores stored for adaptive weight analysis
+    genre_fit:      placementScores.genre_fit,
+    bpm_fit:        placementScores.bpm_fit,
+    mood_fit:       placementScores.mood_fit,
+    territory_fit:  placementScores.territory_fit,
+    artist_history: placementScores.artist_history,
+    company_match:  matchScores.company_match,
+    contact_match:  matchScores.contact_match,
   };
 
   const [prediction] = await db

@@ -71086,3 +71086,343 @@ Error: getaddrinfo ENOTFOUND zephyr.proxy.rlwy.net
   address: undefined,
   port: undefined
 }
+[Scheduler] Tick error: Error: write CONNECT_TIMEOUT aws-1-eu-west-2.pooler.supabase.com:6543
+    at connectTimedOut (C:\Users\user\datiam-os\backend\node_modules\postgres\cjs\src\connection.js:262:20)
+    at Timeout.done [as _onTimeout] (C:\Users\user\datiam-os\backend\node_modules\postgres\cjs\src\connection.js:1059:8)
+    at listOnTimeout (node:internal/timers:610:11)
+    at process.processTimers (node:internal/timers:543:7) {
+  code: 'CONNECT_TIMEOUT',
+  errno: 'CONNECT_TIMEOUT',
+  address: 'aws-1-eu-west-2.pooler.supabase.com',
+  port: 6543
+}
+[Scheduler] Tick error: Error: write CONNECT_TIMEOUT aws-1-eu-west-2.pooler.supabase.com:6543
+    at connectTimedOut (C:\Users\user\datiam-os\backend\node_modules\postgres\cjs\src\connection.js:262:20)
+    at Timeout.done [as _onTimeout] (C:\Users\user\datiam-os\backend\node_modules\postgres\cjs\src\connection.js:1059:8)
+    at listOnTimeout (node:internal/timers:610:11)
+    at process.processTimers (node:internal/timers:543:7) {
+  code: 'CONNECT_TIMEOUT',
+  errno: 'CONNECT_TIMEOUT',
+  address: 'aws-1-eu-west-2.pooler.supabase.com',
+  port: 6543
+}
+[Scheduler] Tick error: Error: write CONNECT_TIMEOUT aws-1-eu-west-2.pooler.supabase.com:6543
+    at connectTimedOut (C:\Users\user\datiam-os\backend\node_modules\postgres\cjs\src\connection.js:262:20)
+    at Timeout.done [as _onTimeout] (C:\Users\user\datiam-os\backend\node_modules\postgres\cjs\src\connection.js:1059:8)
+    at listOnTimeout (node:internal/timers:610:11)
+    at process.processTimers (node:internal/timers:543:7) {
+  code: 'CONNECT_TIMEOUT',
+  errno: 'CONNECT_TIMEOUT',
+  address: 'aws-1-eu-west-2.pooler.supabase.com',
+  port: 6543
+}
+[DnaWorker] Worker error: Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20)
+[SonicQueue:sonic-analytics] Worker error: read ECONNRESET
+[SonicQueue:sonic-simulation] Worker error: read ECONNRESET
+[EnergyWorker] Worker error: Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20)
+[SonicQueue:sonic-ranking] Worker error: read ECONNRESET
+[SonicQueue:sonic-memory] Worker error: read ECONNRESET
+[AudioWorker] Worker error: Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20)
+[SyncWorker] Worker error: Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20)
+[Redis:worker] ERROR: read ECONNRESET
+[DnaWorker] Worker error: Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20)
+[Redis] ERROR: read ECONNRESET
+Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+[Redis:worker] ERROR: read ECONNRESET
+[SonicQueue:sonic-ranking] Worker error: read ECONNRESET
+[Redis:worker] ERROR: read ECONNRESET
+[SonicQueue:sonic-simulation] Worker error: read ECONNRESET
+[Redis:worker] ERROR: read ECONNRESET
+[EnergyWorker] Worker error: Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20)
+[Redis:worker] ERROR: read ECONNRESET
+[SonicQueue:sonic-memory] Worker error: read ECONNRESET
+[Redis:worker] ERROR: read ECONNRESET
+[SyncWorker] Worker error: Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20)
+[Redis:worker] ERROR: read ECONNRESET
+[AudioWorker] Worker error: Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20)
+[Redis:worker] ERROR: read ECONNRESET
+[SonicQueue:sonic-analytics] Worker error: read ECONNRESET
+[Scheduler] Tick error: Error: write CONNECT_TIMEOUT aws-1-eu-west-2.pooler.supabase.com:6543
+    at connectTimedOut (C:\Users\user\datiam-os\backend\node_modules\postgres\cjs\src\connection.js:262:20)
+    at Timeout.done [as _onTimeout] (C:\Users\user\datiam-os\backend\node_modules\postgres\cjs\src\connection.js:1059:8)
+    at listOnTimeout (node:internal/timers:610:11)
+    at process.processTimers (node:internal/timers:543:7) {
+  code: 'CONNECT_TIMEOUT',
+  errno: 'CONNECT_TIMEOUT',
+  address: 'aws-1-eu-west-2.pooler.supabase.com',
+  port: 6543
+}
+[Scheduler] Tick error: Error: write CONNECT_TIMEOUT aws-1-eu-west-2.pooler.supabase.com:6543
+    at connectTimedOut (C:\Users\user\datiam-os\backend\node_modules\postgres\cjs\src\connection.js:262:20)
+    at Timeout.done [as _onTimeout] (C:\Users\user\datiam-os\backend\node_modules\postgres\cjs\src\connection.js:1059:8)
+    at listOnTimeout (node:internal/timers:610:11)
+    at process.processTimers (node:internal/timers:543:7) {
+  code: 'CONNECT_TIMEOUT',
+  errno: 'CONNECT_TIMEOUT',
+  address: 'aws-1-eu-west-2.pooler.supabase.com',
+  port: 6543
+}
+[AudioWorker] Worker error: Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20)
+[DnaWorker] Worker error: Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20)
+[SonicQueue:sonic-analytics] Worker error: read ECONNRESET
+[SonicQueue:sonic-ranking] Worker error: read ECONNRESET
+[SyncWorker] Worker error: Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20)
+[SonicQueue:sonic-simulation] Worker error: read ECONNRESET
+[EnergyWorker] Worker error: Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20)
+[SonicQueue:sonic-memory] Worker error: read ECONNRESET
+[Redis:worker] ERROR: read ECONNRESET
+[SonicQueue:sonic-simulation] Worker error: read ECONNRESET
+[Redis:worker] ERROR: read ECONNRESET
+[AudioWorker] Worker error: Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20)
+[Redis:worker] ERROR: read ECONNRESET
+[SonicQueue:sonic-ranking] Worker error: read ECONNRESET
+[Redis:worker] ERROR: read ECONNRESET
+[SonicQueue:sonic-analytics] Worker error: read ECONNRESET
+[Redis:worker] ERROR: read ECONNRESET
+[SyncWorker] Worker error: Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20)
+[Redis:worker] ERROR: read ECONNRESET
+[SonicQueue:sonic-memory] Worker error: read ECONNRESET
+[Redis] ERROR: read ECONNRESET
+Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+[Redis:worker] ERROR: read ECONNRESET
+[DnaWorker] Worker error: Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20)
+[Redis:worker] ERROR: read ECONNRESET
+[EnergyWorker] Worker error: Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20)
+[SonicQueue:sonic-simulation] Worker error: read ECONNRESET
+[SonicQueue:sonic-memory] Worker error: read ECONNRESET
+[SonicQueue:sonic-ranking] Worker error: read ECONNRESET
+[SonicQueue:sonic-analytics] Worker error: read ECONNRESET
+[SyncWorker] Worker error: Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20)
+[EnergyWorker] Worker error: Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20)
+[AudioWorker] Worker error: Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20)
+[DnaWorker] Worker error: Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20)
+[Redis] ERROR: read ECONNRESET
+Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+[Redis:worker] ERROR: read ECONNRESET
+[SonicQueue:sonic-memory] Worker error: read ECONNRESET
+[Redis:worker] ERROR: read ECONNRESET
+[SyncWorker] Worker error: Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20)
+[Redis:worker] ERROR: read ECONNRESET
+[SonicQueue:sonic-analytics] Worker error: read ECONNRESET
+[Redis:worker] ERROR: read ECONNRESET
+[SonicQueue:sonic-simulation] Worker error: read ECONNRESET
+[Redis:worker] ERROR: read ECONNRESET
+[AudioWorker] Worker error: Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20)
+[Redis:worker] ERROR: read ECONNRESET
+[DnaWorker] Worker error: Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20)
+[Redis:worker] ERROR: read ECONNRESET
+[EnergyWorker] Worker error: Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20)
+[Redis:worker] ERROR: read ECONNRESET
+[SonicQueue:sonic-ranking] Worker error: read ECONNRESET
+[Scheduler] Tick error: Error: write CONNECT_TIMEOUT aws-1-eu-west-2.pooler.supabase.com:6543
+    at connectTimedOut (C:\Users\user\datiam-os\backend\node_modules\postgres\cjs\src\connection.js:262:20)
+    at Timeout.done [as _onTimeout] (C:\Users\user\datiam-os\backend\node_modules\postgres\cjs\src\connection.js:1059:8)
+    at listOnTimeout (node:internal/timers:610:11)
+    at process.processTimers (node:internal/timers:543:7) {
+  code: 'CONNECT_TIMEOUT',
+  errno: 'CONNECT_TIMEOUT',
+  address: 'aws-1-eu-west-2.pooler.supabase.com',
+  port: 6543
+}
+{"level":"error","name":"AppError","message":"No token provided","status":401,"path":"/api/sync-intelligence/pipeline","method":"GET","requestId":"3d769050-ed92-4615-9ac4-26e66cf23322","stack":"AppError: No token provided\n    at authenticate (C:\\Users\\user\\datiam-os\\backend\\dist\\middleware\\auth.js:9:21)\n    at Layer.handle [as handle_request] (C:\\Users\\user\\datiam-os\\backend\\node_modules\\express\\lib\\router\\layer.js:95:5)\n    at trim_prefix (C:\\Users\\user\\datiam-os\\backend\\node_modules\\express\\lib\\router\\index.js:328:13)\n    at C:\\Users\\user\\datiam-os\\backend\\node_modules\\express\\lib\\router\\index.js:286:9\n    at router.process_params (C:\\Users\\user\\datiam-os\\backend\\node_modules\\express\\lib\\router\\index.js:346:12)\n    at next (C:\\Users\\user\\datiam-os\\backend\\node_modules\\express\\lib\\router\\index.js:280:10)\n    at router.handle (C:\\Users\\user\\datiam-os\\backend\\node_modules\\express\\lib\\router\\index.js:175:3)\n    at router (C:\\Users\\user\\datiam-os\\backend\\node_modules\\express\\lib\\router\\index.js:47:12)\n    at Layer.handle [as handle_request] (C:\\Users\\user\\datiam-os\\backend\\node_modules\\express\\lib\\router\\layer.js:95:5)\n    at trim_prefix (C:\\Users\\user\\datiam-os\\backend\\node_modules\\express\\lib\\router\\index.js:328:13)"}

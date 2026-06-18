@@ -2228,6 +2228,7 @@ export const prediction_accuracy_log = pgTable(
     predicted_label:  text('predicted_label'),
     actual_value:     numeric('actual_value',    { precision: 10, scale: 4 }),
     actual_label:     text('actual_label'),
+    actual_revenue:   numeric('actual_revenue',  { precision: 12, scale: 2 }),
     error_margin:     numeric('error_margin',    { precision: 10, scale: 4 }),
     accuracy_score:   numeric('accuracy_score',  { precision: 5,  scale: 2 }),
     feature_vector:   jsonb('feature_vector'),
@@ -2287,3 +2288,114 @@ export const predictionAccuracyLogRelations = relations(prediction_accuracy_log,
   opportunity: one(placement_opportunities, { fields: [prediction_accuracy_log.opportunity_id], references: [placement_opportunities.id] }),
   outcome:     one(placement_outcomes,      { fields: [prediction_accuracy_log.outcome_id],     references: [placement_outcomes.id] }),
 }));
+
+// ── Memory Layer v1 ───────────────────────────────────────────────────────────
+
+export const company_memory = pgTable(
+  'company_memory',
+  {
+    id:                      uuid('id').primaryKey().defaultRandom(),
+    company_id:              uuid('company_id').notNull().unique().references((): AnyPgColumn => companies.id, { onDelete: 'cascade' }),
+    total_opportunities:     integer('total_opportunities').notNull().default(0),
+    total_placements:        integer('total_placements').notNull().default(0),
+    total_revenue:           numeric('total_revenue', { precision: 14, scale: 2 }).notNull().default('0'),
+    avg_deal_size:           numeric('avg_deal_size', { precision: 14, scale: 2 }).notNull().default('0'),
+    preferred_genres:        jsonb('preferred_genres').$type<string[]>().notNull().default([]),
+    preferred_bpm_ranges:    jsonb('preferred_bpm_ranges').$type<string[]>().notNull().default([]),
+    preferred_moods:         jsonb('preferred_moods').$type<string[]>().notNull().default([]),
+    preferred_license_types: jsonb('preferred_license_types').$type<string[]>().notNull().default([]),
+    response_rate:           numeric('response_rate', { precision: 5, scale: 4 }).notNull().default('0'),
+    placement_rate:          numeric('placement_rate', { precision: 5, scale: 4 }).notNull().default('0'),
+    last_contacted_at:       timestamp('last_contacted_at', { withTimezone: true }),
+    memory_updated_at:       timestamp('memory_updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    companyMemoryCompanyIdx: index('company_memory_company_id_idx').on(t.company_id),
+  }),
+);
+
+export type CompanyMemory    = typeof company_memory.$inferSelect;
+export type NewCompanyMemory = typeof company_memory.$inferInsert;
+
+export const contact_memory = pgTable(
+  'contact_memory',
+  {
+    id:                      uuid('id').primaryKey().defaultRandom(),
+    contact_id:              uuid('contact_id').notNull().unique().references((): AnyPgColumn => licensing_contacts.id, { onDelete: 'cascade' }),
+    opportunities_seen:      integer('opportunities_seen').notNull().default(0),
+    placements_closed:       integer('placements_closed').notNull().default(0),
+    avg_response_time_days:  numeric('avg_response_time_days', { precision: 8, scale: 2 }),
+    preferred_genres:        jsonb('preferred_genres').$type<string[]>().notNull().default([]),
+    preferred_license_types: jsonb('preferred_license_types').$type<string[]>().notNull().default([]),
+    relationship_strength:   numeric('relationship_strength', { precision: 3, scale: 2 }).notNull().default('0'),
+    success_rate:            numeric('success_rate', { precision: 5, scale: 4 }).notNull().default('0'),
+    notes_summary:           text('notes_summary'),
+    memory_updated_at:       timestamp('memory_updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    contactMemoryContactIdx: index('contact_memory_contact_id_idx').on(t.contact_id),
+  }),
+);
+
+export type ContactMemory    = typeof contact_memory.$inferSelect;
+export type NewContactMemory = typeof contact_memory.$inferInsert;
+
+// Distinct from artist_memory (creative/music intelligence). Captures sync
+// commercial performance derived purely from placement data.
+export const artist_sync_memory = pgTable(
+  'artist_sync_memory',
+  {
+    id:                      uuid('id').primaryKey().defaultRandom(),
+    artist_id:               uuid('artist_id').notNull().unique().references(() => artist_profiles.id, { onDelete: 'cascade' }),
+    opportunities_submitted: integer('opportunities_submitted').notNull().default(0),
+    placements_won:          integer('placements_won').notNull().default(0),
+    total_sync_revenue:      numeric('total_sync_revenue', { precision: 14, scale: 2 }).notNull().default('0'),
+    strongest_genres:        jsonb('strongest_genres').$type<string[]>().notNull().default([]),
+    strongest_moods:         jsonb('strongest_moods').$type<string[]>().notNull().default([]),
+    strongest_territories:   jsonb('strongest_territories').$type<string[]>().notNull().default([]),
+    strongest_bpm_ranges:    jsonb('strongest_bpm_ranges').$type<string[]>().notNull().default([]),
+    success_rate:            numeric('success_rate', { precision: 5, scale: 4 }).notNull().default('0'),
+    memory_updated_at:       timestamp('memory_updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    artistSyncMemoryArtistIdx: index('artist_sync_memory_artist_id_idx').on(t.artist_id),
+  }),
+);
+
+export type ArtistSyncMemory    = typeof artist_sync_memory.$inferSelect;
+export type NewArtistSyncMemory = typeof artist_sync_memory.$inferInsert;
+
+export const companyMemoryRelations = relations(company_memory, ({ one }) => ({
+  company: one(companies, { fields: [company_memory.company_id], references: [companies.id] }),
+}));
+
+export const contactMemoryRelations = relations(contact_memory, ({ one }) => ({
+  contact: one(licensing_contacts, { fields: [contact_memory.contact_id], references: [licensing_contacts.id] }),
+}));
+
+export const artistSyncMemoryRelations = relations(artist_sync_memory, ({ one }) => ({
+  artist: one(artist_profiles, { fields: [artist_sync_memory.artist_id], references: [artist_profiles.id] }),
+}));
+
+// ── Adaptive Intelligence Engine ──────────────────────────────────────────────
+
+export const adaptive_weight = pgTable(
+  'adaptive_weight',
+  {
+    id:                   uuid('id').primaryKey().defaultRandom(),
+    factor_name:          text('factor_name').notNull().unique(),
+    current_weight:       numeric('current_weight',    { precision: 5, scale: 2 }).notNull().default('0'),
+    previous_weight:      numeric('previous_weight',   { precision: 5, scale: 2 }),
+    recommended_weight:   numeric('recommended_weight', { precision: 5, scale: 2 }),
+    confidence:           numeric('confidence',        { precision: 3, scale: 2 }).notNull().default('0'),
+    sample_size:          integer('sample_size').notNull().default(0),
+    last_recalculated_at: timestamp('last_recalculated_at', { withTimezone: true }),
+    updated_at:           timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    factorNameIdx: index('adaptive_weight_factor_name_idx').on(t.factor_name),
+  }),
+);
+
+export type AdaptiveWeight    = typeof adaptive_weight.$inferSelect;
+export type NewAdaptiveWeight = typeof adaptive_weight.$inferInsert;

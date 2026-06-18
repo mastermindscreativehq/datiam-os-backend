@@ -87,3 +87,16 @@ DATIAM OS Backend
 [Redis] READY
 [Redis] CONNECTED
 [Redis] READY
+[Redis] CONNECTED
+[Redis] READY
+[Redis] CONNECTED
+[Redis] READY
+[Redis] CONNECTED
+[Redis] READY
+{"timestamp":"2026-06-17T10:49:18.322Z","requestId":"5622ae27-89db-4767-8510-c1002efb3c5c","method":"GET","path":"/health","statusCode":200,"durationMs":12,"userId":null}
+{"timestamp":"2026-06-17T10:50:53.245Z","requestId":"6a869a16-e4b6-40ef-a3e4-72c4a6c1880d","method":"POST","path":"/api/intelligence/analyze-opportunity","statusCode":404,"durationMs":3,"userId":null}
+{"timestamp":"2026-06-17T10:51:00.827Z","requestId":"d8889c16-875b-4552-a250-1ea588a97ac2","method":"POST","path":"/api/intelligence/analyze-opportunity","statusCode":404,"durationMs":1,"userId":null}
+{"timestamp":"2026-06-17T10:51:13.263Z","requestId":"10249325-286d-46d2-b1ee-3159424d8167","method":"GET","path":"/api/intelligence/analyze-opportunity","statusCode":404,"durationMs":2,"userId":null}
+{"timestamp":"2026-06-17T10:51:16.749Z","requestId":"e73ef5fe-ee01-4aae-89eb-c6ef582033a9","method":"GET","path":"/api/","statusCode":404,"durationMs":1,"userId":null}
+{"timestamp":"2026-06-17T10:51:17.691Z","requestId":"3d769050-ed92-4615-9ac4-26e66cf23322","method":"GET","path":"/api/sync-intelligence/pipeline","statusCode":401,"durationMs":6,"userId":null}
+{"timestamp":"2026-06-17T10:54:27.798Z","requestId":"77fad2e4-64cb-4f37-a09d-a1acf0265d1a","method":"GET","path":"/health","statusCode":200,"durationMs":0,"userId":null}
