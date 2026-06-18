@@ -183,6 +183,13 @@
       "when": 1750900801000,
       "tag": "0029_execution_engine",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1750900802000,
+      "tag": "0030_reply_intelligence",
+      "breakpoints": true
     }
   ]
 }

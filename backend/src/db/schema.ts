@@ -2330,6 +2330,9 @@ export const contact_memory = pgTable(
     relationship_strength:   numeric('relationship_strength', { precision: 3, scale: 2 }).notNull().default('0'),
     success_rate:            numeric('success_rate', { precision: 5, scale: 4 }).notNull().default('0'),
     notes_summary:           text('notes_summary'),
+    total_replies:           integer('total_replies').notNull().default(0),
+    positive_replies:        integer('positive_replies').notNull().default(0),
+    negative_replies:        integer('negative_replies').notNull().default(0),
     memory_updated_at:       timestamp('memory_updated_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => ({
@@ -2520,4 +2523,51 @@ export const executionLogRelations = relations(execution_log, ({ one }) => ({
   campaign: one(outreach_campaign, { fields: [execution_log.campaign_id], references: [outreach_campaign.id] }),
   message:  one(outreach_message,  { fields: [execution_log.message_id],  references: [outreach_message.id] }),
   contact:  one(licensing_contacts, { fields: [execution_log.contact_id], references: [licensing_contacts.id] }),
+}));
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DATIAM Reply Intelligence Engine v1
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const replyStatusEnum = pgEnum('reply_status', [
+  'positive',
+  'interested',
+  'meeting_requested',
+  'needs_followup',
+  'not_now',
+  'rejected',
+  'out_of_office',
+  'unknown',
+]);
+
+export const reply_log = pgTable(
+  'reply_log',
+  {
+    id:                      uuid('id').primaryKey().defaultRandom().notNull(),
+    campaign_id:             uuid('campaign_id').notNull().references(() => outreach_campaign.id, { onDelete: 'cascade' }),
+    contact_id:              uuid('contact_id').references(() => licensing_contacts.id, { onDelete: 'set null' }),
+    subject:                 text('subject').notNull(),
+    body:                    text('body').notNull(),
+    status:                  replyStatusEnum('status').notNull().default('unknown'),
+    confidence:              numeric('confidence', { precision: 3, scale: 2 }).notNull().default('0'),
+    reasoning:               text('reasoning'),
+    recommended_next_action: text('recommended_next_action'),
+    raw_ai_response:         text('raw_ai_response'),
+    created_at:              timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updated_at:              timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    campaignIdx:  index('rl_campaign_id_idx').on(t.campaign_id),
+    contactIdx:   index('rl_contact_id_idx').on(t.contact_id),
+    statusIdx:    index('rl_status_idx').on(t.status),
+    createdAtIdx: index('rl_created_at_idx').on(t.created_at),
+  }),
+);
+
+export type ReplyLog    = typeof reply_log.$inferSelect;
+export type NewReplyLog = typeof reply_log.$inferInsert;
+
+export const replyLogRelations = relations(reply_log, ({ one }) => ({
+  campaign: one(outreach_campaign, { fields: [reply_log.campaign_id], references: [outreach_campaign.id] }),
+  contact:  one(licensing_contacts, { fields: [reply_log.contact_id],  references: [licensing_contacts.id] }),
 }));
