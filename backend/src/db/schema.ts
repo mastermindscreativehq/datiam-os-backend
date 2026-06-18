@@ -2462,12 +2462,62 @@ export type OutreachMessage    = typeof outreach_message.$inferSelect;
 export type NewOutreachMessage = typeof outreach_message.$inferInsert;
 
 export const outreachCampaignRelations = relations(outreach_campaign, ({ one, many }) => ({
-  company:      one(companies,             { fields: [outreach_campaign.company_id],   references: [companies.id] }),
-  contact:      one(licensing_contacts,    { fields: [outreach_campaign.contact_id],   references: [licensing_contacts.id] }),
-  opportunity:  one(placement_opportunities, { fields: [outreach_campaign.opportunity_id], references: [placement_opportunities.id] }),
-  messages:     many(outreach_message),
+  company:        one(companies,               { fields: [outreach_campaign.company_id],   references: [companies.id] }),
+  contact:        one(licensing_contacts,      { fields: [outreach_campaign.contact_id],   references: [licensing_contacts.id] }),
+  opportunity:    one(placement_opportunities, { fields: [outreach_campaign.opportunity_id], references: [placement_opportunities.id] }),
+  messages:       many(outreach_message),
+  execution_logs: many(execution_log),
 }));
 
-export const outreachMessageRelations = relations(outreach_message, ({ one }) => ({
-  campaign: one(outreach_campaign, { fields: [outreach_message.campaign_id], references: [outreach_campaign.id] }),
+export const outreachMessageRelations = relations(outreach_message, ({ one, many }) => ({
+  campaign:       one(outreach_campaign, { fields: [outreach_message.campaign_id], references: [outreach_campaign.id] }),
+  execution_logs: many(execution_log),
+}));
+
+// ─── Execution Engine ─────────────────────────────────────────────────────────
+
+export const deliveryStatusEnum = pgEnum('delivery_status', [
+  'pending',
+  'sent',
+  'failed',
+  'bounced',
+  'opened',
+  'clicked',
+]);
+
+export const execution_log = pgTable(
+  'execution_log',
+  {
+    id:                   uuid('id').primaryKey().defaultRandom().notNull(),
+    campaign_id:          uuid('campaign_id').notNull().references(() => outreach_campaign.id, { onDelete: 'cascade' }),
+    message_id:           uuid('message_id').references(() => outreach_message.id, { onDelete: 'set null' }),
+    contact_id:           uuid('contact_id').references(() => licensing_contacts.id, { onDelete: 'set null' }),
+    provider:             text('provider').notNull(),
+    recipient_email:      text('recipient_email').notNull(),
+    subject:              text('subject').notNull(),
+    delivery_status:      deliveryStatusEnum('delivery_status').notNull().default('pending'),
+    sent_at:              timestamp('sent_at', { withTimezone: true }),
+    error_message:        text('error_message'),
+    provider_message_id:  text('provider_message_id'),
+    metadata:             jsonb('metadata'),
+    created_at:           timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updated_at:           timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    campaignIdx:        index('el_campaign_id_idx').on(t.campaign_id),
+    contactIdx:         index('el_contact_id_idx').on(t.contact_id),
+    deliveryStatusIdx:  index('el_delivery_status_idx').on(t.delivery_status),
+    sentAtIdx:          index('el_sent_at_idx').on(t.sent_at),
+    providerIdx:        index('el_provider_idx').on(t.provider),
+    createdAtIdx:       index('el_created_at_idx').on(t.created_at),
+  }),
+);
+
+export type ExecutionLog    = typeof execution_log.$inferSelect;
+export type NewExecutionLog = typeof execution_log.$inferInsert;
+
+export const executionLogRelations = relations(execution_log, ({ one }) => ({
+  campaign: one(outreach_campaign, { fields: [execution_log.campaign_id], references: [outreach_campaign.id] }),
+  message:  one(outreach_message,  { fields: [execution_log.message_id],  references: [outreach_message.id] }),
+  contact:  one(licensing_contacts, { fields: [execution_log.contact_id], references: [licensing_contacts.id] }),
 }));

@@ -45,6 +45,7 @@ import predictionAccuracyRouter from './modules/prediction-accuracy/prediction-a
 import intelligenceRouter from './modules/intelligence/intelligence.routes';
 import memoryRouter from './modules/memory/memory.routes';
 import outreachRouter from './modules/outreach/outreach.routes';
+import executionRouter from './modules/execution/execution.routes';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -140,7 +141,8 @@ app.use('/api/intelligence', intelligenceRouter);
 // ---- Memory Layer v1 ----
 app.use('/api/memory', memoryRouter);
 
-app.use('/api/outreach', outreachRouter);
+app.use('/api/outreach',   outreachRouter);
+app.use('/api/execution', executionRouter);
 
 // ---- System Routes ----
 app.use('/api/system/migrations', migrationsRouter);
