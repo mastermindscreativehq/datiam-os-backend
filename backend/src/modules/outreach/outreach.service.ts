@@ -1,0 +1,416 @@
+import { eq, desc, isNull } from 'drizzle-orm';
+import { db } from '../../db';
+import {
+  companies,
+  licensing_contacts,
+  company_memory,
+  contact_memory,
+  artist_sync_memory,
+  placement_opportunities,
+  outreach_campaign,
+  outreach_message,
+} from '../../db/schema';
+import { AppError } from '../../middleware/errorHandler';
+import type { CreateCampaignInput } from './outreach.schema';
+
+const ENGINE_VERSION = 'outreach-v1';
+
+// ─── Anthropic pitch generation ───────────────────────────────────────────────
+
+interface PitchResult {
+  pitch:     string;
+  reasoning: string;
+}
+
+async function callAnthropicForPitch(prompt: string): Promise<PitchResult> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) throw new Error('No API key');
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key':           apiKey,
+      'anthropic-version':   '2023-06-01',
+      'content-type':        'application/json',
+    },
+    body: JSON.stringify({
+      model:      'claude-haiku-4-5-20251001',
+      max_tokens: 1200,
+      messages:   [{ role: 'user', content: prompt }],
+    }),
+  });
+
+  if (!response.ok) throw new Error(`Anthropic API error: ${response.status}`);
+
+  const data = (await response.json()) as { content: Array<{ text: string }> };
+  const raw  = data.content?.[0]?.text ?? '';
+  const match = raw.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error('Failed to parse AI pitch response');
+
+  return JSON.parse(match[0]) as PitchResult;
+}
+
+// ─── Fallback template generator ─────────────────────────────────────────────
+
+function toStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((v): v is string => typeof v === 'string');
+}
+
+function templatePitch(ctx: PitchContext): PitchResult {
+  const {
+    companyName, companyType, territory, genres,
+    contactName, contactRole,
+    artistWinRate, artistPlacements, artistTopGenres,
+    companyPlacementRate, companyTotalPlacements,
+    contactSuccessRate, contactPlacementsClosed,
+    opportunityScore,
+  } = ctx;
+
+  const tierDesc = companyType.replace(/_/g, ' ');
+  const genreList = genres.length > 0 ? genres.slice(0, 3).join(', ') : 'various genres';
+  const artistGenreList = artistTopGenres.length > 0
+    ? artistTopGenres.slice(0, 3).join(', ')
+    : 'diverse styles';
+
+  const greeting = contactName
+    ? `Hi ${contactName.split(' ')[0]},`
+    : `Hi,`;
+
+  const intro = `I'm reaching out on behalf of an artist whose catalog aligns strongly with ${companyName}'s sync focus. They specialise in ${artistGenreList} — genres that overlap well with your ${genreList} brief in ${territory}.`;
+
+  const credLine = artistPlacements > 0
+    ? `The artist has closed ${artistPlacements} sync placement${artistPlacements !== 1 ? 's' : ''} with a ${Math.round(artistWinRate * 100)}% win rate, demonstrating consistent delivery.`
+    : `The artist has a growing catalog ready for immediate sync consideration, with clean stems and metadata available on request.`;
+
+  const companyLine = companyTotalPlacements > 0
+    ? `Your track record of ${companyTotalPlacements} confirmed placement${companyTotalPlacements !== 1 ? 's' : ''} (${Math.round(companyPlacementRate * 100)}% placement rate) tells me you move quickly when the fit is right.`
+    : `${companyName} is known as a ${tierDesc} with strong placement activity in ${territory}.`;
+
+  const contactLine = contactName && contactPlacementsClosed > 0
+    ? `${contactName} has personally closed ${contactPlacementsClosed} deal${contactPlacementsClosed !== 1 ? 's' : ''} — I believe this catalog fits your acquisition criteria.`
+    : '';
+
+  const cta = `I'd love to share a curated selection of 3–5 tracks. Can I send you a private listening link this week?`;
+
+  const pitch = [greeting, '', intro, '', credLine, companyLine, contactLine, '', cta]
+    .filter(l => l !== undefined && l !== null && !(l === '' && !contactLine && l === contactLine))
+    .join('\n');
+
+  const reasoning =
+    `Opportunity score: ${opportunityScore}/100. ` +
+    `Company ${companyName} is a ${tierDesc} based in ${territory} focusing on ${genreList}. ` +
+    (companyTotalPlacements > 0
+      ? `They have ${companyTotalPlacements} tracked placements at a ${Math.round(companyPlacementRate * 100)}% rate. `
+      : 'No tracked placement history — baseline outreach rates applied. ') +
+    (contactName
+      ? `Primary contact ${contactName}${contactRole ? ` (${contactRole})` : ''} has a ${Math.round(contactSuccessRate * 100)}% historical success rate. `
+      : 'No direct contact on file — company-level outreach recommended. ') +
+    (artistPlacements > 0
+      ? `Artist sync history: ${artistPlacements} placements, ${Math.round(artistWinRate * 100)}% win rate across ${artistTopGenres.join(', ') || 'multiple genres'}. `
+      : 'No prior sync history — introductory rate applied to score. ') +
+    `Pitch generated by ${ENGINE_VERSION}.`;
+
+  return { pitch, reasoning };
+}
+
+// ─── Context builder ──────────────────────────────────────────────────────────
+
+interface PitchContext {
+  companyName:             string;
+  companyType:             string;
+  territory:               string;
+  genres:                  string[];
+  contactName:             string | null;
+  contactRole:             string | null;
+  artistWinRate:           number;
+  artistPlacements:        number;
+  artistTopGenres:         string[];
+  companyPlacementRate:    number;
+  companyTotalPlacements:  number;
+  contactSuccessRate:      number;
+  contactPlacementsClosed: number;
+  opportunityScore:        number;
+}
+
+async function buildPitch(ctx: PitchContext): Promise<PitchResult> {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return templatePitch(ctx);
+  }
+
+  const {
+    companyName, companyType, territory, genres,
+    contactName, contactRole,
+    artistWinRate, artistPlacements, artistTopGenres,
+    companyPlacementRate, companyTotalPlacements,
+    contactSuccessRate, contactPlacementsClosed,
+    opportunityScore,
+  } = ctx;
+
+  const prompt = `You are a music sync licensing strategist writing a personalized outreach pitch for DATIAM OS.
+
+COMPANY DATA:
+- Name: ${companyName}
+- Type: ${companyType.replace(/_/g, ' ')}
+- Territory: ${territory}
+- Genre focus: ${genres.join(', ') || 'not specified'}
+- Total tracked placements: ${companyTotalPlacements}
+- Placement rate: ${Math.round(companyPlacementRate * 100)}%
+
+CONTACT DATA:
+- Name: ${contactName ?? 'Not specified'}
+- Role: ${contactRole ?? 'Not specified'}
+- Historical success rate: ${Math.round(contactSuccessRate * 100)}%
+- Placements closed: ${contactPlacementsClosed}
+
+ARTIST MEMORY:
+- Strongest genres: ${artistTopGenres.join(', ') || 'not specified'}
+- Sync placements won: ${artistPlacements}
+- Win rate: ${Math.round(artistWinRate * 100)}%
+
+OPPORTUNITY SCORE: ${opportunityScore}/100
+
+Write a personalized sync licensing pitch email from the artist's team. It should:
+- Address the contact by first name if available
+- Reference specific data points (genre overlap, placement history, win rate)
+- Be professional, concise (150-200 words), and compelling
+- End with a clear call to action
+
+Then provide reasoning explaining why this pitch was crafted this way based on the data.
+
+Respond ONLY with valid JSON (no markdown, no text outside JSON):
+{
+  "pitch": "The full pitch email text",
+  "reasoning": "2-3 sentences explaining the strategic reasoning behind this specific pitch"
+}`;
+
+  try {
+    return await callAnthropicForPitch(prompt);
+  } catch {
+    return templatePitch(ctx);
+  }
+}
+
+// ─── Create campaign ──────────────────────────────────────────────────────────
+
+export const createCampaign = async (input: CreateCampaignInput) => {
+  const { company_id, contact_id, artist_id, opportunity_id, notes } = input;
+
+  // 1. Load company — required
+  const [company] = await db
+    .select()
+    .from(companies)
+    .where(eq(companies.id, company_id))
+    .limit(1);
+
+  if (!company) throw new AppError('Company not found', 404);
+  if (company.deleted_at) throw new AppError('Company is deleted', 404);
+
+  // 2. Load contact (optional)
+  let contact: typeof licensing_contacts.$inferSelect | null = null;
+  if (contact_id) {
+    const [row] = await db
+      .select()
+      .from(licensing_contacts)
+      .where(eq(licensing_contacts.id, contact_id))
+      .limit(1);
+    if (!row) throw new AppError('Contact not found', 404);
+    contact = row;
+  } else {
+    // Auto-select best contact for this company (highest relationship_score)
+    const [best] = await db
+      .select()
+      .from(licensing_contacts)
+      .where(eq(licensing_contacts.company_id, company_id))
+      .limit(1);
+    contact = best ?? null;
+  }
+
+  // 3. Load opportunity (optional — for score)
+  let opportunity: typeof placement_opportunities.$inferSelect | null = null;
+  if (opportunity_id) {
+    const [row] = await db
+      .select()
+      .from(placement_opportunities)
+      .where(eq(placement_opportunities.id, opportunity_id))
+      .limit(1);
+    if (!row) throw new AppError('Opportunity not found', 404);
+    opportunity = row;
+  }
+
+  // 4. Load memories in parallel
+  const [companyMem, contactMem, artistMem] = await Promise.all([
+    db.select().from(company_memory).where(eq(company_memory.company_id, company_id)).limit(1),
+    contact
+      ? db.select().from(contact_memory).where(eq(contact_memory.contact_id, contact.id)).limit(1)
+      : Promise.resolve([]),
+    artist_id
+      ? db.select().from(artist_sync_memory).where(eq(artist_sync_memory.artist_id, artist_id)).limit(1)
+      : db.select().from(artist_sync_memory).limit(1),
+  ]);
+
+  const cm  = companyMem[0]  ?? null;
+  const ctm = contactMem[0]  ?? null;
+  const asm = artistMem[0]   ?? null;
+
+  // 5. Derive opportunity score
+  const opportunityScore = opportunity?.ai_sync_score != null
+    ? Number(opportunity.ai_sync_score)
+    : null;
+
+  // Build a lightweight score if not from a stored opportunity
+  const scoreForPitch = opportunityScore ?? (() => {
+    const base     = cm ? Number(cm.placement_rate) * 40 : 10;
+    const contact  = ctm ? Number(ctm.success_rate) * 30 : 0;
+    const artist   = asm ? Number(asm.success_rate) * 20 : 0;
+    return Math.round(Math.min(100, Math.max(1, base + contact + artist + 10)));
+  })();
+
+  // 6. Build pitch context
+  const ctx: PitchContext = {
+    companyName:             company.name,
+    companyType:             company.type,
+    territory:               company.country ?? opportunity?.territory ?? 'worldwide',
+    genres:                  toStringArray(cm?.preferred_genres ?? company.genre_focus),
+    contactName:             contact?.full_name ?? null,
+    contactRole:             contact?.role ?? null,
+    artistWinRate:           asm ? Number(asm.success_rate) : 0,
+    artistPlacements:        asm?.placements_won ?? 0,
+    artistTopGenres:         toStringArray(asm?.strongest_genres),
+    companyPlacementRate:    cm ? Number(cm.placement_rate) : 0,
+    companyTotalPlacements:  cm?.total_placements ?? 0,
+    contactSuccessRate:      ctm ? Number(ctm.success_rate) : 0,
+    contactPlacementsClosed: ctm?.placements_closed ?? 0,
+    opportunityScore:        scoreForPitch,
+  };
+
+  // 7. Generate pitch
+  const { pitch, reasoning } = await buildPitch(ctx);
+
+  // 8. Persist campaign + message in a transaction
+  const [campaign] = await db
+    .insert(outreach_campaign)
+    .values({
+      artist_id:          artist_id ?? asm?.artist_id ?? null,
+      company_id,
+      contact_id:         contact?.id ?? null,
+      opportunity_id:     opportunity_id ?? null,
+      opportunity_score:  String(scoreForPitch),
+      territory:          ctx.territory,
+      status:             'draft',
+      notes:              notes ?? null,
+    })
+    .returning();
+
+  const [message] = await db
+    .insert(outreach_message)
+    .values({
+      campaign_id: campaign.id,
+      pitch,
+      reasoning,
+      status:  'draft',
+      metadata: {
+        engine_version:         ENGINE_VERSION,
+        ai_generated:           !!process.env.ANTHROPIC_API_KEY,
+        company_memory_used:    cm !== null,
+        contact_memory_used:    ctm !== null,
+        artist_memory_used:     asm !== null,
+        opportunity_score_used: scoreForPitch,
+      },
+    })
+    .returning();
+
+  return {
+    campaign,
+    message,
+    context: {
+      company: {
+        id:                 company.id,
+        name:               company.name,
+        type:               company.type,
+        tier:               company.tier,
+        country:            company.country,
+        placement_rate:     ctx.companyPlacementRate,
+        total_placements:   ctx.companyTotalPlacements,
+      },
+      contact: contact
+        ? {
+            id:               contact.id,
+            full_name:        contact.full_name,
+            role:             contact.role,
+            email:            contact.email,
+            relationship_status: contact.relationship_status,
+            success_rate:     ctx.contactSuccessRate,
+          }
+        : null,
+      artist_memory: asm
+        ? {
+            artist_id:     asm.artist_id,
+            placements_won: asm.placements_won,
+            win_rate:       Number(asm.success_rate),
+            top_genres:     ctx.artistTopGenres,
+          }
+        : null,
+      opportunity_score: scoreForPitch,
+      territory:         ctx.territory,
+    },
+    engine_version: ENGINE_VERSION,
+    generated_at:   new Date().toISOString(),
+  };
+};
+
+// ─── List campaigns ───────────────────────────────────────────────────────────
+
+export const listCampaigns = async () => {
+  const campaigns = await db
+    .select()
+    .from(outreach_campaign)
+    .orderBy(desc(outreach_campaign.created_at));
+
+  // Fetch messages for all campaigns
+  const campaignIds = campaigns.map(c => c.id);
+  let messages: typeof outreach_message.$inferSelect[] = [];
+  if (campaignIds.length > 0) {
+    messages = await db
+      .select()
+      .from(outreach_message)
+      .orderBy(desc(outreach_message.created_at));
+  }
+
+  // Fetch companies and contacts for display
+  const companyIds = [...new Set(campaigns.map(c => c.company_id))];
+  const contactIds = [...new Set(campaigns.map(c => c.contact_id).filter((id): id is string => id !== null))];
+
+  const [companyRows, contactRows] = await Promise.all([
+    companyIds.length > 0
+      ? db.select({ id: companies.id, name: companies.name, type: companies.type, tier: companies.tier, country: companies.country })
+           .from(companies)
+      : Promise.resolve([]),
+    contactIds.length > 0
+      ? db.select({ id: licensing_contacts.id, full_name: licensing_contacts.full_name, role: licensing_contacts.role, email: licensing_contacts.email })
+           .from(licensing_contacts)
+      : Promise.resolve([]),
+  ]);
+
+  const companyMap = new Map(companyRows.map(c => [c.id, c]));
+  const contactMap = new Map(contactRows.map(c => [c.id, c]));
+  const messageMap = new Map<string, typeof outreach_message.$inferSelect[]>();
+  for (const msg of messages) {
+    const list = messageMap.get(msg.campaign_id) ?? [];
+    list.push(msg);
+    messageMap.set(msg.campaign_id, list);
+  }
+
+  const result = campaigns.map(c => ({
+    ...c,
+    company:  companyMap.get(c.company_id)  ?? null,
+    contact:  c.contact_id ? (contactMap.get(c.contact_id) ?? null) : null,
+    messages: messageMap.get(c.id) ?? [],
+  }));
+
+  return {
+    campaigns: result,
+    total:     result.length,
+    fetched_at: new Date().toISOString(),
+  };
+};

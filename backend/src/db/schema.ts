@@ -2399,3 +2399,75 @@ export const adaptive_weight = pgTable(
 
 export type AdaptiveWeight    = typeof adaptive_weight.$inferSelect;
 export type NewAdaptiveWeight = typeof adaptive_weight.$inferInsert;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DATIAM Outreach Engine v1
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const outreachStatusEnum = pgEnum('outreach_status', [
+  'draft',
+  'queued',
+  'sent',
+  'replied',
+  'closed',
+]);
+
+export const outreach_campaign = pgTable(
+  'outreach_campaign',
+  {
+    id:                 uuid('id').primaryKey().defaultRandom().notNull(),
+    artist_id:          uuid('artist_id').references(() => artist_profiles.id, { onDelete: 'set null' }),
+    company_id:         uuid('company_id').notNull().references(() => companies.id, { onDelete: 'cascade' }),
+    contact_id:         uuid('contact_id').references(() => licensing_contacts.id, { onDelete: 'set null' }),
+    opportunity_id:     uuid('opportunity_id').references(() => placement_opportunities.id, { onDelete: 'set null' }),
+    opportunity_score:  numeric('opportunity_score', { precision: 5, scale: 2 }),
+    territory:          text('territory').notNull().default('worldwide'),
+    status:             outreachStatusEnum('status').notNull().default('draft'),
+    notes:              text('notes'),
+    created_at:         timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updated_at:         timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    artistIdx:     index('oc_artist_id_idx').on(t.artist_id),
+    companyIdx:    index('oc_company_id_idx').on(t.company_id),
+    contactIdx:    index('oc_contact_id_idx').on(t.contact_id),
+    statusIdx:     index('oc_status_idx').on(t.status),
+    createdAtIdx:  index('oc_created_at_idx').on(t.created_at),
+  }),
+);
+
+export type OutreachCampaign    = typeof outreach_campaign.$inferSelect;
+export type NewOutreachCampaign = typeof outreach_campaign.$inferInsert;
+
+export const outreach_message = pgTable(
+  'outreach_message',
+  {
+    id:          uuid('id').primaryKey().defaultRandom().notNull(),
+    campaign_id: uuid('campaign_id').notNull().references(() => outreach_campaign.id, { onDelete: 'cascade' }),
+    pitch:       text('pitch').notNull(),
+    reasoning:   text('reasoning').notNull(),
+    status:      outreachStatusEnum('status').notNull().default('draft'),
+    metadata:    jsonb('metadata'),
+    created_at:  timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updated_at:  timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    campaignIdx:  index('om_campaign_id_idx').on(t.campaign_id),
+    statusIdx:    index('om_status_idx').on(t.status),
+    createdAtIdx: index('om_created_at_idx').on(t.created_at),
+  }),
+);
+
+export type OutreachMessage    = typeof outreach_message.$inferSelect;
+export type NewOutreachMessage = typeof outreach_message.$inferInsert;
+
+export const outreachCampaignRelations = relations(outreach_campaign, ({ one, many }) => ({
+  company:      one(companies,             { fields: [outreach_campaign.company_id],   references: [companies.id] }),
+  contact:      one(licensing_contacts,    { fields: [outreach_campaign.contact_id],   references: [licensing_contacts.id] }),
+  opportunity:  one(placement_opportunities, { fields: [outreach_campaign.opportunity_id], references: [placement_opportunities.id] }),
+  messages:     many(outreach_message),
+}));
+
+export const outreachMessageRelations = relations(outreach_message, ({ one }) => ({
+  campaign: one(outreach_campaign, { fields: [outreach_message.campaign_id], references: [outreach_campaign.id] }),
+}));

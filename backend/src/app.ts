@@ -44,6 +44,7 @@ import placementOutcomesRouter from './modules/placement-outcomes/placement-outc
 import predictionAccuracyRouter from './modules/prediction-accuracy/prediction-accuracy.routes';
 import intelligenceRouter from './modules/intelligence/intelligence.routes';
 import memoryRouter from './modules/memory/memory.routes';
+import outreachRouter from './modules/outreach/outreach.routes';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -138,6 +139,8 @@ app.use('/api/intelligence', intelligenceRouter);
 
 // ---- Memory Layer v1 ----
 app.use('/api/memory', memoryRouter);
+
+app.use('/api/outreach', outreachRouter);
 
 // ---- System Routes ----
 app.use('/api/system/migrations', migrationsRouter);
