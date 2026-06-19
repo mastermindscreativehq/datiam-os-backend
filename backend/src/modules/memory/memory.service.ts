@@ -328,7 +328,18 @@ async function rebuildContactMemory(): Promise<number> {
 
 // ── public API ─────────────────────────────────────────────────────────────────
 
-export const rebuildAllMemory = async () => {
+export const countMemoryRecords = async () => {
+  const [artistCount] = await db.execute<{ n: string }>(sql`SELECT COUNT(*)::int AS n FROM artist_sync_memory`);
+  const [companyCount] = await db.execute<{ n: string }>(sql`SELECT COUNT(*)::int AS n FROM company_memory`);
+  const [contactCount] = await db.execute<{ n: string }>(sql`SELECT COUNT(*)::int AS n FROM contact_memory`);
+  return {
+    artist_sync_memory: Number(artistCount.n),
+    company_memory:     Number(companyCount.n),
+    contact_memory:     Number(contactCount.n),
+  };
+};
+
+export const rebuildAllMemory = async (_limit?: number) => {
   const [artistRows, companyRows, contactRows] = await Promise.all([
     rebuildArtistSyncMemory(),
     rebuildCompanyMemory(),
