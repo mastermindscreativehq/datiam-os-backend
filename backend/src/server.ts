@@ -17,6 +17,7 @@ import { startSyncWorker, stopSyncWorker } from './modules/sync-intelligence/syn
 import { startWatchdog, stopWatchdog } from './modules/monitoring/watchdog.service';
 import { verifySchema } from './db/schemaVerifier';
 import { logActivity } from './lib/activityLogger';
+import { detectProvider } from './lib/emailProviders';
 
 const port = parseInt(env.PORT, 10);
 
@@ -37,7 +38,19 @@ async function runMigrations(): Promise<void> {
   }
 }
 
+function validateEmailProvider(): void {
+  try {
+    const provider = detectProvider();
+    console.log(`[Email] Provider detected: ${provider}`);
+  } catch {
+    console.error('[Email] FATAL: No email provider configured.');
+    console.error('[Email] Set one of: RESEND_API_KEY, SENDGRID_API_KEY, or SMTP_HOST in Railway Variables.');
+    process.exit(1);
+  }
+}
+
 async function main(): Promise<void> {
+  validateEmailProvider();
   await runMigrations();
 
   const server = app.listen(port, () => {
