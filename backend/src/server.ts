@@ -54,10 +54,17 @@ async function main(): Promise<void> {
   await runMigrations();
 
   const server = app.listen(port, () => {
-    console.log(`\nDATIAM OS Backend`);
-    console.log(`   Environment : ${env.NODE_ENV}`);
-    console.log(`   Port        : ${port}`);
-    console.log(`   Health      : http://localhost:${port}/health\n`);
+    console.log(JSON.stringify({
+      event:       'startup',
+      version:     env.APP_VERSION,
+      environment: env.NODE_ENV,
+      port,
+      redis:       process.env.REDIS_URL ? 'configured' : 'not_configured',
+      sentry:      process.env.SENTRY_DSN ? 'enabled' : 'disabled',
+      email:       process.env.RESEND_API_KEY ? 'resend' : process.env.SENDGRID_API_KEY ? 'sendgrid' : process.env.SMTP_HOST ? 'smtp' : 'none',
+      ping:        `http://localhost:${port}/ping`,
+      health:      `http://localhost:${port}/health (protected)`,
+    }));
 
     try {
       startSchedulerWorker();
