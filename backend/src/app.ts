@@ -6,7 +6,7 @@ import rateLimit from 'express-rate-limit';
 import { requestId } from './middleware/requestId';
 import { requestLogger } from './middleware/requestLogger';
 import { errorHandler } from './middleware/errorHandler';
-import { healthRouter, monitoringRouter } from './modules/monitoring/health.routes';
+import { pingRouter, healthRouter, monitoringRouter } from './modules/monitoring/health.routes';
 
 // Phase 1 routers
 import authRouter from './modules/auth/auth.routes';
@@ -95,7 +95,8 @@ const limiter = rateLimit({
 app.use(limiter);
 
 // ── Health & Monitoring ───────────────────────────────────────────────────────
-app.use('/health', healthRouter);
+app.use('/ping',   pingRouter);   // public liveness probe — returns {ok:true}
+app.use('/health', healthRouter); // protected — requires owner/admin JWT
 
 // ---- Phase 1 Routes ----
 app.use('/api/auth', authRouter);

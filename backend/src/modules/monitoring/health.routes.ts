@@ -3,7 +3,7 @@ import { sql, desc, eq, and } from 'drizzle-orm';
 import { db } from '../../db';
 import { getRedisConnection } from '../../queues';
 import { health_checks, incidents } from '../../db/schema';
-import { authenticate } from '../../middleware/auth';
+import { authenticate, requireRole } from '../../middleware/auth';
 import { env } from '../../config/env';
 
 // ── Shared health-check logic ─────────────────────────────────────────────────
@@ -78,17 +78,24 @@ export async function buildHealthStatus(): Promise<HealthStatus> {
   };
 }
 
-// ── Public root-level health router (/health) ─────────────────────────────────
+// ── Public liveness probe (/ping) ────────────────────────────────────────────
+
+export const pingRouter = Router();
+
+pingRouter.get('/', (_req: Request, res: Response) => {
+  res.json({ ok: true });
+});
+
+// ── Protected infrastructure health (/health) ────────────────────────────────
 
 export const healthRouter = Router();
 
-healthRouter.get('/', async (_req: Request, res: Response) => {
+healthRouter.get('/', authenticate, requireRole('owner', 'admin'), async (_req: Request, res: Response) => {
   const body = await buildHealthStatus();
   res.status(body.status === 'critical' ? 503 : 200).json(body);
 });
 
-// Backward-compat alias
-healthRouter.get('/deep', async (_req: Request, res: Response) => {
+healthRouter.get('/deep', authenticate, requireRole('owner', 'admin'), async (_req: Request, res: Response) => {
   const body = await buildHealthStatus();
   res.status(body.status === 'critical' ? 503 : 200).json({
     success: body.status !== 'critical',
@@ -105,8 +112,7 @@ healthRouter.get('/deep', async (_req: Request, res: Response) => {
 
 export const monitoringRouter = Router();
 
-// Public status endpoint so the frontend can call it via apiClient
-monitoringRouter.get('/status', async (_req: Request, res: Response) => {
+monitoringRouter.get('/status', authenticate, requireRole('owner', 'admin'), async (_req: Request, res: Response) => {
   const body = await buildHealthStatus();
   res.status(body.status === 'critical' ? 503 : 200).json(body);
 });
