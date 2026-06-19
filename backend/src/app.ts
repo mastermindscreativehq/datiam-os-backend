@@ -58,22 +58,35 @@ app.set('trust proxy', 1);
 app.use(helmet());
 app.use(requestId);
 
-const ALLOWED_ORIGINS = [
+const DEFAULT_ORIGINS = [
   'http://localhost:3000',
   'http://localhost:5173',
   'http://127.0.0.1:3000',
   'http://127.0.0.1:5173',
   'https://datiam-os.vercel.app',
+  'https://datiam-os-git-main.vercel.app',
 ];
+
+// ALLOWED_ORIGINS env var: comma-separated list of explicitly allowed origins.
+// In production, set this in Railway Variables to the exact deployed URLs.
+const ALLOWED_ORIGINS: Set<string> = new Set(
+  process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(Boolean)
+    : DEFAULT_ORIGINS,
+);
+
+// ALLOW_SERVER_TO_SERVER=true permits requests with no Origin header (internal
+// service calls, cron jobs). Disabled by default in production.
+const ALLOW_SERVER_TO_SERVER = process.env.ALLOW_SERVER_TO_SERVER === 'true';
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (curl, Postman, server-to-server)
-    if (!origin) return callback(null, true);
-    if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
-    // Allow any Vercel preview deployment
-    if (/^https:\/\/[\w-]+\.vercel\.app$/.test(origin)) return callback(null, true);
-    callback(new Error(`CORS: origin ${origin} not allowed`));
+    if (!origin) {
+      if (ALLOW_SERVER_TO_SERVER) return callback(null, true);
+      return callback(new Error('CORS: server-to-server requests are disabled. Set ALLOW_SERVER_TO_SERVER=true to enable.'));
+    }
+    if (ALLOWED_ORIGINS.has(origin)) return callback(null, true);
+    callback(new Error(`CORS: origin ${origin} not in ALLOWED_ORIGINS`));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
