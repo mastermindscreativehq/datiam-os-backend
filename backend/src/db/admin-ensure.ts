@@ -6,18 +6,18 @@ import bcrypt from 'bcryptjs';
 import * as schema from './schema';
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'admin@datiam.com';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
-
-if (!ADMIN_PASSWORD) {
-  console.error('[admin:ensure] FATAL: ADMIN_PASSWORD environment variable is not set.');
-  console.error('[admin:ensure] Set ADMIN_PASSWORD in Railway Variables — never commit it to .env.');
-  process.exit(1);
-}
 
 const client = postgres(process.env.DATABASE_URL!, { max: 1, ssl: { rejectUnauthorized: false } });
 const db = drizzle(client, { schema });
 
 async function ensureAdmin() {
+  const adminPassword = process.env.ADMIN_PASSWORD;
+  if (!adminPassword) {
+    console.error('[admin:ensure] FATAL: ADMIN_PASSWORD environment variable is not set.');
+    console.error('[admin:ensure] Set ADMIN_PASSWORD in Railway Variables — never commit it to .env.');
+    process.exit(1);
+  }
+
   console.log(`[admin:ensure] checking for admin user: ${ADMIN_EMAIL}`);
 
   const [existing] = await db
@@ -26,7 +26,7 @@ async function ensureAdmin() {
     .where(eq(schema.users.email, ADMIN_EMAIL))
     .limit(1);
 
-  const password_hash = await bcrypt.hash(ADMIN_PASSWORD, 12);
+  const password_hash = await bcrypt.hash(adminPassword, 12);
 
   if (existing) {
     await db
