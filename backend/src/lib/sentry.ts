@@ -2,8 +2,19 @@ import * as Sentry from '@sentry/node';
 
 let _enabled = false;
 
+export function isSentryEnabled(): boolean { return _enabled; }
+
 export function initSentry(): void {
   const dsn = process.env.SENTRY_DSN;
+
+  // TEMP DIAG — remove after Railway injection is confirmed
+  console.log(JSON.stringify({
+    event:            'sentry_diag',
+    DSN_PRESENT:      !!dsn,
+    DSN_LENGTH:       dsn?.length ?? 0,
+    DSN_VALID_PREFIX: typeof dsn === 'string' && dsn.startsWith('https://'),
+  }));
+
   if (!dsn) {
     console.warn('[Sentry] WARNING: SENTRY_DSN not configured — error monitoring disabled. Set SENTRY_DSN in Railway Variables.');
     return;

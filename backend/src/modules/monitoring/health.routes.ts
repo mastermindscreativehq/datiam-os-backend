@@ -5,6 +5,7 @@ import { getRedisConnection } from '../../queues';
 import { health_checks, incidents } from '../../db/schema';
 import { authenticate, requireRole } from '../../middleware/auth';
 import { env } from '../../config/env';
+import { captureException, captureMessage, isSentryEnabled } from '../../lib/sentry';
 
 // ── Shared health-check logic ─────────────────────────────────────────────────
 
@@ -148,4 +149,31 @@ monitoringRouter.post('/incidents/:id/resolve', authenticate, async (req: Reques
     return;
   }
   res.json({ success: true, data: updated });
+});
+
+// ── TEMP: Sentry env-var diagnostic (owner/admin only) — remove after Railway confirmed ──
+monitoringRouter.get('/sentry-diag', authenticate, requireRole('owner', 'admin'), (_req: Request, res: Response) => {
+  const dsn = process.env.SENTRY_DSN;
+  res.json({
+    success:          true,
+    DSN_PRESENT:      !!dsn,
+    DSN_LENGTH:       dsn?.length ?? 0,
+    DSN_VALID_PREFIX: typeof dsn === 'string' && dsn.startsWith('https://'),
+    module_enabled:   isSentryEnabled(),
+  });
+});
+
+// ── Sentry integration test (owner/admin only) ────────────────────────────────
+monitoringRouter.post('/test-sentry', authenticate, requireRole('owner', 'admin'), (req: Request, res: Response) => {
+  const sentryEnabled = !!process.env.SENTRY_DSN;
+  const testError = new Error('[Sentry Test] Deliberate test exception from /api/monitoring/test-sentry');
+  captureException(testError, { route: req.path, triggeredBy: (req as any).user?.id ?? 'unknown' });
+  captureMessage('[Sentry Test] Test message from DATIAM monitoring endpoint', 'info');
+  res.json({
+    success: true,
+    sentry: sentryEnabled ? 'enabled' : 'disabled',
+    message: sentryEnabled
+      ? 'Test exception and message dispatched to Sentry — check your project Issues.'
+      : 'SENTRY_DSN not set — events were silently dropped. Configure SENTRY_DSN in Railway Variables.',
+  });
 });
