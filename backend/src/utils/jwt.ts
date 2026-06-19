@@ -7,7 +7,7 @@ const getSecret = (): string => {
 };
 
 export const signToken = (payload: { id: string; email: string; role: string }): string => {
-  return jwt.sign(payload, getSecret(), { expiresIn: '7d' });
+  return jwt.sign(payload, getSecret(), { expiresIn: '24h' });
 };
 
 export const verifyToken = (token: string): jwt.JwtPayload => {
