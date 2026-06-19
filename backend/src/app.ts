@@ -101,9 +101,13 @@ app.use(requestLogger);
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 200,
-  standardHeaders: true,
+  max: 150,
+  standardHeaders: true,  // returns RateLimit-* headers (RFC 6585)
   legacyHeaders: false,
+  skip: (req) => req.path === '/ping', // liveness probe must never be blocked
+  handler: (_req, res) => {
+    res.status(429).json({ success: false, error: 'Rate limit exceeded. Try again later.' });
+  },
 });
 app.use(limiter);
 
