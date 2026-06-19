@@ -5,7 +5,7 @@ let _enabled = false;
 export function initSentry(): void {
   const dsn = process.env.SENTRY_DSN;
   if (!dsn) {
-    console.log('[Sentry] SENTRY_DSN not configured — error monitoring disabled');
+    console.warn('[Sentry] WARNING: SENTRY_DSN not configured — error monitoring disabled. Set SENTRY_DSN in Railway Variables.');
     return;
   }
   Sentry.init({
