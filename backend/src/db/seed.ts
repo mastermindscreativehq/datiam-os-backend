@@ -18,14 +18,20 @@ async function seed() {
     .limit(1);
 
   if (existingUser.length === 0) {
-    const password_hash = await bcrypt.hash('DatiamOS2024!', 12);
+    const adminPassword = process.env.ADMIN_PASSWORD;
+    if (!adminPassword) {
+      console.error('[seed] FATAL: ADMIN_PASSWORD environment variable is not set.');
+      console.error('[seed] Set ADMIN_PASSWORD in Railway Variables before running seed.');
+      process.exit(1);
+    }
+    const password_hash = await bcrypt.hash(adminPassword, 12);
     await db.insert(schema.users).values({
       email: 'admin@datiam.com',
       password_hash,
       full_name: 'DATIAM Owner',
       role: 'owner',
     });
-    console.log('✓ Admin user created  →  admin@datiam.com  /  DatiamOS2024!');
+    console.log('✓ Admin user created  →  admin@datiam.com  (password from ADMIN_PASSWORD env var)');
   } else {
     console.log('  Admin user already exists, skipping.');
   }

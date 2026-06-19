@@ -6,7 +6,13 @@ import bcrypt from 'bcryptjs';
 import * as schema from './schema';
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'admin@datiam.com';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? 'DatiamOS2024!';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+
+if (!ADMIN_PASSWORD) {
+  console.error('[admin:ensure] FATAL: ADMIN_PASSWORD environment variable is not set.');
+  console.error('[admin:ensure] Set ADMIN_PASSWORD in Railway Variables — never commit it to .env.');
+  process.exit(1);
+}
 
 const client = postgres(process.env.DATABASE_URL!, { max: 1, ssl: { rejectUnauthorized: false } });
 const db = drizzle(client, { schema });

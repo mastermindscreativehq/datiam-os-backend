@@ -6,7 +6,7 @@ const envSchema = z.object({
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
   JWT_SECRET: z.string().min(1, 'JWT_SECRET is required'),
   ADMIN_EMAIL: z.string().email().default('admin@datiam.com'),
-  ADMIN_PASSWORD: z.string().min(8),
+  ADMIN_PASSWORD: z.string().min(8, 'ADMIN_PASSWORD is required (min 8 chars) — set it in Railway Variables, never in .env'),
   REDIS_URL: z.string().optional(),
   SUPABASE_URL: z.string().optional(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
