@@ -47,10 +47,20 @@ export const createWorkerConnection = (): IORedis => {
   return conn;
 };
 
+const QUEUE_DEFAULTS = {
+  attempts: 3,
+  backoff: { type: 'exponential' as const, delay: 2000 },
+  removeOnComplete: { count: 100 },
+  removeOnFail:     { count: 500 },
+};
+
 const createQueue = (name: string): Queue | null => {
   const conn = getRedisConnection();
   if (!conn) return null;
-  return new Queue(name, { connection: conn });
+  return new Queue(name, {
+    connection: conn,
+    defaultJobOptions: QUEUE_DEFAULTS,
+  });
 };
 
 // Queue instances — null if Redis is not configured
@@ -79,7 +89,7 @@ export async function enqueueSonicJob(
   data: Record<string, unknown>,
 ): Promise<string | null> {
   if (!queue) return null;
-  const job = await queue.add(jobName, data, { attempts: 3, backoff: { type: 'exponential', delay: 2000 } });
+  const job = await queue.add(jobName, data, { ...QUEUE_DEFAULTS });
   return job.id ?? null;
 }
 
@@ -89,6 +99,6 @@ export async function enqueueAudioJob(
   data: Record<string, unknown>,
 ): Promise<string | null> {
   if (!queue) return null;
-  const job = await queue.add(jobName, data, { attempts: 3, backoff: { type: 'exponential', delay: 5000 } });
+  const job = await queue.add(jobName, data, { ...QUEUE_DEFAULTS, backoff: { type: 'exponential', delay: 5000 } });
   return job.id ?? null;
 }
