@@ -1,5 +1,11 @@
 import 'dotenv/config';
 import { initSentry, captureException } from './lib/sentry';
+// TEMP STARTUP DIAG — remove after Railway SENTRY_DSN injection is confirmed
+console.log({
+  envKeys: Object.keys(process.env).filter(k => k.includes("SENTRY")),
+  sentryPresent: !!process.env.SENTRY_DSN,
+  sentryLength: process.env.SENTRY_DSN?.length || 0
+});
 initSentry(); // must run before other imports
 import './lib/node-websocket';
 import path from 'path';
