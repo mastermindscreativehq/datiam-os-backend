@@ -17,7 +17,7 @@ export const getOverview = async (_req: Request, res: Response): Promise<void> =
     setTimeout(() => {
       console.log('[Dashboard] controller hard timeout — returning defaults');
       resolve(SAFE_DEFAULTS);
-    }, 3000),
+    }, 1000),
   );
 
   const data = await Promise.race([

@@ -595,7 +595,13 @@ export const getContractAnalytics = async () => {
     .where(sql`${adaptive_weight.factor_name} IN ('contract_conversion_rate','average_time_to_signature')`);
   const adaptiveMap = new Map(adaptiveRows.map(r => [r.factor_name, r]));
 
+  const total_contract_value = parseFloat(
+    allContracts.reduce((sum, c) => sum + parseFloat(String(c.contract_value ?? '0')), 0).toFixed(2),
+  );
+  const signed_value = parseFloat(signedValues.reduce((a, b) => a + b, 0).toFixed(2));
+
   return {
+    // canonical fields
     contracts_created,
     contracts_sent,
     contracts_signed,
@@ -606,6 +612,13 @@ export const getContractAnalytics = async () => {
     contract_conversion_rate,
     average_time_to_signature,
     status_breakdown: statusBreakdown,
+    // frontend-aligned aliases
+    total:                total,
+    by_status:            statusBreakdown,
+    total_contract_value,
+    signed_value,
+    conversion_rate:      contract_conversion_rate,
+    avg_days_to_sign:     average_time_to_signature,
     adaptive_signals: {
       contract_conversion_rate:  adaptiveMap.get('contract_conversion_rate')  ?? null,
       average_time_to_signature: adaptiveMap.get('average_time_to_signature') ?? null,

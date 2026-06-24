@@ -740,6 +740,27 @@ export const getPaymentAnalytics = async () => {
     statusBreakdown[p.payment_status] = (statusBreakdown[p.payment_status] ?? 0) + 1;
   }
 
+  // Outstanding value: sum of amounts not yet paid/cancelled/refunded
+  const total_outstanding_value = parseFloat(
+    allPayments
+      .filter(p => !['paid', 'cancelled', 'refunded'].includes(p.payment_status))
+      .reduce((sum, p) => sum + parseFloat(String(p.payment_amount ?? '0')), 0)
+      .toFixed(2),
+  );
+
+  // Median days to pay (invoice_sent_at → paid_at)
+  const paymentDays = collectedWithTimes
+    .map(p => {
+      const diffMs = new Date(p.paid_at!).getTime() - new Date(p.invoice_sent_at!).getTime();
+      return diffMs / (1000 * 60 * 60 * 24);
+    })
+    .sort((a, b) => a - b);
+  const median_days_to_pay = paymentDays.length === 0
+    ? 0
+    : paymentDays.length % 2 === 1
+      ? parseFloat(paymentDays[Math.floor(paymentDays.length / 2)].toFixed(2))
+      : parseFloat(((paymentDays[paymentDays.length / 2 - 1] + paymentDays[paymentDays.length / 2]) / 2).toFixed(2));
+
   const adaptiveRows = await db.select().from(adaptive_weight)
     .where(sql`${adaptive_weight.factor_name} IN ('average_collection_time','revenue_per_company','revenue_per_contact')`);
   const adaptiveMap = new Map(adaptiveRows.map(r => [r.factor_name, r]));
@@ -752,6 +773,8 @@ export const getPaymentAnalytics = async () => {
     average_payment_value,
     monthly_revenue: parseFloat(monthly_revenue.toFixed(2)),
     total_paid_value: parseFloat(total_paid_value.toFixed(2)),
+    total_outstanding_value,
+    median_days_to_pay,
     status_breakdown: statusBreakdown,
     adaptive_signals: {
       average_collection_time: {

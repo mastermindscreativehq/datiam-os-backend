@@ -769,7 +769,11 @@ export const updateMeetingNotes = async (id: string, notes: string) => {
 
 export const getMeetingAnalytics = async () => {
   const allMeetings = await db
-    .select({ status: meetings.status })
+    .select({
+      status:                    meetings.status,
+      meeting_type:              meetings.meeting_type,
+      meeting_preparation_score: meetings.meeting_preparation_score,
+    })
     .from(meetings);
 
   const total     = allMeetings.length;
@@ -784,6 +788,21 @@ export const getMeetingAnalytics = async () => {
   const completion_rate  = total    > 0 ? parseFloat((completed / total).toFixed(4))    : 0;
   const no_show_rate     = terminal > 0 ? parseFloat((no_show   / terminal).toFixed(4)) : 0;
 
+  const scoredMeetings = allMeetings.filter(m => m.meeting_preparation_score != null);
+  // Return avg as 0-100 for frontend display
+  const avg_outcome_score = scoredMeetings.length > 0
+    ? parseFloat(
+        (scoredMeetings.reduce((sum, m) => sum + parseFloat(String(m.meeting_preparation_score ?? '0')), 0)
+          / scoredMeetings.length * 100
+        ).toFixed(1),
+      )
+    : 0;
+
+  const by_type: Record<string, number> = {};
+  for (const m of allMeetings) {
+    if (m.meeting_type) by_type[m.meeting_type] = (by_type[m.meeting_type] ?? 0) + 1;
+  }
+
   const adaptiveRows = await db
     .select()
     .from(adaptive_weight)
@@ -794,6 +813,7 @@ export const getMeetingAnalytics = async () => {
   const adaptiveMap = new Map(adaptiveRows.map(r => [r.factor_name, r]));
 
   return {
+    // canonical fields
     total_meetings:  total,
     scheduled,
     confirmed,
@@ -803,6 +823,12 @@ export const getMeetingAnalytics = async () => {
     conversion_rate,
     completion_rate,
     no_show_rate,
+    // frontend-aligned aliases
+    total,
+    by_status: { scheduled, confirmed, completed, cancelled, no_show },
+    avg_outcome_score,
+    by_type,
+    meetings_to_deal_rate: completion_rate,
     adaptive_signals: {
       meeting_success_rate:    adaptiveMap.get('meeting_success_rate')    ?? null,
       meeting_completion_rate: adaptiveMap.get('meeting_completion_rate') ?? null,

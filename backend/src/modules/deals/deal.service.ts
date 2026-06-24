@@ -663,6 +663,7 @@ export const getDealAnalytics = async () => {
   const adaptiveMap = new Map(adaptiveRows.map(r => [r.factor_name, r]));
 
   return {
+    // canonical fields
     total_deals:       total,
     open_deals,
     won_deals,
@@ -674,6 +675,10 @@ export const getDealAnalytics = async () => {
     avg_deal_value,
     win_rate,
     stage_breakdown:   stageBreakdown,
+    // frontend-aligned aliases
+    total,
+    cancelled,
+    by_stage:          stageBreakdown,
     adaptive_signals: {
       deal_win_rate:       adaptiveMap.get('deal_win_rate')       ?? null,
       average_deal_value:  adaptiveMap.get('average_deal_value')  ?? null,
