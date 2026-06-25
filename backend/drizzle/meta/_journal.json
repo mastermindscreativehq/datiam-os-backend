@@ -232,6 +232,13 @@
       "when": 1751000001000,
       "tag": "0036_automation_layer",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1751086400000,
+      "tag": "0037_artist_catalog_engine",
+      "breakpoints": true
     }
   ]
 }

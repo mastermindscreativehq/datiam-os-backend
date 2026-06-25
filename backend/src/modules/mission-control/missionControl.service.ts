@@ -1,5 +1,6 @@
 import { db } from '../../db';
 import { sql } from 'drizzle-orm';
+import { getMissingMetadata } from '../catalog-engine/catalog-search.service';
 
 export async function getMissionBrief() {
   const now = new Date();
@@ -19,6 +20,7 @@ export async function getMissionBrief() {
     syncPitchesResult,
     dealsResult,
     automationResult,
+    catalogMissingResult,
   ] = await Promise.allSettled([
     // Releases due in next 30 days or overdue
     db.execute(sql`
@@ -86,6 +88,8 @@ export async function getMissionBrief() {
       ORDER BY run_at DESC
       LIMIT 20
     `),
+    // Catalog missing metadata
+    getMissingMetadata().catch(() => null),
   ]);
 
   const releases    = releasesResult.status    === 'fulfilled' ? ([...releasesResult.value]    as any[]) : [];
@@ -96,6 +100,7 @@ export async function getMissionBrief() {
   const syncPitches = syncPitchesResult.status === 'fulfilled' ? ([...syncPitchesResult.value] as any[]) : [];
   const dealsRows   = dealsResult.status       === 'fulfilled' ? ([...dealsResult.value]       as any[]) : [];
   const autoRuns    = automationResult.status  === 'fulfilled' ? ([...automationResult.value]  as any[]) : [];
+  const catalogMissing = catalogMissingResult.status === 'fulfilled' ? catalogMissingResult.value : null;
 
   // ── Build Critical Actions ────────────────────────────────────────────────
   const releasesDue = releases.filter(r => {
@@ -158,6 +163,29 @@ export async function getMissionBrief() {
     risks.push({ type: 'automation', severity: 'high', title: `Failed automation: ${r.name}`, detail: r.error_message ?? 'No details', href: '/automation-runs' });
   });
 
+  // Catalog missing metadata risks
+  if (catalogMissing) {
+    if (catalogMissing.missing_isrc?.length > 0) {
+      risks.push({ type: 'catalog', severity: 'high', title: `${catalogMissing.missing_isrc.length} song(s) missing ISRC`, detail: 'Required for distribution', href: '/catalog/songs' });
+    }
+    if (catalogMissing.missing_upc?.length > 0) {
+      risks.push({ type: 'catalog', severity: 'high', title: `${catalogMissing.missing_upc.length} release(s) missing UPC`, detail: 'Required for distribution', href: '/catalog/releases' });
+    }
+    if (catalogMissing.missing_artwork?.length > 0) {
+      risks.push({ type: 'catalog', severity: 'medium', title: `${catalogMissing.missing_artwork.length} release(s) missing artwork`, detail: 'Required for DSP submission', href: '/catalog/releases' });
+    }
+    if (catalogMissing.songs_without_releases?.length > 0) {
+      risks.push({ type: 'catalog', severity: 'medium', title: `${catalogMissing.songs_without_releases.length} song(s) not linked to any release`, detail: 'Catalog incomplete', href: '/catalog/songs' });
+    }
+    if (catalogMissing.upcoming_releases?.length > 0) {
+      catalogMissing.upcoming_releases.slice(0, 3).forEach((r: any) => {
+        if (r.days_until <= 7) {
+          risks.push({ type: 'catalog', severity: 'critical', title: `Release in ${r.days_until} day(s): ${r.title}`, detail: 'Final prep needed', href: '/catalog/releases' });
+        }
+      });
+    }
+  }
+
   // ── Opportunities ─────────────────────────────────────────────────────────
   const opportunities: Array<{ type: string; title: string; detail: string; score?: number; href: string }> = [];
 
@@ -193,6 +221,12 @@ export async function getMissionBrief() {
   if (dealsRows.length > 0) {
     actions.push({ priority: 7, category: 'DEAL', action: `Advance ${dealsRows.length} open deal(s)`, context: 'Pipeline needs attention', href: '/deal-intelligence' });
   }
+  if (catalogMissing && (catalogMissing.missing_isrc?.length ?? 0) > 0) {
+    actions.push({ priority: 8, category: 'CATALOG', action: `Register ISRC for ${(catalogMissing.missing_isrc as any[]).length} song(s)`, context: 'Missing identifiers block distribution', href: '/catalog/songs' });
+  }
+  if (catalogMissing && (catalogMissing.missing_artwork?.length ?? 0) > 0) {
+    actions.push({ priority: 9, category: 'CATALOG', action: `Upload artwork for ${(catalogMissing.missing_artwork as any[]).length} release(s)`, context: 'Required for DSP submission', href: '/catalog/releases' });
+  }
 
   return {
     brief: {
@@ -221,6 +255,14 @@ export async function getMissionBrief() {
     },
     risks,
     releases: releases.slice(0, 8),
+    catalogAlerts: catalogMissing ? {
+      missing_isrc:            (catalogMissing.missing_isrc ?? []).slice(0, 10),
+      missing_upc:             (catalogMissing.missing_upc ?? []).slice(0, 10),
+      missing_artwork:         (catalogMissing.missing_artwork ?? []).slice(0, 10),
+      songs_without_releases:  (catalogMissing.songs_without_releases ?? []).slice(0, 10),
+      incomplete_credits:      (catalogMissing.incomplete_credits ?? []).slice(0, 10),
+      upcoming_releases:       (catalogMissing.upcoming_releases ?? []).slice(0, 5),
+    } : null,
   };
 }
 
@@ -229,7 +271,7 @@ export async function getGlobalSearch(query: string, limit = 20) {
   const results: Array<{ type: string; id: string; title: string; subtitle: string; href: string }> = [];
 
   const searches = await Promise.allSettled([
-    db.execute(sql`SELECT id, name as title, '' as subtitle FROM artist_profiles WHERE LOWER(name) LIKE ${q} LIMIT 5`),
+    db.execute(sql`SELECT id, stage_name as title, COALESCE(legal_name,'') as subtitle FROM artist_profiles WHERE LOWER(stage_name) LIKE ${q} LIMIT 5`),
     db.execute(sql`SELECT id, title, release_type as subtitle FROM releases WHERE LOWER(title) LIKE ${q} LIMIT 5`),
     db.execute(sql`SELECT id, title, COALESCE(company_name,'') as subtitle FROM contracts WHERE LOWER(title) LIKE ${q} LIMIT 5`),
     db.execute(sql`SELECT id, name as title, status as subtitle FROM outreach_campaigns WHERE LOWER(name) LIKE ${q} LIMIT 5`),

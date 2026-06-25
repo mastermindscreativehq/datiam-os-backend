@@ -46,6 +46,12 @@ import PaymentIntelligence from './pages/PaymentIntelligence'
 import MissionControl from './pages/MissionControl'
 import ReleaseIntelligence from './pages/ReleaseIntelligence'
 import AutomationDashboard from './pages/AutomationDashboard'
+import CatalogArtists from './pages/catalog/CatalogArtists'
+import CatalogArtistDetail from './pages/catalog/CatalogArtistDetail'
+import CatalogSongs from './pages/catalog/CatalogSongs'
+import CatalogSongDetail from './pages/catalog/CatalogSongDetail'
+import CatalogReleases from './pages/catalog/CatalogReleases'
+import CatalogReleaseDetail from './pages/catalog/CatalogReleaseDetail'
 
 function App() {
   return (
@@ -94,6 +100,13 @@ function App() {
           <Route path="release-intelligence/:id" element={<ReleaseIntelligence />} />
           {/* DATIAM Automation Layer */}
           <Route path="automation" element={<AutomationDashboard />} />
+          {/* DATIAM Artist & Catalog Engine */}
+          <Route path="catalog/artists" element={<CatalogArtists />} />
+          <Route path="catalog/artists/:id" element={<CatalogArtistDetail />} />
+          <Route path="catalog/songs" element={<CatalogSongs />} />
+          <Route path="catalog/songs/:id" element={<CatalogSongDetail />} />
+          <Route path="catalog/releases" element={<CatalogReleases />} />
+          <Route path="catalog/releases/:id" element={<CatalogReleaseDetail />} />
         </Route>
         <Route path="*" element={<Navigate to="/mission-control" replace />} />
       </Routes>

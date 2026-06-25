@@ -3015,3 +3015,173 @@ export const releaseAlertsRelations = relations(release_alerts, ({ one }) => ({
 export const releaseAiRecsRelations = relations(release_ai_recs, ({ one }) => ({
   release: one(releases, { fields: [release_ai_recs.release_id], references: [releases.id] }),
 }));
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DATIAM Artist & Catalog Management Engine v1  (migration 0037)
+// NOTE: genres/countries/catalog_status columns on artist_profiles, and
+//       writers/producers/tags on songs, and preorder_date/catalog_release_type
+//       on releases were added via ALTER TABLE in migration 0037 — they are not
+//       redeclared here since those tables are already defined above.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const catalogArtworkTypeEnum = pgEnum('catalog_artwork_type', ['cover', 'social', 'animated', 'thumbnail']);
+export const catalogDocumentTypeEnum = pgEnum('catalog_document_type', ['split_sheet', 'contract', 'lyric_sheet', 'publishing_agreement', 'copyright_certificate']);
+export const catalogIdentifierTypeEnum = pgEnum('catalog_identifier_type', ['isrc', 'upc', 'iswc', 'catalog_number']);
+export const catalogCreditRoleEnum = pgEnum('catalog_credit_role', ['writer', 'producer', 'engineer', 'composer', 'featured_artist', 'publisher', 'mixer', 'mastering_engineer', 'lyricist', 'arranger']);
+
+// ── catalog_tracks ────────────────────────────────────────────────────────────
+
+export const catalog_tracks = pgTable(
+  'catalog_tracks',
+  {
+    id:           uuid('id').primaryKey().defaultRandom(),
+    release_id:   uuid('release_id').notNull().references(() => releases.id, { onDelete: 'cascade' }),
+    song_id:      uuid('song_id').notNull().references(() => songs.id, { onDelete: 'cascade' }),
+    track_number: integer('track_number').notNull().default(1),
+    is_single:    boolean('is_single').notNull().default(false),
+    created_at:   timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    releaseIdx:         index('catalog_tracks_release_id_idx').on(t.release_id),
+    songIdx:            index('catalog_tracks_song_id_idx').on(t.song_id),
+    releaseTrackUnique: index('catalog_tracks_release_song_idx').on(t.release_id, t.song_id),
+  }),
+);
+
+export type CatalogTrack    = typeof catalog_tracks.$inferSelect;
+export type NewCatalogTrack = typeof catalog_tracks.$inferInsert;
+
+// ── catalog_artwork_assets ────────────────────────────────────────────────────
+
+export const catalog_artwork_assets = pgTable(
+  'catalog_artwork_assets',
+  {
+    id:               uuid('id').primaryKey().defaultRandom(),
+    release_id:       uuid('release_id').references(() => releases.id, { onDelete: 'cascade' }),
+    song_id:          uuid('song_id').references(() => songs.id, { onDelete: 'cascade' }),
+    artwork_type:     catalogArtworkTypeEnum('artwork_type').notNull(),
+    storage_url:      text('storage_url').notNull(),
+    filename:         text('filename'),
+    file_size_bytes:  integer('file_size_bytes'),
+    width_px:         integer('width_px'),
+    height_px:        integer('height_px'),
+    format:           text('format'),
+    storage_provider: text('storage_provider').default('supabase'),
+    created_at:       timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    releaseIdx: index('catalog_artwork_release_id_idx').on(t.release_id),
+    songIdx:    index('catalog_artwork_song_id_idx').on(t.song_id),
+    typeIdx:    index('catalog_artwork_type_idx').on(t.artwork_type),
+  }),
+);
+
+export type CatalogArtworkAsset    = typeof catalog_artwork_assets.$inferSelect;
+export type NewCatalogArtworkAsset = typeof catalog_artwork_assets.$inferInsert;
+
+// ── catalog_documents ─────────────────────────────────────────────────────────
+
+export const catalog_documents = pgTable(
+  'catalog_documents',
+  {
+    id:              uuid('id').primaryKey().defaultRandom(),
+    artist_id:       uuid('artist_id').references(() => artist_profiles.id, { onDelete: 'set null' }),
+    song_id:         uuid('song_id').references(() => songs.id, { onDelete: 'set null' }),
+    release_id:      uuid('release_id').references(() => releases.id, { onDelete: 'set null' }),
+    document_type:   catalogDocumentTypeEnum('document_type').notNull(),
+    title:           text('title').notNull(),
+    storage_url:     text('storage_url').notNull(),
+    filename:        text('filename'),
+    file_size_bytes: integer('file_size_bytes'),
+    notes:           text('notes'),
+    uploaded_at:     timestamp('uploaded_at', { withTimezone: true }).defaultNow().notNull(),
+    created_at:      timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    artistIdx:  index('catalog_documents_artist_id_idx').on(t.artist_id),
+    songIdx:    index('catalog_documents_song_id_idx').on(t.song_id),
+    releaseIdx: index('catalog_documents_release_id_idx').on(t.release_id),
+    typeIdx:    index('catalog_documents_type_idx').on(t.document_type),
+  }),
+);
+
+export type CatalogDocument    = typeof catalog_documents.$inferSelect;
+export type NewCatalogDocument = typeof catalog_documents.$inferInsert;
+
+// ── catalog_identifiers ───────────────────────────────────────────────────────
+
+export const catalog_identifiers = pgTable(
+  'catalog_identifiers',
+  {
+    id:              uuid('id').primaryKey().defaultRandom(),
+    song_id:         uuid('song_id').references(() => songs.id, { onDelete: 'set null' }),
+    release_id:      uuid('release_id').references(() => releases.id, { onDelete: 'set null' }),
+    identifier_type: catalogIdentifierTypeEnum('identifier_type').notNull(),
+    value:           text('value').notNull(),
+    assigned_by:     text('assigned_by'),
+    assigned_at:     timestamp('assigned_at', { withTimezone: true }),
+    created_at:      timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    songIdx:    index('catalog_identifiers_song_id_idx').on(t.song_id),
+    releaseIdx: index('catalog_identifiers_release_id_idx').on(t.release_id),
+    typeIdx:    index('catalog_identifiers_type_idx').on(t.identifier_type),
+    valueIdx:   index('catalog_identifiers_value_idx').on(t.value),
+  }),
+);
+
+export type CatalogIdentifier    = typeof catalog_identifiers.$inferSelect;
+export type NewCatalogIdentifier = typeof catalog_identifiers.$inferInsert;
+
+// ── catalog_credits ───────────────────────────────────────────────────────────
+
+export const catalog_credits = pgTable(
+  'catalog_credits',
+  {
+    id:               uuid('id').primaryKey().defaultRandom(),
+    song_id:          uuid('song_id').notNull().references(() => songs.id, { onDelete: 'cascade' }),
+    name:             text('name').notNull(),
+    role:             catalogCreditRoleEnum('role').notNull(),
+    split_percentage: numeric('split_percentage', { precision: 5, scale: 2 }),
+    pro_affiliation:  text('pro_affiliation'),
+    ipi_number:       text('ipi_number'),
+    isni:             text('isni'),
+    notes:            text('notes'),
+    created_at:       timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updated_at:       timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    songIdx: index('catalog_credits_song_id_idx').on(t.song_id),
+    roleIdx: index('catalog_credits_role_idx').on(t.role),
+  }),
+);
+
+export type CatalogCredit    = typeof catalog_credits.$inferSelect;
+export type NewCatalogCredit = typeof catalog_credits.$inferInsert;
+
+// ── Catalog Relations ─────────────────────────────────────────────────────────
+
+export const catalogTracksRelations = relations(catalog_tracks, ({ one }) => ({
+  release: one(releases, { fields: [catalog_tracks.release_id], references: [releases.id] }),
+  song:    one(songs,    { fields: [catalog_tracks.song_id],    references: [songs.id] }),
+}));
+
+export const catalogArtworkAssetsRelations = relations(catalog_artwork_assets, ({ one }) => ({
+  release: one(releases, { fields: [catalog_artwork_assets.release_id], references: [releases.id] }),
+  song:    one(songs,    { fields: [catalog_artwork_assets.song_id],    references: [songs.id] }),
+}));
+
+export const catalogDocumentsRelations = relations(catalog_documents, ({ one }) => ({
+  artist:  one(artist_profiles, { fields: [catalog_documents.artist_id],  references: [artist_profiles.id] }),
+  song:    one(songs,           { fields: [catalog_documents.song_id],    references: [songs.id] }),
+  release: one(releases,        { fields: [catalog_documents.release_id], references: [releases.id] }),
+}));
+
+export const catalogIdentifiersRelations = relations(catalog_identifiers, ({ one }) => ({
+  song:    one(songs,    { fields: [catalog_identifiers.song_id],    references: [songs.id] }),
+  release: one(releases, { fields: [catalog_identifiers.release_id], references: [releases.id] }),
+}));
+
+export const catalogCreditsRelations = relations(catalog_credits, ({ one }) => ({
+  song: one(songs, { fields: [catalog_credits.song_id], references: [songs.id] }),
+}));

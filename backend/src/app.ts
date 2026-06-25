@@ -53,6 +53,7 @@ import contractsRouter from './modules/contracts/contract.routes';
 import paymentsRouter from './modules/payments/payment.routes';
 import missionControlRouter from './modules/mission-control/missionControl.routes';
 import releaseIntelligenceRouter from './modules/release-intelligence/release-intelligence.routes';
+import catalogEngineRouter from './modules/catalog-engine/catalog-engine.routes';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -175,6 +176,8 @@ app.use('/api/contracts', contractsRouter);
 app.use('/api/payments',  paymentsRouter);
 app.use('/api/mission-control',      missionControlRouter);
 app.use('/api/release-intelligence', releaseIntelligenceRouter);
+app.use('/api/catalog',              catalogEngineRouter);
+app.use('/api/catalog-engine',       catalogEngineRouter);
 
 // ---- System Routes ----
 app.use('/api/system/migrations', migrationsRouter);
