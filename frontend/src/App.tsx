@@ -44,6 +44,7 @@ import DealIntelligence from './pages/DealIntelligence'
 import ContractIntelligence from './pages/ContractIntelligence'
 import PaymentIntelligence from './pages/PaymentIntelligence'
 import MissionControl from './pages/MissionControl'
+import ReleaseIntelligence from './pages/ReleaseIntelligence'
 
 function App() {
   return (
@@ -88,6 +89,8 @@ function App() {
           <Route path="deal-intelligence" element={<DealIntelligence />} />
           <Route path="contract-intelligence" element={<ContractIntelligence />} />
           <Route path="payment-intelligence" element={<PaymentIntelligence />} />
+          <Route path="release-intelligence" element={<ReleaseIntelligence />} />
+          <Route path="release-intelligence/:id" element={<ReleaseIntelligence />} />
         </Route>
         <Route path="*" element={<Navigate to="/mission-control" replace />} />
       </Routes>

@@ -2847,3 +2847,135 @@ export const paymentsRelations = relations(payments, ({ one }) => ({
   company:  one(companies,          { fields: [payments.company_id],  references: [companies.id] }),
   contact:  one(licensing_contacts, { fields: [payments.contact_id],  references: [licensing_contacts.id] }),
 }));
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DATIAM Release Intelligence Engine v1
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const releaseCampaignTypeEnum = pgEnum('release_campaign_type', [
+  'marketing', 'playlist', 'blog', 'press', 'pre_save',
+]);
+
+export const releaseCampaignStatusEnum = pgEnum('release_campaign_status', [
+  'planned', 'active', 'paused', 'completed', 'cancelled',
+]);
+
+export const releaseDspPlatformStatusEnum = pgEnum('release_dsp_platform_status', [
+  'not_submitted', 'submitted', 'processing', 'live', 'rejected', 'taken_down',
+]);
+
+export const releaseAlertSeverityEnum = pgEnum('release_alert_severity', [
+  'info', 'warning', 'critical',
+]);
+
+export const release_campaigns = pgTable(
+  'release_campaigns',
+  {
+    id:            uuid('id').primaryKey().defaultRandom().notNull(),
+    release_id:    uuid('release_id').notNull().references(() => releases.id, { onDelete: 'cascade' }),
+    artist_id:     uuid('artist_id').references(() => artist_profiles.id, { onDelete: 'set null' }),
+    campaign_type: releaseCampaignTypeEnum('campaign_type').notNull(),
+    title:         text('title').notNull(),
+    status:        releaseCampaignStatusEnum('status').notNull().default('planned'),
+    target_date:   date('target_date'),
+    budget:        numeric('budget', { precision: 12, scale: 2 }),
+    currency:      text('currency').default('USD'),
+    notes:         text('notes'),
+    metadata:      jsonb('metadata'),
+    created_at:    timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updated_at:    timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    releaseIdx: index('release_campaigns_release_id_idx').on(t.release_id),
+    artistIdx:  index('release_campaigns_artist_id_idx').on(t.artist_id),
+    statusIdx:  index('release_campaigns_status_idx').on(t.status),
+  }),
+);
+
+export type ReleaseCampaign    = typeof release_campaigns.$inferSelect;
+export type NewReleaseCampaign = typeof release_campaigns.$inferInsert;
+
+export const release_dsp_status = pgTable(
+  'release_dsp_status',
+  {
+    id:           uuid('id').primaryKey().defaultRandom().notNull(),
+    release_id:   uuid('release_id').notNull().references(() => releases.id, { onDelete: 'cascade' }),
+    platform:     text('platform').notNull(),
+    status:       releaseDspPlatformStatusEnum('status').notNull().default('not_submitted'),
+    url:          text('url'),
+    submitted_at: timestamp('submitted_at', { withTimezone: true }),
+    live_at:      timestamp('live_at', { withTimezone: true }),
+    notes:        text('notes'),
+    created_at:   timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updated_at:   timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    releaseIdx: index('release_dsp_status_release_id_idx').on(t.release_id),
+  }),
+);
+
+export type ReleaseDspStatus    = typeof release_dsp_status.$inferSelect;
+export type NewReleaseDspStatus = typeof release_dsp_status.$inferInsert;
+
+export const release_alerts = pgTable(
+  'release_alerts',
+  {
+    id:          uuid('id').primaryKey().defaultRandom().notNull(),
+    release_id:  uuid('release_id').notNull().references(() => releases.id, { onDelete: 'cascade' }),
+    alert_type:  text('alert_type').notNull(),
+    severity:    releaseAlertSeverityEnum('severity').notNull().default('info'),
+    title:       text('title').notNull(),
+    message:     text('message').notNull(),
+    is_resolved: boolean('is_resolved').notNull().default(false),
+    resolved_at: timestamp('resolved_at', { withTimezone: true }),
+    metadata:    jsonb('metadata'),
+    created_at:  timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    releaseIdx:  index('release_alerts_release_id_idx').on(t.release_id),
+    severityIdx: index('release_alerts_severity_idx').on(t.severity),
+    resolvedIdx: index('release_alerts_is_resolved_idx').on(t.is_resolved),
+  }),
+);
+
+export type ReleaseAlert    = typeof release_alerts.$inferSelect;
+export type NewReleaseAlert = typeof release_alerts.$inferInsert;
+
+export const release_ai_recs = pgTable(
+  'release_ai_recs',
+  {
+    id:          uuid('id').primaryKey().defaultRandom().notNull(),
+    release_id:  uuid('release_id').notNull().references(() => releases.id, { onDelete: 'cascade' }),
+    rec_type:    text('rec_type').notNull(),
+    title:       text('title').notNull(),
+    description: text('description').notNull(),
+    priority:    integer('priority').notNull().default(0),
+    is_actioned: boolean('is_actioned').notNull().default(false),
+    actioned_at: timestamp('actioned_at', { withTimezone: true }),
+    metadata:    jsonb('metadata'),
+    created_at:  timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    releaseIdx: index('release_ai_recs_release_id_idx').on(t.release_id),
+  }),
+);
+
+export type ReleaseAiRec    = typeof release_ai_recs.$inferSelect;
+export type NewReleaseAiRec = typeof release_ai_recs.$inferInsert;
+
+export const releaseCampaignsRelations = relations(release_campaigns, ({ one }) => ({
+  release: one(releases, { fields: [release_campaigns.release_id], references: [releases.id] }),
+  artist:  one(artist_profiles, { fields: [release_campaigns.artist_id], references: [artist_profiles.id] }),
+}));
+
+export const releaseDspStatusRelations = relations(release_dsp_status, ({ one }) => ({
+  release: one(releases, { fields: [release_dsp_status.release_id], references: [releases.id] }),
+}));
+
+export const releaseAlertsRelations = relations(release_alerts, ({ one }) => ({
+  release: one(releases, { fields: [release_alerts.release_id], references: [releases.id] }),
+}));
+
+export const releaseAiRecsRelations = relations(release_ai_recs, ({ one }) => ({
+  release: one(releases, { fields: [release_ai_recs.release_id], references: [releases.id] }),
+}));

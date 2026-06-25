@@ -31,6 +31,7 @@ const NAV = [
   { to: '/deal-intelligence',        label: 'DEAL PIPELINE',        icon: '◆' },
   { to: '/contract-intelligence',    label: 'CONTRACTS',            icon: '◇' },
   { to: '/payment-intelligence',     label: 'PAYMENTS',             icon: '✦' },
+  { to: '/release-intelligence',    label: 'RELEASE INTEL',        icon: '◎' },
   { to: '/activity',                 label: 'ACTIVITY',             icon: '◈' },
   { to: '/admin/diagnostics',        label: 'DIAGNOSTICS',          icon: '⬡' },
 ]
