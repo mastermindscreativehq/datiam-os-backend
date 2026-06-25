@@ -124,3 +124,33 @@ export const dispatchEvent = async (req: Request, res: Response, next: NextFunct
   try { success(res, await automationService.dispatchEvent(req.body.event, req.body.data ?? {}), 202); }
   catch (err) { next(err); }
 };
+
+// ── Health, DLQ, Seed, Test, Report ─────────────────────────────────────────
+
+export const getHealth = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try { success(res, await automationService.checkN8nHealth()); }
+  catch (err) { next(err); }
+};
+
+export const getDeadLetterQueue = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try { success(res, await automationService.getDeadLetterQueue()); }
+  catch (err) { next(err); }
+};
+
+export const seedWorkflows = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try { success(res, await automationService.seedWorkflows(), 201); }
+  catch (err) { next(err); }
+};
+
+export const testEventDispatch = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const event = req.body.event ?? 'artist.created';
+    const data  = req.body.data  ?? {};
+    success(res, await automationService.testEventDispatch(event, data), 202);
+  } catch (err) { next(err); }
+};
+
+export const getDeploymentReport = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try { success(res, await automationService.getDeploymentReport()); }
+  catch (err) { next(err); }
+};

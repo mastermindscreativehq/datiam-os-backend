@@ -409,10 +409,15 @@ export const automation = {
   // Stats / dashboard
   stats:  () => apiClient.get('/automation/stats'),
   events: () => apiClient.get('/automation/events'),
+  health: () => apiClient.get('/automation/health'),
+  report: () => apiClient.get('/automation/report'),
 
   // Run history (paginated)
   history: (params?: { status?: string; source?: string; event?: string; limit?: number; offset?: number }) =>
     apiClient.get('/automation/history', { params }),
+
+  // Dead-letter queue
+  dlq: () => apiClient.get('/automation/dlq'),
 
   // Workflow Registry
   registry: {
@@ -437,5 +442,12 @@ export const automation = {
   // Dispatch an event to all matching workflows
   dispatch: (event: string, data?: Record<string, unknown>) =>
     apiClient.post('/automation/dispatch', { event, data }),
+
+  // Seed the workflow registry with built-in workflows
+  seed: () => apiClient.post('/automation/seed', {}),
+
+  // Fire a test event
+  test: (event: string, data?: Record<string, unknown>) =>
+    apiClient.post('/automation/test', { event, data }),
 }
 

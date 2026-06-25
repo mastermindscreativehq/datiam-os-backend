@@ -453,6 +453,17 @@ export const getAutomationStats = async () => {
 
 export const getEventTypes = () => ({
   events: [
+    // Catalog & Artist events
+    'artist.created',
+    'artist.updated',
+    'song.created',
+    'song.updated',
+    'catalog.release.created',
+    'catalog.release.updated',
+    'asset.uploaded',
+    'credit.updated',
+    'document.uploaded',
+    // Release Intelligence events
     'release.created',
     'release.updated',
     'release.published',
@@ -460,3 +471,227 @@ export const getEventTypes = () => ({
     'release.campaign.completed',
   ],
 });
+
+// ── N8n Health Check ────────────────────────────────────────────────────────
+
+export const checkN8nHealth = async () => {
+  if (!N8N_BASE_URL) {
+    return { status: 'not_configured' as const, url: null, message: 'N8N_WEBHOOK_BASE_URL is not set' };
+  }
+
+  try {
+    const res = await fetch(`${N8N_BASE_URL}/healthz`, {
+      signal: AbortSignal.timeout(5000),
+    });
+    return {
+      status: res.ok ? 'healthy' as const : 'degraded' as const,
+      url: N8N_BASE_URL,
+      http_status: res.status,
+    };
+  } catch (err) {
+    return {
+      status: 'unreachable' as const,
+      url: N8N_BASE_URL,
+      error: (err as Error).message,
+    };
+  }
+};
+
+// ── Dead-Letter Queue ────────────────────────────────────────────────────────
+
+export const getDeadLetterQueue = async () => {
+  const rows = await db
+    .select()
+    .from(automation_runs)
+    .where(
+      and(
+        eq(automation_runs.status, 'failed'),
+        sql`retry_count >= max_retries - 1 AND max_retries > 0`,
+      ),
+    )
+    .orderBy(desc(automation_runs.created_at))
+    .limit(100);
+
+  return { total: rows.length, runs: rows };
+};
+
+// ── Workflow Registry Seeder ─────────────────────────────────────────────────
+
+export const seedWorkflows = async () => {
+  const seeded: typeof workflow_registry.$inferSelect[] = [];
+
+  const releaseExists = await db
+    .select({ id: workflow_registry.id })
+    .from(workflow_registry)
+    .where(eq(workflow_registry.name, 'release-intelligence'))
+    .limit(1);
+
+  if (!releaseExists.length) {
+    const [wf] = await db
+      .insert(workflow_registry)
+      .values({
+        name: 'release-intelligence',
+        description: 'Routes DATIAM Release Intelligence events to n8n handler nodes',
+        event_triggers: [
+          'release.created',
+          'release.updated',
+          'release.published',
+          'release.campaign.started',
+          'release.campaign.completed',
+        ],
+        webhook_path: '/webhook/release-intelligence',
+        is_active: true,
+        metadata: { template: 'datiam-release-intelligence-v1' },
+      })
+      .returning();
+    seeded.push(wf);
+
+    logActivity({
+      eventType: 'workflow.registered',
+      module: 'automation',
+      entityType: 'workflow_registry',
+      entityId: wf.id,
+      title: 'Workflow seeded: release-intelligence',
+      severity: 'info',
+      metadata: { seeded: true },
+    });
+  }
+
+  const catalogExists = await db
+    .select({ id: workflow_registry.id })
+    .from(workflow_registry)
+    .where(eq(workflow_registry.name, 'catalog-events'))
+    .limit(1);
+
+  if (!catalogExists.length) {
+    const [wf] = await db
+      .insert(workflow_registry)
+      .values({
+        name: 'catalog-events',
+        description: 'Routes DATIAM Catalog & Artist events to n8n handler nodes',
+        event_triggers: [
+          'artist.created',
+          'artist.updated',
+          'song.created',
+          'song.updated',
+          'catalog.release.created',
+          'catalog.release.updated',
+          'asset.uploaded',
+          'credit.updated',
+          'document.uploaded',
+        ],
+        webhook_path: '/webhook/catalog-events',
+        is_active: true,
+        metadata: { template: 'datiam-catalog-events-v1' },
+      })
+      .returning();
+    seeded.push(wf);
+
+    logActivity({
+      eventType: 'workflow.registered',
+      module: 'automation',
+      entityType: 'workflow_registry',
+      entityId: wf.id,
+      title: 'Workflow seeded: catalog-events',
+      severity: 'info',
+      metadata: { seeded: true },
+    });
+  }
+
+  return {
+    seeded: seeded.length,
+    message: seeded.length > 0
+      ? `Seeded ${seeded.length} workflow(s)`
+      : 'All workflows already registered',
+    workflows: seeded,
+  };
+};
+
+// ── Test Event Dispatch ──────────────────────────────────────────────────────
+
+export const testEventDispatch = async (event: string, data: Record<string, unknown> = {}) => {
+  const result = await dispatchEvent(event, {
+    ...data,
+    _test: true,
+    _timestamp: new Date().toISOString(),
+  });
+  return result;
+};
+
+// ── Deployment Report ────────────────────────────────────────────────────────
+
+export const getDeploymentReport = async () => {
+  const [n8nHealth, stats, dlq, workflows] = await Promise.all([
+    checkN8nHealth(),
+    getAutomationStats(),
+    getDeadLetterQueue(),
+    listWorkflows(),
+  ]);
+
+  const allEvents = [
+    'artist.created', 'artist.updated',
+    'song.created', 'song.updated',
+    'catalog.release.created', 'catalog.release.updated',
+    'asset.uploaded', 'credit.updated', 'document.uploaded',
+    'release.created', 'release.updated', 'release.published',
+    'release.campaign.started', 'release.campaign.completed',
+  ];
+
+  const todos: string[] = [];
+  if (!N8N_BASE_URL)  todos.push('Set N8N_WEBHOOK_BASE_URL environment variable');
+  if (!N8N_SECRET)    todos.push('Set N8N_WEBHOOK_SECRET environment variable');
+  if (dlq.total > 0)  todos.push(`${dlq.total} dead-lettered run(s) require attention`);
+  if (!workflows.length) todos.push('Seed workflows via POST /automation/seed');
+  if (n8nHealth.status !== 'healthy') todos.push(`n8n instance is ${n8nHealth.status} — start with: docker compose -f n8n/docker-compose.n8n.yml up -d`);
+
+  return {
+    generated_at: new Date().toISOString(),
+    n8n: {
+      status: n8nHealth.status,
+      base_url: N8N_BASE_URL || 'NOT_CONFIGURED',
+      webhook_secret_configured: !!N8N_SECRET,
+    },
+    workflows: {
+      total: workflows.length,
+      active: workflows.filter(w => w.is_active).length,
+      inactive: workflows.filter(w => !w.is_active).length,
+      registered: workflows.map(w => ({
+        name: w.name,
+        webhook_path: w.webhook_path,
+        event_triggers: w.event_triggers,
+        is_active: w.is_active,
+        total_runs: w.total_runs,
+        success_count: w.success_count,
+        failed_count: w.failed_count,
+        last_run_at: w.last_run_at,
+        last_run_status: w.last_run_status,
+      })),
+    },
+    execution: {
+      total_runs:    stats.overview.totalRuns,
+      success_count: stats.overview.successCount,
+      failed_count:  stats.overview.failedCount,
+      success_rate:  stats.overview.successRate,
+      queue_health:  stats.overview.queueHealth,
+    },
+    dead_letter_queue: {
+      total:    dlq.total,
+      oldest_at: dlq.runs[dlq.runs.length - 1]?.created_at ?? null,
+    },
+    environment: {
+      N8N_WEBHOOK_BASE_URL: N8N_BASE_URL ? 'SET' : 'NOT_SET',
+      N8N_WEBHOOK_SECRET:   N8N_SECRET   ? 'SET' : 'NOT_SET',
+    },
+    registered_events: allEvents,
+    retry_config: {
+      max_retries:      3,
+      backoff_strategy: 'linear (1s × attempt)',
+      timeout_ms:       TRIGGER_TIMEOUT,
+    },
+    webhook_urls: workflows.map(w => ({
+      workflow:    w.name,
+      webhook_url: N8N_BASE_URL ? `${N8N_BASE_URL}${w.webhook_path}` : `<N8N_WEBHOOK_BASE_URL>${w.webhook_path}`,
+    })),
+    todos,
+  };
+};

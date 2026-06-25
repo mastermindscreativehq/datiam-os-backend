@@ -1,7 +1,10 @@
 version: '3.8'
 
 # Local n8n instance for DATIAM OS automation development.
-# Start with: docker compose -f n8n/docker-compose.n8n.yml up -d
+# Start : docker compose -f n8n/docker-compose.n8n.yml up -d
+# Stop  : docker compose -f n8n/docker-compose.n8n.yml down
+# Import workflows: ./n8n/scripts/import-workflows.sh
+# Seed DATIAM registry: ./n8n/scripts/seed-datiam-registry.sh
 
 services:
   n8n:
@@ -15,16 +18,31 @@ services:
       - N8N_PORT=5678
       - N8N_PROTOCOL=http
       - WEBHOOK_URL=http://localhost:5678
-      # Secret shared with DATIAM backend — must match N8N_WEBHOOK_SECRET in .env
+      # Basic auth for n8n UI and API
       - N8N_BASIC_AUTH_ACTIVE=true
       - N8N_BASIC_AUTH_USER=datiam
       - N8N_BASIC_AUTH_PASSWORD=datiam_local_dev
-      # Persist workflows between restarts
+      # Persist data between restarts
       - N8N_USER_FOLDER=/home/node/.n8n
+      # Enable execution history
+      - EXECUTIONS_DATA_SAVE_ON_ERROR=all
+      - EXECUTIONS_DATA_SAVE_ON_SUCCESS=all
+      - EXECUTIONS_DATA_SAVE_MANUAL_EXECUTIONS=true
+      - EXECUTIONS_DATA_MAX_AGE=168
+      # Timezone
+      - GENERIC_TIMEZONE=UTC
+      # n8n API (used by import-workflows.sh)
+      - N8N_PUBLIC_API_SWAGGERUI_DISABLED=false
     volumes:
       - n8n_data:/home/node/.n8n
     networks:
       - datiam_network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:5678/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
 
 volumes:
   n8n_data:

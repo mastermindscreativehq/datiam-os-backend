@@ -20,9 +20,20 @@ const canDelete = requireRole('owner', 'admin');
 // ── Inbound webhook (no JWT — n8n sends X-DATIAM-Secret) ──────────────────
 router.post('/webhook', validate(webhookSchema), automationController.receiveWebhook);
 
-// ── Stats & event types (dashboard) ───────────────────────────────────────
+// ── Stats, health & event types ───────────────────────────────────────────
 router.get('/stats',  authenticate, automationController.getAutomationStats);
 router.get('/events', authenticate, automationController.getEventTypes);
+router.get('/health', authenticate, automationController.getHealth);
+
+// ── Dead-letter queue ──────────────────────────────────────────────────────
+router.get('/dlq', authenticate, automationController.getDeadLetterQueue);
+
+// ── Seeder & test utilities ────────────────────────────────────────────────
+router.post('/seed', authenticate, canWrite, automationController.seedWorkflows);
+router.post('/test', authenticate, canWrite, automationController.testEventDispatch);
+
+// ── Deployment report ──────────────────────────────────────────────────────
+router.get('/report', authenticate, automationController.getDeploymentReport);
 
 // ── Dispatch event to all matching workflows ──────────────────────────────
 router.post('/dispatch', authenticate, canWrite, automationController.dispatchEvent);

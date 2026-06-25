@@ -1,0 +1,169 @@
+{
+  "name": "DATIAM Catalog Events — Router",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "catalog-events",
+        "responseMode": "onReceived",
+        "responseData": "noData",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "DATIAM Catalog Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 400],
+      "webhookId": "catalog-events"
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{$json.headers['x-datiam-event']}}",
+        "rules": {
+          "rules": [
+            { "value2": "artist.created" },
+            { "value2": "artist.updated" },
+            { "value2": "song.created" },
+            { "value2": "song.updated" },
+            { "value2": "catalog.release.created" },
+            { "value2": "catalog.release.updated" },
+            { "value2": "asset.uploaded" },
+            { "value2": "credit.updated" },
+            { "value2": "document.uploaded" }
+          ]
+        },
+        "fallbackOutput": "extra"
+      },
+      "id": "event-router",
+      "name": "Event Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 2,
+      "position": [500, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body;\nconst { artist_id, stage_name } = body.data ?? {};\nconsole.log('[DATIAM] artist.created:', stage_name, '| id:', artist_id);\nreturn [{ json: { handled: true, event: 'artist.created', artist_id, stage_name, ts: body.timestamp } }];"
+      },
+      "id": "handle-artist-created",
+      "name": "Handle: artist.created",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [800, 80]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body;\nconst { artist_id } = body.data ?? {};\nconsole.log('[DATIAM] artist.updated:', artist_id);\nreturn [{ json: { handled: true, event: 'artist.updated', artist_id, ts: body.timestamp } }];"
+      },
+      "id": "handle-artist-updated",
+      "name": "Handle: artist.updated",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [800, 180]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body;\nconst { song_id, title, artist_id } = body.data ?? {};\nconsole.log('[DATIAM] song.created:', title, '| id:', song_id);\nreturn [{ json: { handled: true, event: 'song.created', song_id, title, artist_id, ts: body.timestamp } }];"
+      },
+      "id": "handle-song-created",
+      "name": "Handle: song.created",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [800, 280]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body;\nconst { song_id } = body.data ?? {};\nconsole.log('[DATIAM] song.updated:', song_id);\nreturn [{ json: { handled: true, event: 'song.updated', song_id, ts: body.timestamp } }];"
+      },
+      "id": "handle-song-updated",
+      "name": "Handle: song.updated",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [800, 380]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body;\nconst { release_id, title } = body.data ?? {};\nconsole.log('[DATIAM] catalog.release.created:', title, '| id:', release_id);\nreturn [{ json: { handled: true, event: 'catalog.release.created', release_id, title, ts: body.timestamp } }];"
+      },
+      "id": "handle-release-created",
+      "name": "Handle: catalog.release.created",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [800, 480]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body;\nconst { release_id } = body.data ?? {};\nconsole.log('[DATIAM] catalog.release.updated:', release_id);\nreturn [{ json: { handled: true, event: 'catalog.release.updated', release_id, ts: body.timestamp } }];"
+      },
+      "id": "handle-release-updated",
+      "name": "Handle: catalog.release.updated",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [800, 580]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body;\nconst { release_id, asset_id, artwork_type } = body.data ?? {};\nconsole.log('[DATIAM] asset.uploaded:', artwork_type, '| release:', release_id);\nreturn [{ json: { handled: true, event: 'asset.uploaded', release_id, asset_id, artwork_type, ts: body.timestamp } }];"
+      },
+      "id": "handle-asset-uploaded",
+      "name": "Handle: asset.uploaded",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [800, 680]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body;\nconst { song_id, credit_id } = body.data ?? {};\nconsole.log('[DATIAM] credit.updated:', credit_id, '| song:', song_id);\nreturn [{ json: { handled: true, event: 'credit.updated', song_id, credit_id, ts: body.timestamp } }];"
+      },
+      "id": "handle-credit-updated",
+      "name": "Handle: credit.updated",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [800, 780]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body;\nconst { song_id, document_id, document_type } = body.data ?? {};\nconsole.log('[DATIAM] document.uploaded:', document_type, '| song:', song_id);\nreturn [{ json: { handled: true, event: 'document.uploaded', song_id, document_id, document_type, ts: body.timestamp } }];"
+      },
+      "id": "handle-document-uploaded",
+      "name": "Handle: document.uploaded",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [800, 880]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body;\nconsole.warn('[DATIAM] Unhandled catalog event:', body.event);\nreturn [{ json: { handled: false, event: body.event, ts: body.timestamp } }];"
+      },
+      "id": "fallback",
+      "name": "Fallback handler",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [800, 980]
+    }
+  ],
+  "connections": {
+    "DATIAM Catalog Webhook": {
+      "main": [[{ "node": "Event Router", "type": "main", "index": 0 }]]
+    },
+    "Event Router": {
+      "main": [
+        [{ "node": "Handle: artist.created",           "type": "main", "index": 0 }],
+        [{ "node": "Handle: artist.updated",           "type": "main", "index": 0 }],
+        [{ "node": "Handle: song.created",             "type": "main", "index": 0 }],
+        [{ "node": "Handle: song.updated",             "type": "main", "index": 0 }],
+        [{ "node": "Handle: catalog.release.created",  "type": "main", "index": 0 }],
+        [{ "node": "Handle: catalog.release.updated",  "type": "main", "index": 0 }],
+        [{ "node": "Handle: asset.uploaded",           "type": "main", "index": 0 }],
+        [{ "node": "Handle: credit.updated",           "type": "main", "index": 0 }],
+        [{ "node": "Handle: document.uploaded",        "type": "main", "index": 0 }],
+        [{ "node": "Fallback handler",                 "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "meta": {
+    "templateId": "datiam-catalog-events-v1",
+    "description": "Routes all DATIAM Catalog & Artist webhook events. Handles: artist.created, artist.updated, song.created, song.updated, catalog.release.created, catalog.release.updated, asset.uploaded, credit.updated, document.uploaded."
+  }
+}
