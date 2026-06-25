@@ -1,4 +1,16 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 2 * 60 * 1000,
+      gcTime: 10 * 60 * 1000,
+      retry: 2,
+      retryDelay: (attempt: number) => Math.min(1000 * 2 ** attempt, 10_000),
+    },
+  },
+})
 import Login from './pages/Login'
 import ProtectedLayout from './layouts/ProtectedLayout'
 import Dashboard from './pages/Dashboard'
@@ -34,6 +46,7 @@ import PaymentIntelligence from './pages/PaymentIntelligence'
 
 function App() {
   return (
+    <QueryClientProvider client={queryClient}>
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
@@ -77,6 +90,7 @@ function App() {
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </BrowserRouter>
+    </QueryClientProvider>
   )
 }
 
