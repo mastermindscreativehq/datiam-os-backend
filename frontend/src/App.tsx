@@ -25,6 +25,12 @@ import PlacementOpportunities from './pages/PlacementOpportunities'
 import SuitabilityMatrix from './pages/SuitabilityMatrix'
 import CommercialIntelligence from './pages/CommercialIntelligence'
 import AdminDiagnostics from './pages/AdminDiagnostics'
+import OutreachCampaigns from './pages/OutreachCampaigns'
+import ReplyIntelligence from './pages/ReplyIntelligence'
+import MeetingIntelligence from './pages/MeetingIntelligence'
+import DealIntelligence from './pages/DealIntelligence'
+import ContractIntelligence from './pages/ContractIntelligence'
+import PaymentIntelligence from './pages/PaymentIntelligence'
 
 function App() {
   return (
@@ -60,6 +66,13 @@ function App() {
           <Route path="commercial-intelligence" element={<CommercialIntelligence />} />
           {/* System */}
           <Route path="admin/diagnostics" element={<AdminDiagnostics />} />
+          {/* DATIAM Intelligence Engines */}
+          <Route path="outreach" element={<OutreachCampaigns />} />
+          <Route path="reply-intelligence" element={<ReplyIntelligence />} />
+          <Route path="meeting-intelligence" element={<MeetingIntelligence />} />
+          <Route path="deal-intelligence" element={<DealIntelligence />} />
+          <Route path="contract-intelligence" element={<ContractIntelligence />} />
+          <Route path="payment-intelligence" element={<PaymentIntelligence />} />
         </Route>
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>

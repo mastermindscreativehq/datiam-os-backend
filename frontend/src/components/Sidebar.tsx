@@ -24,6 +24,12 @@ const NAV = [
   { to: '/placement-opportunities',  label: 'PLACEMENTS',           icon: '✦' },
   { to: '/suitability-matrix',       label: 'SUITABILITY',          icon: '⬡' },
   { to: '/commercial-intelligence',  label: 'COMMERCIAL INTEL',     icon: '◆' },
+  { to: '/outreach',                 label: 'OUTREACH',             icon: '◎' },
+  { to: '/reply-intelligence',       label: 'REPLY INTEL',          icon: '◉' },
+  { to: '/meeting-intelligence',     label: 'MEETINGS',             icon: '◈' },
+  { to: '/deal-intelligence',        label: 'DEAL PIPELINE',        icon: '◆' },
+  { to: '/contract-intelligence',    label: 'CONTRACTS',            icon: '◇' },
+  { to: '/payment-intelligence',     label: 'PAYMENTS',             icon: '✦' },
   { to: '/activity',                 label: 'ACTIVITY',             icon: '◈' },
   { to: '/admin/diagnostics',        label: 'DIAGNOSTICS',          icon: '⬡' },
 ]
@@ -46,7 +52,7 @@ export default function Sidebar() {
           DATIAM OS
         </div>
         <div className="text-[#00d4ff]/40 text-[10px] font-mono mt-1 tracking-[0.2em]">
-          MATRIX INTELLIGENCE v3.0
+          MATRIX INTELLIGENCE v4.0
         </div>
         <div className="flex items-center gap-2 mt-3">
           <div className="w-1.5 h-1.5 rounded-full bg-[#00ff41] animate-pulse" />

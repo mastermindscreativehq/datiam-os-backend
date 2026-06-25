@@ -341,3 +341,58 @@ export const musicIntelligence = {
   deleteSession:       (id: string)        => apiClient.delete(`/music-intelligence/sessions/${id}`),
   regenerateBlueprint: (id: string)        => apiClient.post(`/music-intelligence/sessions/${id}/blueprint`),
 }
+
+// ── Outreach Intelligence ─────────────────────────────────────────────────────
+export const outreach = {
+  createCampaign: (body: Record<string, unknown>) => apiClient.post('/outreach/create-campaign', body),
+  listCampaigns:  () => apiClient.get('/outreach/campaigns'),
+}
+
+// ── Reply Intelligence ────────────────────────────────────────────────────────
+export const replies = {
+  ingest:   (body: Record<string, unknown>) => apiClient.post('/replies/ingest', body),
+  list:     ()         => apiClient.get('/replies/logs'),
+  getById:  (id: string) => apiClient.get(`/replies/${id}`),
+}
+
+// ── Meeting Intelligence ──────────────────────────────────────────────────────
+export const meetings = {
+  create:       (body: Record<string, unknown>) => apiClient.post('/meetings', body),
+  list:         ()         => apiClient.get('/meetings'),
+  getById:      (id: string) => apiClient.get(`/meetings/${id}`),
+  updateStatus: (id: string, status: string)   => apiClient.patch(`/meetings/${id}/status`, { status }),
+  updateNotes:  (id: string, notes: string)    => apiClient.patch(`/meetings/${id}/notes`, { notes }),
+  analytics:    ()         => apiClient.get('/meetings/analytics'),
+}
+
+// ── Deal Intelligence ─────────────────────────────────────────────────────────
+export const deals = {
+  create:       (body: Record<string, unknown>) => apiClient.post('/deals/create', body),
+  list:         (limit = 100) => apiClient.get('/deals', { params: { limit } }),
+  getById:      (id: string)  => apiClient.get(`/deals/${id}`),
+  update:       (id: string, body: Record<string, unknown>) => apiClient.patch(`/deals/${id}`, body),
+  updateStage:  (id: string, stage: string)  => apiClient.patch(`/deals/${id}/stage`, { stage }),
+  updateStatus: (id: string, status: string) => apiClient.patch(`/deals/${id}/status`, { status }),
+  analytics:    ()            => apiClient.get('/deals/analytics'),
+}
+
+// ── Contract Intelligence ─────────────────────────────────────────────────────
+export const contracts = {
+  create:       (body: Record<string, unknown>) => apiClient.post('/contracts/create', body),
+  send:         (contract_id: string)          => apiClient.post('/contracts/send', { contract_id }),
+  list:         ()          => apiClient.get('/contracts'),
+  getById:      (id: string) => apiClient.get(`/contracts/${id}`),
+  updateStatus: (id: string, status: string)   => apiClient.patch(`/contracts/${id}/status`, { status }),
+  analytics:    ()          => apiClient.get('/contracts/analytics'),
+}
+
+// ── Payment Intelligence ──────────────────────────────────────────────────────
+export const payments = {
+  create:        (body: Record<string, unknown>) => apiClient.post('/payments/create', body),
+  sendInvoice:   (payment_id: string)           => apiClient.post('/payments/send-invoice', { payment_id }),
+  recordPayment: (body: Record<string, unknown>) => apiClient.post('/payments/record-payment', body),
+  list:          ()           => apiClient.get('/payments'),
+  getById:       (id: string)  => apiClient.get(`/payments/${id}`),
+  updateStatus:  (id: string, status: string)    => apiClient.patch(`/payments/${id}/status`, { status }),
+  analytics:     ()           => apiClient.get('/payments/analytics'),
+}
