@@ -45,6 +45,7 @@ import ContractIntelligence from './pages/ContractIntelligence'
 import PaymentIntelligence from './pages/PaymentIntelligence'
 import MissionControl from './pages/MissionControl'
 import ReleaseIntelligence from './pages/ReleaseIntelligence'
+import AutomationDashboard from './pages/AutomationDashboard'
 
 function App() {
   return (
@@ -91,6 +92,8 @@ function App() {
           <Route path="payment-intelligence" element={<PaymentIntelligence />} />
           <Route path="release-intelligence" element={<ReleaseIntelligence />} />
           <Route path="release-intelligence/:id" element={<ReleaseIntelligence />} />
+          {/* DATIAM Automation Layer */}
+          <Route path="automation" element={<AutomationDashboard />} />
         </Route>
         <Route path="*" element={<Navigate to="/mission-control" replace />} />
       </Routes>

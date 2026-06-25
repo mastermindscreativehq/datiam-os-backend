@@ -1,0 +1,150 @@
+{
+  "name": "DATIAM Release Intelligence — Event Router",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "release-intelligence",
+        "responseMode": "onReceived",
+        "responseData": "noData",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "DATIAM Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "release-intelligence"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.headers['x-datiam-event']}}",
+              "operation": "equal",
+              "value2": "release.created"
+            }
+          ]
+        }
+      },
+      "id": "if-release-created",
+      "name": "release.created?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [480, 180]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.headers['x-datiam-event']}}",
+              "operation": "equal",
+              "value2": "release.published"
+            }
+          ]
+        }
+      },
+      "id": "if-release-published",
+      "name": "release.published?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [480, 340]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.headers['x-datiam-event']}}",
+              "operation": "equal",
+              "value2": "release.campaign.started"
+            }
+          ]
+        }
+      },
+      "id": "if-campaign-started",
+      "name": "campaign.started?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [480, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// release.created — log and notify\nconst body = $input.first().json.body;\nconsole.log('Release created:', body.data?.release?.title);\nreturn [{ json: { handled: true, event: 'release.created', release: body.data?.release } }];"
+      },
+      "id": "handle-release-created",
+      "name": "Handle: release.created",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [740, 120]
+    },
+    {
+      "parameters": {
+        "jsCode": "// release.published — trigger DSP distribution flow\nconst body = $input.first().json.body;\nconsole.log('Release published:', body.data?.release?.title);\nreturn [{ json: { handled: true, event: 'release.published', release: body.data?.release } }];"
+      },
+      "id": "handle-release-published",
+      "name": "Handle: release.published",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [740, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// release.campaign.started — kick off marketing automation\nconst body = $input.first().json.body;\nconsole.log('Campaign started:', body.data?.campaign?.title);\nreturn [{ json: { handled: true, event: 'release.campaign.started', campaign: body.data?.campaign } }];"
+      },
+      "id": "handle-campaign-started",
+      "name": "Handle: campaign.started",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [740, 480]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Fallback for release.updated / release.campaign.completed\nconst body = $input.first().json.body;\nconsole.log('Unhandled event:', body.event);\nreturn [{ json: { handled: false, event: body.event } }];"
+      },
+      "id": "fallback",
+      "name": "Fallback handler",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [740, 620]
+    }
+  ],
+  "connections": {
+    "DATIAM Webhook": {
+      "main": [
+        [
+          { "node": "release.created?",   "type": "main", "index": 0 },
+          { "node": "release.published?", "type": "main", "index": 0 },
+          { "node": "campaign.started?",  "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "release.created?": {
+      "main": [
+        [{ "node": "Handle: release.created",   "type": "main", "index": 0 }],
+        [{ "node": "Fallback handler",           "type": "main", "index": 0 }]
+      ]
+    },
+    "release.published?": {
+      "main": [
+        [{ "node": "Handle: release.published",  "type": "main", "index": 0 }],
+        [{ "node": "Fallback handler",           "type": "main", "index": 0 }]
+      ]
+    },
+    "campaign.started?": {
+      "main": [
+        [{ "node": "Handle: campaign.started",   "type": "main", "index": 0 }],
+        [{ "node": "Fallback handler",           "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateId": "datiam-release-intelligence-v1",
+    "description": "Routes DATIAM Release Intelligence webhook events to dedicated handler nodes. Handles: release.created, release.updated, release.published, release.campaign.started, release.campaign.completed."
+  }
+}

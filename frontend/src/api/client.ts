@@ -403,3 +403,39 @@ export const missionControl = {
   search: (q: string, limit = 20) =>
     apiClient.get('/mission-control/search', { params: { q, limit } }),
 }
+
+// ── Automation Layer ──────────────────────────────────────────────────────────
+export const automation = {
+  // Stats / dashboard
+  stats:  () => apiClient.get('/automation/stats'),
+  events: () => apiClient.get('/automation/events'),
+
+  // Run history (paginated)
+  history: (params?: { status?: string; source?: string; event?: string; limit?: number; offset?: number }) =>
+    apiClient.get('/automation/history', { params }),
+
+  // Workflow Registry
+  registry: {
+    list:    ()                                         => apiClient.get('/automation/registry'),
+    get:     (id: string)                               => apiClient.get(`/automation/registry/${id}`),
+    create:  (body: Record<string, unknown>)            => apiClient.post('/automation/registry', body),
+    update:  (id: string, body: Record<string, unknown>) => apiClient.patch(`/automation/registry/${id}`, body),
+    remove:  (id: string)                               => apiClient.delete(`/automation/registry/${id}`),
+    trigger: (id: string, body: { event: string; data?: Record<string, unknown> }) =>
+      apiClient.post(`/automation/registry/${id}/trigger`, body),
+  },
+
+  // Inbound runs (legacy + CRUD)
+  runs: {
+    list:   ()                                          => apiClient.get('/automation/runs'),
+    create: (body: Record<string, unknown>)             => apiClient.post('/automation/runs', body),
+    update: (id: string, body: Record<string, unknown>) => apiClient.patch(`/automation/runs/${id}`, body),
+    remove: (id: string)                                => apiClient.delete(`/automation/runs/${id}`),
+    retry:  (id: string)                                => apiClient.post(`/automation/runs/${id}/retry`),
+  },
+
+  // Dispatch an event to all matching workflows
+  dispatch: (event: string, data?: Record<string, unknown>) =>
+    apiClient.post('/automation/dispatch', { event, data }),
+}
+

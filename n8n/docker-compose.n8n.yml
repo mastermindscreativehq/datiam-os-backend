@@ -1,0 +1,34 @@
+version: '3.8'
+
+# Local n8n instance for DATIAM OS automation development.
+# Start with: docker compose -f n8n/docker-compose.n8n.yml up -d
+
+services:
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: datiam-n8n
+    restart: unless-stopped
+    ports:
+      - '5678:5678'
+    environment:
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - WEBHOOK_URL=http://localhost:5678
+      # Secret shared with DATIAM backend — must match N8N_WEBHOOK_SECRET in .env
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=datiam
+      - N8N_BASIC_AUTH_PASSWORD=datiam_local_dev
+      # Persist workflows between restarts
+      - N8N_USER_FOLDER=/home/node/.n8n
+    volumes:
+      - n8n_data:/home/node/.n8n
+    networks:
+      - datiam_network
+
+volumes:
+  n8n_data:
+
+networks:
+  datiam_network:
+    driver: bridge

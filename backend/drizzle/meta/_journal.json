@@ -218,6 +218,20 @@
       "when": 1750986003000,
       "tag": "0034_payment_intelligence",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1751000000000,
+      "tag": "0035_release_intelligence",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1751000001000,
+      "tag": "0036_automation_layer",
+      "breakpoints": true
     }
   ]
 }

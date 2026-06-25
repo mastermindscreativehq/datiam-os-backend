@@ -541,6 +541,31 @@ export const crm_contacts = pgTable(
   }),
 );
 
+export const workflow_registry = pgTable(
+  'workflow_registry',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    name: text('name').notNull().unique(),
+    description: text('description'),
+    event_triggers: text('event_triggers').array().notNull().default([]),
+    n8n_workflow_id: text('n8n_workflow_id'),
+    webhook_path: text('webhook_path'),
+    is_active: boolean('is_active').notNull().default(true),
+    last_run_at: timestamp('last_run_at', { withTimezone: true }),
+    last_run_status: text('last_run_status'),
+    total_runs: integer('total_runs').notNull().default(0),
+    success_count: integer('success_count').notNull().default(0),
+    failed_count: integer('failed_count').notNull().default(0),
+    metadata: jsonb('metadata'),
+    created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    nameIdx:   index('workflow_registry_name_idx').on(t.name),
+    activeIdx: index('workflow_registry_active_idx').on(t.is_active),
+  }),
+);
+
 export const automation_runs = pgTable(
   'automation_runs',
   {
@@ -550,11 +575,20 @@ export const automation_runs = pgTable(
     status: automationStatusEnum('status').notNull(),
     payload: jsonb('payload'),
     result: jsonb('result'),
+    retry_count: integer('retry_count').notNull().default(0),
+    max_retries: integer('max_retries').notNull().default(3),
+    error_message: text('error_message'),
+    duration_ms: integer('duration_ms'),
+    triggered_by_event: text('triggered_by_event'),
+    workflow_registry_id: uuid('workflow_registry_id').references(() => workflow_registry.id, { onDelete: 'set null' }),
     created_at: timestamp('created_at').defaultNow().notNull(),
   },
   (t) => ({
-    statusIdx: index('automation_runs_status_idx').on(t.status),
-    workflowIdx: index('automation_runs_workflow_name_idx').on(t.workflow_name),
+    statusIdx:      index('automation_runs_status_idx').on(t.status),
+    workflowIdx:    index('automation_runs_workflow_name_idx').on(t.workflow_name),
+    registryIdx:    index('automation_runs_registry_id_idx').on(t.workflow_registry_id),
+    eventIdx:       index('automation_runs_triggered_by_idx').on(t.triggered_by_event),
+    createdAtIdx:   index('automation_runs_created_at_idx').on(t.created_at),
   }),
 );
 
@@ -894,6 +928,8 @@ export type ContentIdea = typeof content_ideas.$inferSelect;
 export type NewContentIdea = typeof content_ideas.$inferInsert;
 export type CrmContact = typeof crm_contacts.$inferSelect;
 export type NewCrmContact = typeof crm_contacts.$inferInsert;
+export type WorkflowRegistry = typeof workflow_registry.$inferSelect;
+export type NewWorkflowRegistry = typeof workflow_registry.$inferInsert;
 export type AutomationRun = typeof automation_runs.$inferSelect;
 export type NewAutomationRun = typeof automation_runs.$inferInsert;
 export type ScheduledJob = typeof scheduled_jobs.$inferSelect;

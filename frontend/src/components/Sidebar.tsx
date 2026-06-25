@@ -11,7 +11,7 @@ const NAV = [
   { to: '/sync-pitches',     label: 'SYNC PITCHES',  icon: '◇' },
   { to: '/royalty-sources',  label: 'ROYALTIES',     icon: '◆' },
   { to: '/content-ideas',    label: 'CONTENT IDEAS', icon: '✦' },
-  { to: '/automation-runs',      label: 'AUTOMATION',    icon: '⬢' },
+  { to: '/automation',            label: 'AUTOMATION',    icon: '⬢' },
   { to: '/music-intelligence',   label: 'MUSIC INTEL',   icon: '◆' },
   { to: '/sonic-world',          label: 'SONIC WORLD',   icon: '◉' },
   { to: '/sonic-memory',         label: 'SONIC MEMORY',  icon: '◈' },
