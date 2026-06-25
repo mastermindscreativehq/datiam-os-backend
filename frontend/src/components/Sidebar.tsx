@@ -2,6 +2,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 
 const NAV = [
+  { to: '/mission-control',  label: 'MISSION CTRL',  icon: '⬡' },
   { to: '/dashboard',        label: 'OVERVIEW',      icon: '⬡' },
   { to: '/artists',          label: 'ARTIST',        icon: '⬟' },
   { to: '/fan-intelligence', label: 'FAN INTEL',     icon: '◈' },

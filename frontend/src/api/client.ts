@@ -396,3 +396,10 @@ export const payments = {
   updateStatus:  (id: string, status: string)    => apiClient.patch(`/payments/${id}/status`, { status }),
   analytics:     ()           => apiClient.get('/payments/analytics'),
 }
+
+// ── Mission Control ───────────────────────────────────────────────────────────
+export const missionControl = {
+  brief:  () => apiClient.get('/mission-control/brief'),
+  search: (q: string, limit = 20) =>
+    apiClient.get('/mission-control/search', { params: { q, limit } }),
+}

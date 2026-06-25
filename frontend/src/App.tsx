@@ -43,6 +43,7 @@ import MeetingIntelligence from './pages/MeetingIntelligence'
 import DealIntelligence from './pages/DealIntelligence'
 import ContractIntelligence from './pages/ContractIntelligence'
 import PaymentIntelligence from './pages/PaymentIntelligence'
+import MissionControl from './pages/MissionControl'
 
 function App() {
   return (
@@ -51,8 +52,9 @@ function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/" element={<ProtectedLayout />}>
-          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route index element={<Navigate to="/mission-control" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
+          <Route path="mission-control" element={<MissionControl />} />
           <Route path="artists" element={<Artists />} />
           <Route path="fan-intelligence" element={<FanIntelligence />} />
           <Route path="catalog" element={<Catalog />} />
@@ -87,7 +89,7 @@ function App() {
           <Route path="contract-intelligence" element={<ContractIntelligence />} />
           <Route path="payment-intelligence" element={<PaymentIntelligence />} />
         </Route>
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<Navigate to="/mission-control" replace />} />
       </Routes>
     </BrowserRouter>
     </QueryClientProvider>
