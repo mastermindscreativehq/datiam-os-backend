@@ -1,7 +1,15 @@
 import { Router, Request, Response } from 'express';
 import { sql, desc, eq, and } from 'drizzle-orm';
 import { db } from '../../db';
-import { getRedisConnection } from '../../queues';
+import {
+  getRedisConnection,
+  growthPublishQueue,
+  growthAnalyticsSyncQueue,
+  growthTrendScanQueue,
+  growthAmbassadorQueue,
+  growthAIGenerationQueue,
+  growthContentSyncQueue,
+} from '../../queues';
 import { health_checks, incidents } from '../../db/schema';
 import { authenticate, requireRole } from '../../middleware/auth';
 import { env } from '../../config/env';
@@ -133,6 +141,45 @@ monitoringRouter.get('/incidents', authenticate, async (_req: Request, res: Resp
     .orderBy(desc(incidents.created_at))
     .limit(100);
   res.json({ success: true, data: rows });
+});
+
+healthRouter.get('/growth', authenticate, requireRole('owner', 'admin'), async (_req: Request, res: Response) => {
+  const GROWTH_QUEUES = [
+    { name: 'growth-publish',          queue: growthPublishQueue },
+    { name: 'growth-analytics-sync',   queue: growthAnalyticsSyncQueue },
+    { name: 'growth-trend-scan',       queue: growthTrendScanQueue },
+    { name: 'growth-ambassador-score', queue: growthAmbassadorQueue },
+    { name: 'growth-ai-generation',    queue: growthAIGenerationQueue },
+    { name: 'growth-content-sync',     queue: growthContentSyncQueue },
+  ];
+
+  const queueStats = await Promise.all(
+    GROWTH_QUEUES.map(async ({ name, queue }) => {
+      if (!queue) return { name, status: 'not_configured', waiting: 0, active: 0, failed: 0 };
+      try {
+        const [waiting, active, failed] = await Promise.all([
+          queue.getWaitingCount(),
+          queue.getActiveCount(),
+          queue.getFailedCount(),
+        ]);
+        return { name, status: 'healthy', waiting, active, failed };
+      } catch {
+        return { name, status: 'error', waiting: 0, active: 0, failed: 0 };
+      }
+    }),
+  );
+
+  const hasErrors = queueStats.some(q => q.status === 'error');
+  const configured = queueStats.filter(q => q.status !== 'not_configured').length;
+
+  res.json({
+    success: true,
+    status: hasErrors ? 'degraded' : 'healthy',
+    configured_queues: configured,
+    total_queues: GROWTH_QUEUES.length,
+    queues: queueStats,
+    timestamp: new Date().toISOString(),
+  });
 });
 
 monitoringRouter.post('/incidents/:id/resolve', authenticate, async (req: Request, res: Response) => {

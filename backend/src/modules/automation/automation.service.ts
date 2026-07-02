@@ -598,6 +598,78 @@ export const seedWorkflows = async () => {
     });
   }
 
+  // ── Growth OS Workflows ───────────────────────────────────────────────────
+
+  const growthWorkflows: Array<{
+    name: string;
+    description: string;
+    event_triggers: string[];
+    webhook_path: string;
+    metadata: Record<string, unknown>;
+  }> = [
+    {
+      name: 'growth-publish-post',
+      description: 'Publishes scheduled content to social platforms via n8n',
+      event_triggers: ['content.publish'],
+      webhook_path: '/webhook/publish-post',
+      metadata: { template: 'datiam-growth-publish-post-v1', sync: true },
+    },
+    {
+      name: 'growth-analytics-sync',
+      description: 'Syncs platform analytics snapshots into DATIAM',
+      event_triggers: ['analytics.sync.request'],
+      webhook_path: '/webhook/sync-analytics',
+      metadata: { template: 'datiam-growth-analytics-sync-v1', sync: true },
+    },
+    {
+      name: 'growth-trend-scan',
+      description: 'Scans trend data across social platforms',
+      event_triggers: ['trend.scan.request'],
+      webhook_path: '/webhook/scan-trends',
+      metadata: { template: 'datiam-growth-trend-scan-v1', sync: true },
+    },
+    {
+      name: 'growth-campaign-events',
+      description: 'Routes Growth OS campaign lifecycle events',
+      event_triggers: ['campaign.created', 'campaign.stage.changed', 'campaign.completed'],
+      webhook_path: '/webhook/campaign-events',
+      metadata: { template: 'datiam-growth-campaign-events-v1', sync: false },
+    },
+    {
+      name: 'growth-notification-engine',
+      description: 'Dispatches Growth OS notifications and alerts',
+      event_triggers: ['content.published', 'post.publish.failed', 'analytics.synced', 'trend.detected'],
+      webhook_path: '/webhook/notification-engine',
+      metadata: { template: 'datiam-growth-notification-engine-v1', sync: false },
+    },
+  ];
+
+  for (const wfDef of growthWorkflows) {
+    const exists = await db
+      .select({ id: workflow_registry.id })
+      .from(workflow_registry)
+      .where(eq(workflow_registry.name, wfDef.name))
+      .limit(1);
+
+    if (!exists.length) {
+      const [wf] = await db
+        .insert(workflow_registry)
+        .values({ ...wfDef, is_active: true })
+        .returning();
+      seeded.push(wf);
+
+      logActivity({
+        eventType: 'workflow.registered',
+        module: 'automation',
+        entityType: 'workflow_registry',
+        entityId: wf.id,
+        title: `Workflow seeded: ${wfDef.name}`,
+        severity: 'info',
+        metadata: { seeded: true },
+      });
+    }
+  }
+
   return {
     seeded: seeded.length,
     message: seeded.length > 0

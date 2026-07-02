@@ -55,6 +55,18 @@ import missionControlRouter from './modules/mission-control/missionControl.route
 import releaseIntelligenceRouter from './modules/release-intelligence/release-intelligence.routes';
 import catalogEngineRouter from './modules/catalog-engine/catalog-engine.routes';
 
+// Growth OS routers
+import contentVaultRouter from './modules/content/content-vault.routes';
+import campaignManagerRouter from './modules/campaign-manager/campaign-manager.routes';
+import socialAccountsRouter from './modules/social-accounts/social-accounts.routes';
+import publishingEngineRouter from './modules/publishing-engine/publishing-engine.routes';
+import analyticsHubRouter from './modules/analytics-hub/analytics-hub.routes';
+import trendIntelligenceRouter from './modules/trend-intelligence/trend-intelligence.routes';
+import growthCRMRouter from './modules/crm/growth-crm.routes';
+import fanIntelligenceExtRouter from './modules/fan-intelligence/fan-intelligence-extension.routes';
+import growthAIRouter from './modules/ai/growth-ai.routes';
+import notificationsRouter from './modules/notifications/notifications.routes';
+
 const app = express();
 app.set('trust proxy', 1);
 
@@ -178,6 +190,18 @@ app.use('/api/mission-control',      missionControlRouter);
 app.use('/api/release-intelligence', releaseIntelligenceRouter);
 app.use('/api/catalog',              catalogEngineRouter);
 app.use('/api/catalog-engine',       catalogEngineRouter);
+
+// ---- Growth OS Routes ----
+app.use('/api/growth/content',       contentVaultRouter);
+app.use('/api/growth/campaigns',     campaignManagerRouter);
+app.use('/api/growth/social-accounts', socialAccountsRouter);
+app.use('/api/growth/publishing',    publishingEngineRouter);
+app.use('/api/growth/analytics',     analyticsHubRouter);
+app.use('/api/growth/trends',        trendIntelligenceRouter);
+app.use('/api/growth/crm',           growthCRMRouter);
+app.use('/api/growth/fans',          fanIntelligenceExtRouter);
+app.use('/api/growth/ai',            growthAIRouter);
+app.use('/api/growth/notifications', notificationsRouter);
 
 // ---- System Routes ----
 app.use('/api/system/migrations', migrationsRouter);

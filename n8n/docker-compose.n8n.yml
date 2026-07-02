@@ -33,6 +33,9 @@ services:
       - GENERIC_TIMEZONE=UTC
       # n8n API (used by import-workflows.sh)
       - N8N_PUBLIC_API_SWAGGERUI_DISABLED=false
+      # DATIAM backend — used by Growth OS workflows that call back to the API
+      - DATIAM_API_URL=http://host.docker.internal:3000
+      - DATIAM_API_TOKEN=
     volumes:
       - n8n_data:/home/node/.n8n
     networks:

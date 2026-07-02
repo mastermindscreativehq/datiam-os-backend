@@ -83,6 +83,25 @@ export const energyAnalysisQueue   = process.env.REDIS_URL ? createQueue('energy
 export const audioDnaQueue          = process.env.REDIS_URL ? createQueue('audio-dna')          : null;
 export const syncIntelligenceQueue  = process.env.REDIS_URL ? createQueue('sync-intelligence')  : null;
 
+// Growth OS queues
+export const growthPublishQueue       = process.env.REDIS_URL ? createQueue('growth-publish')       : null;
+export const growthAnalyticsSyncQueue = process.env.REDIS_URL ? createQueue('growth-analytics-sync') : null;
+export const growthTrendScanQueue     = process.env.REDIS_URL ? createQueue('growth-trend-scan')    : null;
+export const growthAmbassadorQueue    = process.env.REDIS_URL ? createQueue('growth-ambassador-score') : null;
+export const growthAIGenerationQueue  = process.env.REDIS_URL ? createQueue('growth-ai-generation')  : null;
+export const growthContentSyncQueue   = process.env.REDIS_URL ? createQueue('growth-content-sync')   : null;
+
+export async function enqueueGrowthJob(
+  queue: ReturnType<typeof createQueue>,
+  jobName: string,
+  data: Record<string, unknown>,
+  opts?: { delay?: number; priority?: number },
+): Promise<string | null> {
+  if (!queue) return null;
+  const job = await queue.add(jobName, data, { ...QUEUE_DEFAULTS, ...opts });
+  return job.id ?? null;
+}
+
 export async function enqueueSonicJob(
   queue: ReturnType<typeof createQueue>,
   jobName: string,

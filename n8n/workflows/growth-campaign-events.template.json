@@ -1,0 +1,144 @@
+{
+  "name": "DATIAM Growth OS — Campaign Events",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "campaign-events",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "wh-trigger",
+      "name": "Campaign Events Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 400],
+      "webhookId": "growth-campaign-events"
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{$json.headers['x-datiam-event'] ?? $json.body.event ?? $json.event}}",
+        "rules": {
+          "rules": [
+            { "value2": "campaign.created" },
+            { "value2": "campaign.stage.changed" },
+            { "value2": "campaign.completed" }
+          ]
+        },
+        "fallbackOutput": "extra"
+      },
+      "id": "event-router",
+      "name": "Campaign Event Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 2,
+      "position": [500, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body ?? $input.first().json;\nconst { campaign_id, campaign_name, artist_id, campaign_type, created_by } = body;\n\nconsole.log('[DATIAM:campaign] campaign.created —', campaign_id, campaign_name);\n\n// ─────────────────────────────────────────────────────────────────────────\n// TODO: Add Slack notification node after this to send to #campaigns channel\n// Slack message format:\n//   *New Campaign Created* :rocket:\n//   *Name:* {{campaign_name}}\n//   *Type:* {{campaign_type}}\n//   *ID:* {{campaign_id}}\n// ─────────────────────────────────────────────────────────────────────────\n\nreturn [{\n  json: {\n    handled: true,\n    event: 'campaign.created',\n    campaign_id,\n    campaign_name,\n    artist_id,\n    campaign_type,\n    created_by,\n    processed_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "handle-campaign-created",
+      "name": "Handle Campaign Created",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [760, 180]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body ?? $input.first().json;\nconst { campaign_id, campaign_name, from_stage, to_stage, artist_id, changed_by } = body;\n\nconsole.log('[DATIAM:campaign] campaign.stage.changed —', campaign_id, from_stage, '->', to_stage);\n\n// ─────────────────────────────────────────────────────────────────────────\n// TODO: Add Slack notification node to alert the team about stage progression\n// Slack message format:\n//   *Campaign Stage Updated* :bar_chart:\n//   *Campaign:* {{campaign_name}}\n//   *Progress:* {{from_stage}} → {{to_stage}}\n// ─────────────────────────────────────────────────────────────────────────\n\nreturn [{\n  json: {\n    handled: true,\n    event: 'campaign.stage.changed',\n    campaign_id,\n    campaign_name,\n    from_stage,\n    to_stage,\n    artist_id,\n    changed_by,\n    processed_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "handle-stage-changed",
+      "name": "Handle Stage Changed",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [760, 380]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body ?? $input.first().json;\nconst { campaign_id, campaign_name, artist_id, final_kpis } = body;\n\nconsole.log('[DATIAM:campaign] campaign.completed —', campaign_id, campaign_name);\n\nreturn [{\n  json: {\n    campaign_id,\n    campaign_name,\n    artist_id,\n    final_kpis: final_kpis ?? null\n  }\n}];"
+      },
+      "id": "handle-campaign-completed-prep",
+      "name": "Prepare Completion Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [760, 580]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.DATIAM_API_URL }}/api/growth/ai/campaign-retrospective",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.DATIAM_API_TOKEN }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "x-datiam-source", "value": "n8n-campaign-events" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ campaign_id: $json.campaign_id, trigger: 'campaign.completed' }) }}",
+        "options": {}
+      },
+      "id": "trigger-ai-retrospective",
+      "name": "Trigger AI Retrospective",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1020, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body ?? $input.first().json;\nconsole.log('[DATIAM:campaign] Unknown event — ignoring:', JSON.stringify(body));\nreturn [{ json: { handled: false } }];"
+      },
+      "id": "unknown-event",
+      "name": "Unknown Event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [760, 760]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconsole.log('[DATIAM:campaign] Completed:', JSON.stringify(input));\nreturn [{ json: input }];"
+      },
+      "id": "log-completion",
+      "name": "Log Completion",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1280, 400]
+    }
+  ],
+  "connections": {
+    "Campaign Events Webhook": {
+      "main": [[{ "node": "Campaign Event Router", "type": "main", "index": 0 }]]
+    },
+    "Campaign Event Router": {
+      "main": [
+        [{ "node": "Handle Campaign Created",    "type": "main", "index": 0 }],
+        [{ "node": "Handle Stage Changed",       "type": "main", "index": 0 }],
+        [{ "node": "Prepare Completion Data",    "type": "main", "index": 0 }],
+        [{ "node": "Unknown Event",              "type": "main", "index": 0 }]
+      ]
+    },
+    "Handle Campaign Created": {
+      "main": [[{ "node": "Log Completion", "type": "main", "index": 0 }]]
+    },
+    "Handle Stage Changed": {
+      "main": [[{ "node": "Log Completion", "type": "main", "index": 0 }]]
+    },
+    "Prepare Completion Data": {
+      "main": [[{ "node": "Trigger AI Retrospective", "type": "main", "index": 0 }]]
+    },
+    "Trigger AI Retrospective": {
+      "main": [[{ "node": "Log Completion", "type": "main", "index": 0 }]]
+    },
+    "Unknown Event": {
+      "main": [[{ "node": "Log Completion", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "meta": {
+    "templateId": "datiam-growth-campaign-events-v1",
+    "description": "Receives Growth OS campaign lifecycle events (campaign.created, campaign.stage.changed, campaign.completed) from the DATIAM backend via x-datiam-event header. On campaign.completed, calls the DATIAM AI retrospective endpoint. Extend with Slack/email HTTP Request nodes for team notifications. Set DATIAM_API_URL and DATIAM_API_TOKEN environment variables in n8n."
+  }
+}

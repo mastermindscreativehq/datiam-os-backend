@@ -451,3 +451,76 @@ export const automation = {
     apiClient.post('/automation/test', { event, data }),
 }
 
+// ── Growth OS ────────────────────────────────────────────────────────────────
+export const growth = {
+  content: {
+    list:   (params?: Record<string, unknown>) => apiClient.get('/growth/content', { params }),
+    create: (body: Record<string, unknown>)    => apiClient.post('/growth/content', body),
+    update: (id: string, body: Record<string, unknown>) => apiClient.patch(`/growth/content/${id}`, body),
+    remove: (id: string)                        => apiClient.delete(`/growth/content/${id}`),
+  },
+  campaigns: {
+    list:         (params?: Record<string, unknown>) => apiClient.get('/growth/campaigns', { params }),
+    create:       (body: Record<string, unknown>)    => apiClient.post('/growth/campaigns', body),
+    update:       (id: string, body: Record<string, unknown>) => apiClient.patch(`/growth/campaigns/${id}`, body),
+    remove:       (id: string)                        => apiClient.delete(`/growth/campaigns/${id}`),
+    advanceStage: (id: string)                        => apiClient.post(`/growth/campaigns/${id}/advance-stage`),
+    performance:  (id: string)                        => apiClient.get(`/growth/campaigns/${id}/performance`),
+    tasks:        (id: string)                        => apiClient.get(`/growth/campaigns/${id}/tasks`),
+    createTask:   (id: string, body: Record<string, unknown>) => apiClient.post(`/growth/campaigns/${id}/tasks`, body),
+  },
+  social: {
+    list:      (params?: Record<string, unknown>) => apiClient.get('/growth/social/accounts', { params }),
+    create:    (body: Record<string, unknown>)    => apiClient.post('/growth/social/accounts', body),
+    update:    (id: string, body: Record<string, unknown>) => apiClient.patch(`/growth/social/accounts/${id}`, body),
+    remove:    (id: string)                        => apiClient.delete(`/growth/social/accounts/${id}`),
+    platforms: ()                                  => apiClient.get('/growth/social/platforms'),
+    countries: ()                                  => apiClient.get('/growth/social/countries'),
+  },
+  publishing: {
+    scheduled: (params?: Record<string, unknown>) => apiClient.get('/growth/publishing/scheduled', { params }),
+    schedule:  (body: Record<string, unknown>)    => apiClient.post('/growth/publishing/schedule', body),
+    cancel:    (id: string)                        => apiClient.post(`/growth/publishing/${id}/cancel`),
+    published: (params?: Record<string, unknown>) => apiClient.get('/growth/publishing/published', { params }),
+  },
+  analytics: {
+    overview:   (artistId: string, days?: number) => apiClient.get('/growth/analytics/overview',   { params: { artist_id: artistId, days } }),
+    byPlatform: (artistId: string, days?: number) => apiClient.get('/growth/analytics/by-platform', { params: { artist_id: artistId, days } }),
+    topContent: (artistId: string, limit?: number) => apiClient.get('/growth/analytics/top-content', { params: { artist_id: artistId, limit } }),
+  },
+  trends: {
+    list:   (params?: Record<string, unknown>) => apiClient.get('/growth/trends', { params }),
+    create: (body: Record<string, unknown>)    => apiClient.post('/growth/trends', body),
+    expire: (id: string)                        => apiClient.post(`/growth/trends/${id}/expire`),
+  },
+  crm: {
+    groups:  ()                                          => apiClient.get('/growth/crm/groups'),
+    createGroup: (body: Record<string, unknown>)         => apiClient.post('/growth/crm/groups', body),
+    members: (groupId: string)                           => apiClient.get(`/growth/crm/groups/${groupId}/members`),
+    addMember: (groupId: string, body: Record<string, unknown>) => apiClient.post(`/growth/crm/groups/${groupId}/members`, body),
+  },
+  notifications: {
+    list:        (params?: Record<string, unknown>) => apiClient.get('/growth/notifications', { params }),
+    unreadCount: ()                                  => apiClient.get('/growth/notifications/unread-count'),
+    markRead:    (id: string)                        => apiClient.post(`/growth/notifications/${id}/read`),
+    markAllRead: ()                                  => apiClient.post('/growth/notifications/read-all'),
+    dismiss:     (id: string)                        => apiClient.post(`/growth/notifications/${id}/dismiss`),
+  },
+  ai: {
+    caption:      (body: Record<string, unknown>) => apiClient.post('/growth/ai/caption',              body, { timeout: 60_000 }),
+    hashtags:     (body: Record<string, unknown>) => apiClient.post('/growth/ai/hashtags',             body, { timeout: 60_000 }),
+    cta:          (body: Record<string, unknown>) => apiClient.post('/growth/ai/cta',                  body, { timeout: 60_000 }),
+    brief:        (body: Record<string, unknown>) => apiClient.post('/growth/ai/campaign-brief',       body, { timeout: 60_000 }),
+    retrospective:(body: Record<string, unknown>) => apiClient.post('/growth/ai/campaign-retrospective',body,{ timeout: 60_000 }),
+    trendIdea:    (body: Record<string, unknown>) => apiClient.post('/growth/ai/trend-content-idea',   body, { timeout: 60_000 }),
+    growthReport: (body: Record<string, unknown>) => apiClient.post('/growth/ai/growth-report',        body, { timeout: 60_000 }),
+    schedule:     (body: Record<string, unknown>) => apiClient.post('/growth/ai/posting-schedule',     body, { timeout: 60_000 }),
+    calendar:     (body: Record<string, unknown>) => apiClient.post('/growth/ai/content-calendar',     body, { timeout: 90_000 }),
+    persona:      (body: Record<string, unknown>) => apiClient.post('/growth/ai/audience-persona',     body, { timeout: 60_000 }),
+    pitch:        (body: Record<string, unknown>) => apiClient.post('/growth/ai/collaboration-pitch',  body, { timeout: 60_000 }),
+    score:        (body: Record<string, unknown>) => apiClient.post('/growth/ai/score-content',        body, { timeout: 60_000 }),
+    strategy:     (body: Record<string, unknown>) => apiClient.post('/growth/ai/release-strategy',     body, { timeout: 60_000 }),
+    enrich:       (body: Record<string, unknown>) => apiClient.post('/growth/ai/enrich-content',       body, { timeout: 90_000 }),
+  },
+}
+

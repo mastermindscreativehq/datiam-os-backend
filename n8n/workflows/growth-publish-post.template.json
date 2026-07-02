@@ -1,0 +1,79 @@
+{
+  "name": "DATIAM Growth OS — Publish Post",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "publish-post",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-trigger",
+      "name": "Publish Post Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 400],
+      "webhookId": "growth-publish-post"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body ?? $input.first().json;\nconst { scheduled_post_id, social_account_id, caption, hashtags, media_urls, campaign_id } = body;\n\nif (!scheduled_post_id || !social_account_id) {\n  throw new Error('Missing required fields: scheduled_post_id, social_account_id');\n}\n\nconsole.log('[DATIAM:publish] Starting publish for post:', scheduled_post_id);\n\nreturn [{\n  json: {\n    scheduled_post_id,\n    social_account_id,\n    caption: caption ?? '',\n    hashtags: Array.isArray(hashtags) ? hashtags : [],\n    media_urls: Array.isArray(media_urls) ? media_urls : [],\n    campaign_id: campaign_id ?? null,\n    ts: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "validate-input",
+      "name": "Validate & Extract Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ─────────────────────────────────────────────────────────────────────────\n// PLATFORM PUBLISHER\n// Configure your platform credentials in n8n Credentials or environment\n// variables: INSTAGRAM_ACCESS_TOKEN, TIKTOK_ACCESS_TOKEN, etc.\n//\n// This node simulates a successful publish. Replace with actual platform\n// HTTP Request nodes for each platform you support.\n// ─────────────────────────────────────────────────────────────────────────\n\nconst input = $input.first().json;\nconst { scheduled_post_id, caption, hashtags, media_urls } = input;\n\nconsole.log('[DATIAM:publish] Publishing post:', scheduled_post_id);\n\n// In production: replace this block with a platform-specific HTTP Request node\n// Example for Instagram Graph API:\n//   POST https://graph.instagram.com/me/media\n//   POST https://graph.instagram.com/me/media_publish\n\n// Simulate platform response\nconst platform_post_id = 'sim_' + scheduled_post_id.slice(0, 8) + '_' + Date.now();\n\nconsole.log('[DATIAM:publish] Published. platform_post_id:', platform_post_id);\n\nreturn [{\n  json: {\n    success: true,\n    scheduled_post_id,\n    platform_post_id,\n    published_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "platform-publisher",
+      "name": "Platform Publisher",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [760, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconsole.log('[DATIAM:publish] Result:', JSON.stringify(input));\nreturn [{ json: input }];"
+      },
+      "id": "log-result",
+      "name": "Log Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1020, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "respond",
+      "name": "Respond to Worker",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1280, 400]
+    }
+  ],
+  "connections": {
+    "Publish Post Webhook": {
+      "main": [[{ "node": "Validate & Extract Input", "type": "main", "index": 0 }]]
+    },
+    "Validate & Extract Input": {
+      "main": [[{ "node": "Platform Publisher", "type": "main", "index": 0 }]]
+    },
+    "Platform Publisher": {
+      "main": [[{ "node": "Log Result", "type": "main", "index": 0 }]]
+    },
+    "Log Result": {
+      "main": [[{ "node": "Respond to Worker", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "meta": {
+    "templateId": "datiam-growth-publish-post-v1",
+    "description": "Receives a scheduled post payload from the DATIAM growth-publish BullMQ worker and publishes it to the target social platform. Returns { success, platform_post_id, published_at }. Configure platform credentials in n8n Credentials for each platform."
+  }
+}

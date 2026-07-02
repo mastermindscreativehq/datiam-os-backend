@@ -37,6 +37,16 @@ const NAV = [
   { to: '/release-intelligence',    label: 'RELEASE INTEL',        icon: '◎' },
   { to: '/activity',                 label: 'ACTIVITY',             icon: '◈' },
   { to: '/admin/diagnostics',        label: 'DIAGNOSTICS',          icon: '⬡' },
+  { to: '/growth',               label: 'GROWTH OS',     icon: '⬡' },
+  { to: '/growth/content',       label: '· CONTENT',     icon: '◈' },
+  { to: '/growth/campaigns',     label: '· CAMPAIGNS',   icon: '◉' },
+  { to: '/growth/social',        label: '· SOCIAL',      icon: '◎' },
+  { to: '/growth/publishing',    label: '· PUBLISHING',  icon: '◆' },
+  { to: '/growth/analytics',     label: '· ANALYTICS',   icon: '◇' },
+  { to: '/growth/trends',        label: '· TRENDS',      icon: '✦' },
+  { to: '/growth/crm',           label: '· GROWTH CRM',  icon: '◈' },
+  { to: '/growth/ai',            label: '· AI STUDIO',   icon: '⬟' },
+  { to: '/growth/notifications', label: '· NOTIFS',      icon: '◎' },
 ]
 
 export default function Sidebar() {

@@ -1,0 +1,123 @@
+{
+  "name": "DATIAM Growth OS — Notification Engine",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "notification-engine",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "wh-trigger",
+      "name": "Notification Engine Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 500],
+      "webhookId": "growth-notification-engine"
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{$json.headers['x-datiam-event'] ?? $json.body.event ?? $json.event}}",
+        "rules": {
+          "rules": [
+            { "value2": "content.published" },
+            { "value2": "post.publish.failed" },
+            { "value2": "analytics.synced" },
+            { "value2": "trend.detected" }
+          ]
+        },
+        "fallbackOutput": "extra"
+      },
+      "id": "event-router",
+      "name": "Notification Event Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 2,
+      "position": [500, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body ?? $input.first().json;\nconst { scheduled_post_id, platform_post_id, social_account_id, platform_name, campaign_id, published_at, artist_id } = body;\n\nconsole.log('[DATIAM:notify] content.published — post:', scheduled_post_id, 'platform:', platform_name);\n\n// ─────────────────────────────────────────────────────────────────────────\n// TODO: Connect to email or Slack HTTP Request nodes to alert the artist:\n//\n// Email (SendGrid HTTP Request):\n//   POST https://api.sendgrid.com/v3/mail/send\n//   Subject: Your post is live on {{platform_name}}!\n//\n// Slack:\n//   POST {{SLACK_WEBHOOK_URL}}\n//   text: ':tada: Post published on *{{platform_name}}*\\n{{scheduled_post_id}}'\n// ─────────────────────────────────────────────────────────────────────────\n\nreturn [{\n  json: {\n    handled: true,\n    event: 'content.published',\n    scheduled_post_id,\n    platform_post_id,\n    platform_name,\n    campaign_id,\n    artist_id,\n    published_at,\n    processed_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "handle-content-published",
+      "name": "Handle Content Published",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [760, 220]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body ?? $input.first().json;\nconst { scheduled_post_id, social_account_id, error_message, attempts, campaign_id, artist_id } = body;\n\nconsole.error('[DATIAM:notify] post.publish.failed — post:', scheduled_post_id, 'error:', error_message);\n\n// ─────────────────────────────────────────────────────────────────────────\n// TODO: Connect to PagerDuty / Slack urgent channel for publish failures.\n//\n// Slack (urgent channel):\n//   POST {{SLACK_WEBHOOK_URL}}\n//   text: ':rotating_light: *POST PUBLISH FAILED*\\nPost: {{scheduled_post_id}}\\nError: {{error_message}}\\nAttempts: {{attempts}}'\n// ─────────────────────────────────────────────────────────────────────────\n\nreturn [{\n  json: {\n    handled: true,\n    event: 'post.publish.failed',\n    scheduled_post_id,\n    error_message,\n    attempts,\n    campaign_id,\n    artist_id,\n    processed_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "handle-publish-failed",
+      "name": "Handle Publish Failed",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [760, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body ?? $input.first().json;\nconst { social_account_id, platform_name, snapshot_date, artist_id } = body;\n\nconsole.log('[DATIAM:notify] analytics.synced — account:', social_account_id, 'date:', snapshot_date);\n\n// Low-priority event — log only. No external notification needed.\n// Extend with a weekly digest batching node if desired.\n\nreturn [{\n  json: {\n    handled: true,\n    event: 'analytics.synced',\n    social_account_id,\n    platform_name,\n    snapshot_date,\n    artist_id,\n    processed_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "handle-analytics-synced",
+      "name": "Handle Analytics Synced",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [760, 580]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body ?? $input.first().json;\nconst { trend_id, title, category, trend_score, platform_slug, regions, hashtags, artist_id } = body;\n\nconsole.log('[DATIAM:notify] trend.detected —', title, '(score:', trend_score, ')');\n\n// ─────────────────────────────────────────────────────────────────────────\n// TODO: Connect to Slack HTTP Request node to push trend alerts:\n//\n// Slack:\n//   POST {{SLACK_WEBHOOK_URL}}\n//   text: ':fire: *Trend Alert:* {{title}}\\nScore: {{trend_score}} | Platform: {{platform_slug}}\\nHashtags: {{hashtags.join(' ')}}'\n// ─────────────────────────────────────────────────────────────────────────\n\nreturn [{\n  json: {\n    handled: true,\n    event: 'trend.detected',\n    trend_id,\n    title,\n    category,\n    trend_score,\n    platform_slug,\n    regions,\n    hashtags,\n    artist_id,\n    processed_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "handle-trend-detected",
+      "name": "Handle Trend Detected",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [760, 760]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body ?? $input.first().json;\nconsole.log('[DATIAM:notify] Unknown event — ignoring:', JSON.stringify(body));\nreturn [{ json: { handled: false } }];"
+      },
+      "id": "unknown-event",
+      "name": "Unknown Event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [760, 940]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconsole.log('[DATIAM:notify] Done:', JSON.stringify(input));\nreturn [{ json: input }];"
+      },
+      "id": "log-done",
+      "name": "Log Done",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1020, 580]
+    }
+  ],
+  "connections": {
+    "Notification Engine Webhook": {
+      "main": [[{ "node": "Notification Event Router", "type": "main", "index": 0 }]]
+    },
+    "Notification Event Router": {
+      "main": [
+        [{ "node": "Handle Content Published",  "type": "main", "index": 0 }],
+        [{ "node": "Handle Publish Failed",     "type": "main", "index": 0 }],
+        [{ "node": "Handle Analytics Synced",   "type": "main", "index": 0 }],
+        [{ "node": "Handle Trend Detected",     "type": "main", "index": 0 }],
+        [{ "node": "Unknown Event",             "type": "main", "index": 0 }]
+      ]
+    },
+    "Handle Content Published":  { "main": [[{ "node": "Log Done", "type": "main", "index": 0 }]] },
+    "Handle Publish Failed":      { "main": [[{ "node": "Log Done", "type": "main", "index": 0 }]] },
+    "Handle Analytics Synced":    { "main": [[{ "node": "Log Done", "type": "main", "index": 0 }]] },
+    "Handle Trend Detected":      { "main": [[{ "node": "Log Done", "type": "main", "index": 0 }]] },
+    "Unknown Event":              { "main": [[{ "node": "Log Done", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "meta": {
+    "templateId": "datiam-growth-notification-engine-v1",
+    "description": "Receives Growth OS notification events (content.published, post.publish.failed, analytics.synced, trend.detected) from the DATIAM backend via x-datiam-event header. Routes to the appropriate handler node. Extend handler nodes with Slack/email HTTP Request nodes for external delivery. For publish failures, connect to an urgent alert channel."
+  }
+}

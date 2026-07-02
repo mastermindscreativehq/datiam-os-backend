@@ -1,0 +1,163 @@
+{
+  "name": "DATIAM Growth OS — Trend Scanner",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "scan-trends",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-trigger",
+      "name": "Trend Scan Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 400],
+      "webhookId": "growth-trend-scan"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body ?? $input.first().json;\nconst platform_slug = body.platform_slug ?? 'all';\n\nconsole.log('[DATIAM:trends] Scanning platform:', platform_slug);\nreturn [{ json: { platform_slug } }];"
+      },
+      "id": "validate-input",
+      "name": "Extract Platform",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 400]
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{$json.platform_slug}}",
+        "rules": {
+          "rules": [
+            { "value2": "tiktok" },
+            { "value2": "instagram" },
+            { "value2": "youtube" },
+            { "value2": "twitter" },
+            { "value2": "all" }
+          ]
+        },
+        "fallbackOutput": "extra"
+      },
+      "id": "platform-router",
+      "name": "Platform Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 2,
+      "position": [760, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ─────────────────────────────────────────────────────────────────────────\n// TikTok Trend Scanner\n// Replace with TikTok Research API call:\n//   POST https://open.tiktokapis.com/v2/research/video/query/\n//   Authorization: Bearer {TIKTOK_ACCESS_TOKEN}\n// ─────────────────────────────────────────────────────────────────────────\nconsole.log('[DATIAM:trends] Scanning TikTok trends');\nconst expires = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();\nreturn [{\n  json: { trends: [\n    { title: 'Afrobeats Dance Challenge',  category: 'dance',   trend_score: 88, hashtags: ['#afrobeats','#dancechallenge'], regions: ['NG','GH','US'], expires_at: expires },\n    { title: 'Song Speed-Up Reel Format', category: 'format',  trend_score: 72, hashtags: ['#speedup','#viral'],            regions: ['NG','US','GB'], expires_at: expires },\n    { title: '#MusicMonday Hashtag Wave', category: 'hashtag', trend_score: 65, hashtags: ['#musicmonday'],                 regions: ['US','CA','AU'], expires_at: expires }\n  ]}\n}];"
+      },
+      "id": "tiktok-scanner",
+      "name": "TikTok Scanner",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1020, 160]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ─────────────────────────────────────────────────────────────────────────\n// Instagram Trend Scanner\n// Replace with Instagram Graph API or third-party trend API:\n//   GET https://graph.instagram.com/ig_hashtag_search?q={hashtag}\n// ─────────────────────────────────────────────────────────────────────────\nconsole.log('[DATIAM:trends] Scanning Instagram trends');\nconst expires = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();\nreturn [{\n  json: { trends: [\n    { title: 'Carousel Story Reveal',      category: 'format',  trend_score: 79, hashtags: ['#carousel','#storytime'], regions: ['NG','ZA','GB'], expires_at: expires },\n    { title: 'Lyric Overlay Aesthetic',    category: 'format',  trend_score: 74, hashtags: ['#lyrics','#aesthetic'],   regions: ['US','NG','IN'], expires_at: expires }\n  ]}\n}];"
+      },
+      "id": "instagram-scanner",
+      "name": "Instagram Scanner",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1020, 280]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ─────────────────────────────────────────────────────────────────────────\n// YouTube Trend Scanner\n// Replace with YouTube Data API v3:\n//   GET https://www.googleapis.com/youtube/v3/videos\n//   ?part=snippet,statistics&chart=mostPopular&videoCategoryId=10\n//   &key={YOUTUBE_API_KEY}\n// ─────────────────────────────────────────────────────────────────────────\nconsole.log('[DATIAM:trends] Scanning YouTube trends');\nconst expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();\nreturn [{\n  json: { trends: [\n    { title: 'Visualizer / Lyric Video Format', category: 'format',  trend_score: 68, hashtags: ['#lyricvideo','#visualizer'], regions: ['US','NG','GB'], expires_at: expires }\n  ]}\n}];"
+      },
+      "id": "youtube-scanner",
+      "name": "YouTube Scanner",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1020, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ─────────────────────────────────────────────────────────────────────────\n// X (Twitter) Trend Scanner\n// Replace with X API v2 trends endpoint:\n//   GET https://api.twitter.com/2/trends/by/woeid/{woeid}\n// ─────────────────────────────────────────────────────────────────────────\nconsole.log('[DATIAM:trends] Scanning X/Twitter trends');\nconst expires = new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString();\nreturn [{\n  json: { trends: [\n    { title: '#NewMusicFriday Trending',  category: 'hashtag', trend_score: 81, hashtags: ['#newmusicfriday'], regions: ['US','GB','NG'], expires_at: expires }\n  ]}\n}];"
+      },
+      "id": "twitter-scanner",
+      "name": "X / Twitter Scanner",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1020, 520]
+    },
+    {
+      "parameters": {
+        "jsCode": "// All-platform scan: merge results from all scanners\n// In production: run parallel HTTP Request nodes and merge here\nconsole.log('[DATIAM:trends] All-platform scan (simulated)');\nconst expires = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();\nreturn [{\n  json: { trends: [\n    { title: 'Afrobeats Dance Challenge',     category: 'dance',   trend_score: 88, hashtags: ['#afrobeats','#dancechallenge'],  regions: ['NG','GH','US'], expires_at: expires },\n    { title: 'Lyric Overlay Aesthetic',       category: 'format',  trend_score: 74, hashtags: ['#lyrics','#aesthetic'],          regions: ['US','NG','IN'], expires_at: expires },\n    { title: '#NewMusicFriday Trending',      category: 'hashtag', trend_score: 81, hashtags: ['#newmusicfriday'],               regions: ['US','GB','NG'], expires_at: expires },\n    { title: 'Song Speed-Up Reel Format',    category: 'format',  trend_score: 72, hashtags: ['#speedup','#viral'],             regions: ['NG','US','GB'], expires_at: expires },\n    { title: 'Visualizer / Lyric Video',     category: 'format',  trend_score: 68, hashtags: ['#lyricvideo','#visualizer'],     regions: ['US','NG','GB'], expires_at: expires }\n  ]}\n}];"
+      },
+      "id": "all-platforms-scanner",
+      "name": "All Platforms Scanner",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1020, 640]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Unrecognised platform slug — return empty\nconsole.warn('[DATIAM:trends] Unknown platform slug');\nreturn [{ json: { trends: [] } }];"
+      },
+      "id": "unknown-platform",
+      "name": "Unknown Platform",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1020, 760]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst trends = input.trends ?? [];\nconsole.log('[DATIAM:trends] Returning', trends.length, 'trends');\nreturn [{ json: trends }];"
+      },
+      "id": "format-response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1280, 480]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "respond",
+      "name": "Respond to Worker",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1540, 480]
+    }
+  ],
+  "connections": {
+    "Trend Scan Webhook": {
+      "main": [[{ "node": "Extract Platform", "type": "main", "index": 0 }]]
+    },
+    "Extract Platform": {
+      "main": [[{ "node": "Platform Router", "type": "main", "index": 0 }]]
+    },
+    "Platform Router": {
+      "main": [
+        [{ "node": "TikTok Scanner",        "type": "main", "index": 0 }],
+        [{ "node": "Instagram Scanner",     "type": "main", "index": 0 }],
+        [{ "node": "YouTube Scanner",       "type": "main", "index": 0 }],
+        [{ "node": "X / Twitter Scanner",   "type": "main", "index": 0 }],
+        [{ "node": "All Platforms Scanner", "type": "main", "index": 0 }],
+        [{ "node": "Unknown Platform",      "type": "main", "index": 0 }]
+      ]
+    },
+    "TikTok Scanner":        { "main": [[{ "node": "Format Response", "type": "main", "index": 0 }]] },
+    "Instagram Scanner":     { "main": [[{ "node": "Format Response", "type": "main", "index": 0 }]] },
+    "YouTube Scanner":       { "main": [[{ "node": "Format Response", "type": "main", "index": 0 }]] },
+    "X / Twitter Scanner":   { "main": [[{ "node": "Format Response", "type": "main", "index": 0 }]] },
+    "All Platforms Scanner": { "main": [[{ "node": "Format Response", "type": "main", "index": 0 }]] },
+    "Unknown Platform":      { "main": [[{ "node": "Format Response", "type": "main", "index": 0 }]] },
+    "Format Response": {
+      "main": [[{ "node": "Respond to Worker", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "meta": {
+    "templateId": "datiam-growth-trend-scan-v1",
+    "description": "Receives a scan request from the DATIAM growth-trend-scan worker. Routes by platform slug (tiktok, instagram, youtube, twitter, all) and returns an array of trend objects for ingestion. Replace scanner Code nodes with real platform HTTP Request nodes + your API credentials."
+  }
+}

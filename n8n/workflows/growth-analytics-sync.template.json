@@ -1,0 +1,66 @@
+{
+  "name": "DATIAM Growth OS — Analytics Sync",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "sync-analytics",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-trigger",
+      "name": "Analytics Sync Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 400],
+      "webhookId": "growth-analytics-sync"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body ?? $input.first().json;\nconst { social_account_id, platform_id, date } = body;\n\nif (!social_account_id || !platform_id) {\n  throw new Error('Missing required fields: social_account_id, platform_id');\n}\n\nconst snapshotDate = date ?? new Date().toISOString().split('T')[0];\nconsole.log('[DATIAM:analytics] Syncing account:', social_account_id, 'date:', snapshotDate);\n\nreturn [{ json: { social_account_id, platform_id, snapshot_date: snapshotDate } }];"
+      },
+      "id": "validate-input",
+      "name": "Validate & Extract Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ─────────────────────────────────────────────────────────────────────────\n// PLATFORM ANALYTICS FETCHER\n// Replace this Code node with HTTP Request nodes to your platform APIs:\n//\n// Instagram Graph API:\n//   GET https://graph.instagram.com/{ig-user-id}/insights\n//   ?metric=impressions,reach,profile_views,follower_count\n//   &period=day&access_token={INSTAGRAM_ACCESS_TOKEN}\n//\n// TikTok Research API:\n//   POST https://open.tiktokapis.com/v2/research/video/query/\n//\n// Spotify for Artists (via n8n HTTP Request + OAuth2):\n//   GET https://api.spotify.com/v1/artists/{id}/top-tracks\n//\n// Configure each platform using n8n Credentials.\n// ─────────────────────────────────────────────────────────────────────────\n\nconst input = $input.first().json;\nconsole.log('[DATIAM:analytics] Fetching analytics for account:', input.social_account_id);\n\n// Simulate platform analytics response\n// Replace with real HTTP Request nodes per platform\nconst now = new Date();\nconst snapshot = {\n  social_account_id:  input.social_account_id,\n  platform_id:        input.platform_id,\n  snapshot_date:      input.snapshot_date,\n  views:              Math.floor(Math.random() * 50000),\n  reach:              Math.floor(Math.random() * 30000),\n  likes:              Math.floor(Math.random() * 5000),\n  comments:           Math.floor(Math.random() * 500),\n  shares:             Math.floor(Math.random() * 1000),\n  saves:              Math.floor(Math.random() * 800),\n  impressions:        Math.floor(Math.random() * 60000),\n  followers:          Math.floor(Math.random() * 100000),\n  followers_gained:   Math.floor(Math.random() * 200) - 50,\n  streams:            Math.floor(Math.random() * 10000),\n  playlist_adds:      Math.floor(Math.random() * 300),\n  ctr:                (Math.random() * 0.05).toFixed(4),\n  profile_visits:     Math.floor(Math.random() * 2000),\n  country_breakdown:  { NG: 0.45, GH: 0.12, US: 0.10, GB: 0.08, ZA: 0.07, other: 0.18 },\n  device_breakdown:   { mobile: 0.82, desktop: 0.14, tablet: 0.04 },\n  traffic_breakdown:  { explore: 0.40, profile: 0.25, hashtag: 0.20, direct: 0.15 },\n  platform:           'simulated',\n  fetched_at:         now.toISOString()\n};\n\nconsole.log('[DATIAM:analytics] Snapshot ready for', input.snapshot_date);\nreturn [{ json: snapshot }];"
+      },
+      "id": "fetch-analytics",
+      "name": "Fetch Platform Analytics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [760, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "respond",
+      "name": "Respond to Worker",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1020, 400]
+    }
+  ],
+  "connections": {
+    "Analytics Sync Webhook": {
+      "main": [[{ "node": "Validate & Extract Input", "type": "main", "index": 0 }]]
+    },
+    "Validate & Extract Input": {
+      "main": [[{ "node": "Fetch Platform Analytics", "type": "main", "index": 0 }]]
+    },
+    "Fetch Platform Analytics": {
+      "main": [[{ "node": "Respond to Worker", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "meta": {
+    "templateId": "datiam-growth-analytics-sync-v1",
+    "description": "Receives a sync request from the DATIAM growth-analytics-sync BullMQ worker for a given social account and date. Fetches analytics data from the platform API and returns a structured snapshot object. Replace the Fetch Platform Analytics Code node with real HTTP Request nodes per platform."
+  }
+}

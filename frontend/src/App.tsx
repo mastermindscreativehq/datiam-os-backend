@@ -52,6 +52,16 @@ import CatalogSongs from './pages/catalog/CatalogSongs'
 import CatalogSongDetail from './pages/catalog/CatalogSongDetail'
 import CatalogReleases from './pages/catalog/CatalogReleases'
 import CatalogReleaseDetail from './pages/catalog/CatalogReleaseDetail'
+import GrowthHub from './pages/growth/GrowthHub'
+import GrowthContent from './pages/growth/GrowthContent'
+import GrowthCampaigns from './pages/growth/GrowthCampaigns'
+import GrowthSocial from './pages/growth/GrowthSocial'
+import GrowthPublishing from './pages/growth/GrowthPublishing'
+import GrowthAnalytics from './pages/growth/GrowthAnalytics'
+import GrowthTrends from './pages/growth/GrowthTrends'
+import GrowthCRM from './pages/growth/GrowthCRM'
+import GrowthAI from './pages/growth/GrowthAI'
+import GrowthNotifications from './pages/growth/GrowthNotifications'
 
 function App() {
   return (
@@ -107,6 +117,17 @@ function App() {
           <Route path="catalog/songs/:id" element={<CatalogSongDetail />} />
           <Route path="catalog/releases" element={<CatalogReleases />} />
           <Route path="catalog/releases/:id" element={<CatalogReleaseDetail />} />
+          {/* DATIAM Growth OS */}
+          <Route path="growth" element={<GrowthHub />} />
+          <Route path="growth/content" element={<GrowthContent />} />
+          <Route path="growth/campaigns" element={<GrowthCampaigns />} />
+          <Route path="growth/social" element={<GrowthSocial />} />
+          <Route path="growth/publishing" element={<GrowthPublishing />} />
+          <Route path="growth/analytics" element={<GrowthAnalytics />} />
+          <Route path="growth/trends" element={<GrowthTrends />} />
+          <Route path="growth/crm" element={<GrowthCRM />} />
+          <Route path="growth/ai" element={<GrowthAI />} />
+          <Route path="growth/notifications" element={<GrowthNotifications />} />
         </Route>
         <Route path="*" element={<Navigate to="/mission-control" replace />} />
       </Routes>

@@ -21,6 +21,12 @@ import { startEnergyWorker, stopEnergyWorker } from './modules/energy/energy.wor
 import { startDnaWorker, stopDnaWorker } from './modules/audio-dna/audio-dna.worker';
 import { startSyncWorker, stopSyncWorker } from './modules/sync-intelligence/sync-intelligence.worker';
 import { startWatchdog, stopWatchdog } from './modules/monitoring/watchdog.service';
+import { startPublishWorker, stopPublishWorker } from './modules/publishing-engine/publish.worker';
+import { startAnalyticsSyncWorker, stopAnalyticsSyncWorker } from './modules/analytics-hub/analytics-sync.worker';
+import { startTrendScanWorker, stopTrendScanWorker } from './modules/trend-intelligence/trend-scan.worker';
+import { startAmbassadorScoreWorker, stopAmbassadorScoreWorker } from './modules/fan-intelligence/ambassador-score.worker';
+import { startAIGenerationWorker, stopAIGenerationWorker } from './modules/ai/ai-generation.worker';
+import { startContentSyncWorker, stopContentSyncWorker } from './modules/analytics-hub/content-sync.worker';
 import { verifySchema } from './db/schemaVerifier';
 import { logActivity } from './lib/activityLogger';
 import { detectProvider } from './lib/emailProviders';
@@ -114,6 +120,43 @@ async function main(): Promise<void> {
       console.warn('[Watchdog] Failed to start (non-fatal):', err);
     }
 
+    // ---- Growth OS Workers ----
+    try {
+      startPublishWorker();
+    } catch (err) {
+      console.warn('[PublishWorker] Failed to start (non-fatal):', err);
+    }
+
+    try {
+      startAnalyticsSyncWorker();
+    } catch (err) {
+      console.warn('[AnalyticsSyncWorker] Failed to start (non-fatal):', err);
+    }
+
+    try {
+      startTrendScanWorker();
+    } catch (err) {
+      console.warn('[TrendScanWorker] Failed to start (non-fatal):', err);
+    }
+
+    try {
+      startAmbassadorScoreWorker();
+    } catch (err) {
+      console.warn('[AmbassadorWorker] Failed to start (non-fatal):', err);
+    }
+
+    try {
+      startAIGenerationWorker();
+    } catch (err) {
+      console.warn('[AIGenerationWorker] Failed to start (non-fatal):', err);
+    }
+
+    try {
+      startContentSyncWorker();
+    } catch (err) {
+      console.warn('[ContentSyncWorker] Failed to start (non-fatal):', err);
+    }
+
     verifySchema()
       .then(report => {
         if (report.healthy) {
@@ -151,15 +194,21 @@ async function main(): Promise<void> {
     console.log('SIGTERM received. Shutting down gracefully...');
     stopSchedulerWorker();
     stopWatchdog();
-    void Promise.allSettled([stopSonicWorkers(), stopAudioWorker(), stopEnergyWorker(), stopDnaWorker(), stopSyncWorker()])
-      .finally(() => server.close(() => process.exit(0)));
+    void Promise.allSettled([
+      stopSonicWorkers(), stopAudioWorker(), stopEnergyWorker(), stopDnaWorker(), stopSyncWorker(),
+      stopPublishWorker(), stopAnalyticsSyncWorker(), stopTrendScanWorker(),
+      stopAmbassadorScoreWorker(), stopAIGenerationWorker(), stopContentSyncWorker(),
+    ]).finally(() => server.close(() => process.exit(0)));
   });
 
   process.on('SIGINT', () => {
     stopSchedulerWorker();
     stopWatchdog();
-    void Promise.allSettled([stopSonicWorkers(), stopAudioWorker(), stopEnergyWorker(), stopDnaWorker(), stopSyncWorker()])
-      .finally(() => server.close(() => process.exit(0)));
+    void Promise.allSettled([
+      stopSonicWorkers(), stopAudioWorker(), stopEnergyWorker(), stopDnaWorker(), stopSyncWorker(),
+      stopPublishWorker(), stopAnalyticsSyncWorker(), stopTrendScanWorker(),
+      stopAmbassadorScoreWorker(), stopAIGenerationWorker(), stopContentSyncWorker(),
+    ]).finally(() => server.close(() => process.exit(0)));
   });
 }
 

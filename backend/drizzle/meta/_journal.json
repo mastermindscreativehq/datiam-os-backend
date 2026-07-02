@@ -239,6 +239,76 @@
       "when": 1751086400000,
       "tag": "0037_artist_catalog_engine",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1782950400000,
+      "tag": "0038_content_vault",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1782950401000,
+      "tag": "0039_campaign_manager",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1782950402000,
+      "tag": "0040_social_accounts",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1782950403000,
+      "tag": "0041_publishing_engine",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1782950404000,
+      "tag": "0042_analytics_hub",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1782950405000,
+      "tag": "0043_trend_intelligence",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1782950406000,
+      "tag": "0044_crm_extension",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1782950407000,
+      "tag": "0045_fan_intelligence_extension",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1782950408000,
+      "tag": "0046_notifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1782950409000,
+      "tag": "0047_system_settings",
+      "breakpoints": true
     }
   ]
 }
