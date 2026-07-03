@@ -83,6 +83,9 @@ export const energyAnalysisQueue   = process.env.REDIS_URL ? createQueue('energy
 export const audioDnaQueue          = process.env.REDIS_URL ? createQueue('audio-dna')          : null;
 export const syncIntelligenceQueue  = process.env.REDIS_URL ? createQueue('sync-intelligence')  : null;
 
+// Release Intel — orchestration layer triggered on release creation
+export const releaseIntelQueue      = process.env.REDIS_URL ? createQueue('release-intel')      : null;
+
 // Growth OS queues
 export const growthPublishQueue       = process.env.REDIS_URL ? createQueue('growth-publish')       : null;
 export const growthAnalyticsSyncQueue = process.env.REDIS_URL ? createQueue('growth-analytics-sync') : null;

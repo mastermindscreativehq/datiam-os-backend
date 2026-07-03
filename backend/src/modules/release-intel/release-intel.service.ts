@@ -16,6 +16,12 @@ import { contentVaultService } from '../content/content-vault.service';
 import { runIntelligence } from '../intelligence-core/intelligence-core.service';
 import type { IntelligenceContext, ProviderResult } from '../intelligence-core/intelligence-core.types';
 import type { UpdateMissionInput } from './release-intel.schema';
+import {
+  onReleaseIntelAnalyzed,
+  onReleaseIntelBriefGenerated,
+  onReleaseIntelMissionsCreated,
+  onReleaseIntelFailed,
+} from './release-intel.webhooks';
 
 // ── Timing / countries / DSP recommendation ──────────────────────────────────
 // Release-specific business logic — not a generic Intelligence Core provider,
@@ -259,7 +265,7 @@ Write a concise, specific executive brief for this release. Respond ONLY with va
 async function createDownstreamMissions(
   ctx: IntelligenceContext,
   results: Record<string, ProviderResult>,
-): Promise<void> {
+): Promise<string[] | null> {
   const { release, artist } = ctx;
 
   const existing = await db
@@ -267,7 +273,7 @@ async function createDownstreamMissions(
     .from(release_missions)
     .where(eq(release_missions.release_id, release.id))
     .limit(1);
-  if (existing.length > 0) return; // idempotent — missions already exist for this release
+  if (existing.length > 0) return null; // idempotent — missions already exist for this release
 
   const playlistScore = results.playlist.score;
   const syncScore = results.sync.score;
@@ -369,6 +375,8 @@ async function createDownstreamMissions(
       genre: release.genre ?? undefined,
     }),
   ]);
+
+  return missions.map((m) => m.mission_type as string);
 }
 
 // ── Orchestrator ──────────────────────────────────────────────────────────────
@@ -431,7 +439,7 @@ export async function analyzeRelease(releaseId: string, opts: { force?: boolean 
     };
     await db.insert(release_executive_briefs).values(briefValues);
 
-    await createDownstreamMissions(context, results);
+    const createdMissionTypes = await createDownstreamMissions(context, results);
 
     logActivity({
       eventType: 'release_intel.analyzed',
@@ -448,6 +456,17 @@ export async function analyzeRelease(releaseId: string, opts: { force?: boolean 
         data_completeness: dataCompleteness,
       },
     });
+
+    await Promise.allSettled([
+      onReleaseIntelAnalyzed(releaseId, {
+        commercial_score: results.commercial.score,
+        playlist_score: results.playlist.score,
+        sync_score: results.sync.score,
+        data_completeness: dataCompleteness,
+      }),
+      onReleaseIntelBriefGenerated(releaseId, { used_ai: brief.usedAI, confidence_score: brief.confidenceScore }),
+      ...(createdMissionTypes ? [onReleaseIntelMissionsCreated(releaseId, createdMissionTypes)] : []),
+    ]);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     if (existingAnalysis) {
@@ -471,6 +490,7 @@ export async function analyzeRelease(releaseId: string, opts: { force?: boolean 
       severity: 'error',
       metadata: { release_id: releaseId, error: message },
     });
+    await onReleaseIntelFailed(releaseId, message).catch(() => {});
   }
 }
 

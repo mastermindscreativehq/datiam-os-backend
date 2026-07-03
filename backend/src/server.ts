@@ -20,6 +20,7 @@ import { startAudioWorker, stopAudioWorker } from './modules/audio/audio.worker'
 import { startEnergyWorker, stopEnergyWorker } from './modules/energy/energy.worker';
 import { startDnaWorker, stopDnaWorker } from './modules/audio-dna/audio-dna.worker';
 import { startSyncWorker, stopSyncWorker } from './modules/sync-intelligence/sync-intelligence.worker';
+import { startReleaseIntelWorker, stopReleaseIntelWorker } from './modules/release-intel/release-intel.worker';
 import { startWatchdog, stopWatchdog } from './modules/monitoring/watchdog.service';
 import { startPublishWorker, stopPublishWorker } from './modules/publishing-engine/publish.worker';
 import { startAnalyticsSyncWorker, stopAnalyticsSyncWorker } from './modules/analytics-hub/analytics-sync.worker';
@@ -115,6 +116,12 @@ async function main(): Promise<void> {
     }
 
     try {
+      startReleaseIntelWorker();
+    } catch (err) {
+      console.warn('[ReleaseIntelWorker] Worker failed to start (non-fatal):', err);
+    }
+
+    try {
       startWatchdog();
     } catch (err) {
       console.warn('[Watchdog] Failed to start (non-fatal):', err);
@@ -195,7 +202,7 @@ async function main(): Promise<void> {
     stopSchedulerWorker();
     stopWatchdog();
     void Promise.allSettled([
-      stopSonicWorkers(), stopAudioWorker(), stopEnergyWorker(), stopDnaWorker(), stopSyncWorker(),
+      stopSonicWorkers(), stopAudioWorker(), stopEnergyWorker(), stopDnaWorker(), stopSyncWorker(), stopReleaseIntelWorker(),
       stopPublishWorker(), stopAnalyticsSyncWorker(), stopTrendScanWorker(),
       stopAmbassadorScoreWorker(), stopAIGenerationWorker(), stopContentSyncWorker(),
     ]).finally(() => server.close(() => process.exit(0)));
@@ -205,7 +212,7 @@ async function main(): Promise<void> {
     stopSchedulerWorker();
     stopWatchdog();
     void Promise.allSettled([
-      stopSonicWorkers(), stopAudioWorker(), stopEnergyWorker(), stopDnaWorker(), stopSyncWorker(),
+      stopSonicWorkers(), stopAudioWorker(), stopEnergyWorker(), stopDnaWorker(), stopSyncWorker(), stopReleaseIntelWorker(),
       stopPublishWorker(), stopAnalyticsSyncWorker(), stopTrendScanWorker(),
       stopAmbassadorScoreWorker(), stopAIGenerationWorker(), stopContentSyncWorker(),
     ]).finally(() => server.close(() => process.exit(0)));

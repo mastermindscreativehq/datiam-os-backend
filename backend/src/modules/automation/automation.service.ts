@@ -469,6 +469,11 @@ export const getEventTypes = () => ({
     'release.published',
     'release.campaign.started',
     'release.campaign.completed',
+    // Release Intel (orchestration layer) events
+    'release.intel.analyzed',
+    'release.intel.brief.generated',
+    'release.intel.mission.created',
+    'release.intel.failed',
   ],
 });
 
