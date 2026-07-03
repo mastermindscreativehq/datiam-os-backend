@@ -79,15 +79,23 @@ export async function buildReleaseContext(releaseId: string): Promise<Intelligen
 
   let platformTopCountries: string[] = [];
   if (artistId) {
-    const metricsRows = await db
-      .select({ top_country: platform_metrics.top_country })
-      .from(platform_metrics)
-      .where(eq(platform_metrics.artist_id, artistId))
-      .orderBy(desc(platform_metrics.period_end))
-      .limit(20);
-    platformTopCountries = Array.from(
-      new Set(metricsRows.map((r) => r.top_country).filter((c): c is string => !!c)),
-    );
+    // platform_metrics has known schema drift between growth-schema.ts and the
+    // live DB (pre-existing, outside Release Intel's scope) — this signal is a
+    // bonus, not a requirement, so a query failure here must degrade to "no
+    // signal" rather than take down the whole analysis.
+    try {
+      const metricsRows = await db
+        .select({ top_country: platform_metrics.top_country })
+        .from(platform_metrics)
+        .where(eq(platform_metrics.artist_id, artistId))
+        .orderBy(desc(platform_metrics.period_end))
+        .limit(20);
+      platformTopCountries = Array.from(
+        new Set(metricsRows.map((r) => r.top_country).filter((c): c is string => !!c)),
+      );
+    } catch (err) {
+      console.warn('[IntelligenceCore] platform_metrics query failed (non-fatal):', err instanceof Error ? err.message : String(err));
+    }
   }
 
   let pastReleaseCount = 0;
