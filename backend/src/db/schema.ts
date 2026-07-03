@@ -11,6 +11,7 @@ import {
   pgEnum,
   date,
   index,
+  uniqueIndex,
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
@@ -3262,4 +3263,132 @@ export const catalogIdentifiersRelations = relations(catalog_identifiers, ({ one
 
 export const catalogCreditsRelations = relations(catalog_credits, ({ one }) => ({
   song: one(songs, { fields: [catalog_credits.song_id], references: [songs.id] }),
+}));
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DATIAM Release Intel Engine v1  (migration 0048)
+// Orchestration layer: fires on release creation, persists Intelligence Core
+// output + an executive brief, and creates the six downstream missions that
+// other modules (playlist, sync, fan growth, content, outreach, analytics)
+// read and act on.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const releaseMissionTypeEnum = pgEnum('release_mission_type', [
+  'playlist', 'sync', 'fan_growth', 'content', 'outreach', 'analytics',
+]);
+
+export const releaseMissionStatusEnum = pgEnum('release_mission_status', [
+  'pending', 'active', 'blocked', 'completed', 'cancelled',
+]);
+
+export const releaseIntelStatusEnum = pgEnum('release_intel_status', [
+  'pending', 'analyzing', 'complete', 'failed',
+]);
+
+export const releaseIntelDataCompletenessEnum = pgEnum('release_intel_data_completeness', [
+  'full', 'metadata_only',
+]);
+
+export const release_intel_analysis = pgTable(
+  'release_intel_analysis',
+  {
+    id:                         uuid('id').primaryKey().defaultRandom().notNull(),
+    release_id:                 uuid('release_id').notNull().references(() => releases.id, { onDelete: 'cascade' }),
+    status:                     releaseIntelStatusEnum('status').notNull().default('pending'),
+    commercial_score:           numeric('commercial_score', { precision: 5, scale: 2 }),
+    playlist_score:             numeric('playlist_score', { precision: 5, scale: 2 }),
+    sync_score:                 numeric('sync_score', { precision: 5, scale: 2 }),
+    viral_score:                numeric('viral_score', { precision: 5, scale: 2 }),
+    data_completeness:          releaseIntelDataCompletenessEnum('data_completeness').notNull().default('metadata_only'),
+    resolved_audio_upload_id:   uuid('resolved_audio_upload_id').references(() => audio_uploads.id, { onDelete: 'set null' }),
+    recommended_release_window: jsonb('recommended_release_window'),
+    recommended_countries:      jsonb('recommended_countries'),
+    recommended_dsps:           jsonb('recommended_dsps'),
+    rollout_strategy:           jsonb('rollout_strategy'),
+    analysis_version:           text('analysis_version').notNull().default('v1'),
+    failure_reason:             text('failure_reason'),
+    analyzed_at:                timestamp('analyzed_at', { withTimezone: true }),
+    created_at:                 timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updated_at:                 timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    releaseIdx: index('release_intel_analysis_release_id_idx').on(t.release_id),
+    statusIdx:  index('release_intel_analysis_status_idx').on(t.status),
+    releaseUnique: uniqueIndex('release_intel_analysis_release_id_unique').on(t.release_id),
+  }),
+);
+
+export type ReleaseIntelAnalysis    = typeof release_intel_analysis.$inferSelect;
+export type NewReleaseIntelAnalysis = typeof release_intel_analysis.$inferInsert;
+
+export const release_executive_briefs = pgTable(
+  'release_executive_briefs',
+  {
+    id:                       uuid('id').primaryKey().defaultRandom().notNull(),
+    release_id:               uuid('release_id').notNull().references(() => releases.id, { onDelete: 'cascade' }),
+    summary:                  text('summary').notNull(),
+    strengths:                jsonb('strengths').notNull().default([]),
+    weaknesses:               jsonb('weaknesses').notNull().default([]),
+    commercial_outlook:       text('commercial_outlook').notNull(),
+    viral_outlook:            text('viral_outlook').notNull(),
+    sync_outlook:             text('sync_outlook').notNull(),
+    playlist_outlook:         text('playlist_outlook').notNull(),
+    audience_recommendations: jsonb('audience_recommendations').notNull().default([]),
+    priority_actions:         jsonb('priority_actions').notNull().default([]),
+    risk_assessment:          text('risk_assessment').notNull(),
+    execution_plan_30d:       jsonb('execution_plan_30d').notNull().default([]),
+    used_ai:                  boolean('used_ai').notNull().default(false),
+    confidence_score:         numeric('confidence_score', { precision: 3, scale: 2 }).notNull().default('0.70'),
+    created_at:               timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    releaseIdx: index('release_executive_briefs_release_id_idx').on(t.release_id),
+  }),
+);
+
+export type ReleaseExecutiveBrief    = typeof release_executive_briefs.$inferSelect;
+export type NewReleaseExecutiveBrief = typeof release_executive_briefs.$inferInsert;
+
+export const release_missions = pgTable(
+  'release_missions',
+  {
+    id:                  uuid('id').primaryKey().defaultRandom().notNull(),
+    release_id:          uuid('release_id').notNull().references(() => releases.id, { onDelete: 'cascade' }),
+    artist_id:           uuid('artist_id').references(() => artist_profiles.id, { onDelete: 'set null' }),
+    mission_type:        releaseMissionTypeEnum('mission_type').notNull(),
+    title:               text('title').notNull(),
+    description:         text('description').notNull(),
+    status:              releaseMissionStatusEnum('status').notNull().default('pending'),
+    priority:            integer('priority').notNull().default(0),
+    target_metrics:      jsonb('target_metrics').notNull().default({}),
+    progress_percentage: numeric('progress_percentage', { precision: 5, scale: 2 }).notNull().default('0'),
+    due_date:            date('due_date'),
+    mission_params:      jsonb('mission_params').notNull().default({}),
+    created_at:          timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updated_at:          timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+    completed_at:        timestamp('completed_at', { withTimezone: true }),
+  },
+  (t) => ({
+    releaseIdx: index('release_missions_release_id_idx').on(t.release_id),
+    artistIdx:  index('release_missions_artist_id_idx').on(t.artist_id),
+    statusIdx:  index('release_missions_status_idx').on(t.status),
+    typeIdx:    index('release_missions_type_idx').on(t.mission_type),
+  }),
+);
+
+export type ReleaseMission    = typeof release_missions.$inferSelect;
+export type NewReleaseMission = typeof release_missions.$inferInsert;
+
+export const releaseIntelAnalysisRelations = relations(release_intel_analysis, ({ one }) => ({
+  release: one(releases, { fields: [release_intel_analysis.release_id], references: [releases.id] }),
+  resolvedAudioUpload: one(audio_uploads, { fields: [release_intel_analysis.resolved_audio_upload_id], references: [audio_uploads.id] }),
+}));
+
+export const releaseExecutiveBriefsRelations = relations(release_executive_briefs, ({ one }) => ({
+  release: one(releases, { fields: [release_executive_briefs.release_id], references: [releases.id] }),
+}));
+
+export const releaseMissionsRelations = relations(release_missions, ({ one }) => ({
+  release: one(releases, { fields: [release_missions.release_id], references: [releases.id] }),
+  artist:  one(artist_profiles, { fields: [release_missions.artist_id], references: [artist_profiles.id] }),
 }));
