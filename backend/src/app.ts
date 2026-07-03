@@ -53,6 +53,7 @@ import contractsRouter from './modules/contracts/contract.routes';
 import paymentsRouter from './modules/payments/payment.routes';
 import missionControlRouter from './modules/mission-control/missionControl.routes';
 import releaseIntelligenceRouter from './modules/release-intelligence/release-intelligence.routes';
+import releaseIntelRouter from './modules/release-intel/release-intel.routes';
 import catalogEngineRouter from './modules/catalog-engine/catalog-engine.routes';
 
 // Growth OS routers
@@ -188,6 +189,7 @@ app.use('/api/contracts', contractsRouter);
 app.use('/api/payments',  paymentsRouter);
 app.use('/api/mission-control',      missionControlRouter);
 app.use('/api/release-intelligence', releaseIntelligenceRouter);
+app.use('/api/release-intel',        releaseIntelRouter);
 app.use('/api/catalog',              catalogEngineRouter);
 app.use('/api/catalog-engine',       catalogEngineRouter);
 
