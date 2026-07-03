@@ -2,6 +2,7 @@ import { eq, desc, and, type SQL } from 'drizzle-orm';
 import { db } from '../../db';
 import { releases, release_tasks, release_checklists } from '../../db/schema';
 import { AppError } from '../../middleware/errorHandler';
+import { triggerReleaseIntelAnalysis } from '../release-intel/release-intel.worker';
 import {
   computeReleaseState,
   enforceReleaseState,
@@ -77,6 +78,7 @@ export const createRelease = async (input: CreateReleaseInput): Promise<MappedRe
       slug: slug ?? slugify(title),
     })
     .returning();
+  triggerReleaseIntelAnalysis(release.id);
   return mapRelease(release);
 };
 

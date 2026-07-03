@@ -11,6 +11,7 @@ import {
 } from '../../db/schema';
 import { AppError } from '../../middleware/errorHandler';
 import { dispatchEvent } from '../automation/automation.service';
+import { triggerReleaseIntelAnalysis } from '../release-intel/release-intel.worker';
 import type {
   CreateReleaseInputV2,
   UpdateReleaseInputV2,
@@ -44,6 +45,7 @@ export const createRelease = async (input: CreateReleaseInputV2) => {
   `);
 
   dispatchEvent('catalog.release.created', { release_id: release.id, title }).catch(() => {});
+  triggerReleaseIntelAnalysis(release.id);
 
   return getReleaseById(release.id);
 };
