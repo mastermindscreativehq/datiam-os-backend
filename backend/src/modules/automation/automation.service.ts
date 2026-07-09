@@ -171,6 +171,12 @@ export const createWorkflow = async (input: CreateWorkflowInput) => {
       webhook_path: input.webhook_path,
       is_active: input.is_active ?? true,
       metadata: input.metadata,
+      ...(input.retry_policy      !== undefined ? { retry_policy: input.retry_policy }         : {}),
+      ...(input.timeout_ms        !== undefined ? { timeout_ms: input.timeout_ms }             : {}),
+      ...(input.priority          !== undefined ? { priority: input.priority }                 : {}),
+      ...(input.required_inputs   !== undefined ? { required_inputs: input.required_inputs }   : {}),
+      ...(input.expected_outputs  !== undefined ? { expected_outputs: input.expected_outputs } : {}),
+      ...(input.version           !== undefined ? { version: input.version }                   : {}),
     })
     .returning();
 
@@ -201,6 +207,12 @@ export const updateWorkflow = async (id: string, input: UpdateWorkflowInput) => 
       ...(input.webhook_path     !== undefined ? { webhook_path: input.webhook_path }       : {}),
       ...(input.is_active        !== undefined ? { is_active: input.is_active }             : {}),
       ...(input.metadata         !== undefined ? { metadata: input.metadata }               : {}),
+      ...(input.retry_policy     !== undefined ? { retry_policy: input.retry_policy }         : {}),
+      ...(input.timeout_ms       !== undefined ? { timeout_ms: input.timeout_ms }             : {}),
+      ...(input.priority         !== undefined ? { priority: input.priority }                 : {}),
+      ...(input.required_inputs  !== undefined ? { required_inputs: input.required_inputs }   : {}),
+      ...(input.expected_outputs !== undefined ? { expected_outputs: input.expected_outputs } : {}),
+      ...(input.version          !== undefined ? { version: input.version }                   : {}),
       updated_at: new Date(),
     })
     .where(eq(workflow_registry.id, id))
@@ -220,7 +232,8 @@ export const deleteWorkflow = async (id: string) => {
 async function attemptFire(
   webhookPath: string,
   payload: Record<string, unknown>,
-): Promise<{ ok: boolean; status?: number; error?: string }> {
+  timeoutMs: number = TRIGGER_TIMEOUT,
+): Promise<{ ok: boolean; status?: number; error?: string; body?: unknown }> {
   if (!N8N_BASE_URL) return { ok: false, error: 'N8N_WEBHOOK_BASE_URL not configured' };
 
   try {
@@ -233,9 +246,20 @@ async function attemptFire(
         'X-DATIAM-Event':  String(payload.event ?? ''),
       },
       body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(TRIGGER_TIMEOUT),
+      signal: AbortSignal.timeout(timeoutMs),
     });
-    return { ok: res.ok, status: res.status };
+    // n8n workflows that respond synchronously (responseMode: lastNode) return
+    // execution metadata (execution id / estimated duration / version) here —
+    // callers that need it read result.body. Workflows using the default
+    // "onReceived" ack mode return no body, which is fine (body stays undefined).
+    let body: unknown;
+    try {
+      const text = await res.text();
+      body = text ? JSON.parse(text) : undefined;
+    } catch {
+      body = undefined;
+    }
+    return { ok: res.ok, status: res.status, body };
   } catch (err) {
     return { ok: false, error: (err as Error).message };
   }
@@ -252,26 +276,32 @@ export const triggerWorkflow = async (workflowId: string, input: TriggerWorkflow
   return triggerByName(wf.name, input.event, input.data ?? {}, workflowId);
 };
 
-async function triggerByName(
+export async function triggerByName(
   workflowName: string,
   event: string,
   data: Record<string, unknown>,
   registryId?: string,
+  opts: { missionId?: string } = {},
 ) {
-  // Look up the webhook path from registry if not provided
+  // Look up the webhook path + execution contract from registry if not provided
   let webhookPath = '/webhook/release-intelligence';
+  let timeoutMs = TRIGGER_TIMEOUT;
+  let maxRetries = 3;
   if (registryId) {
     const [wf] = await db.select().from(workflow_registry).where(eq(workflow_registry.id, registryId)).limit(1);
     if (wf?.webhook_path) webhookPath = wf.webhook_path;
+    if (wf?.timeout_ms) timeoutMs = wf.timeout_ms;
+    if (wf?.retry_policy) maxRetries = (wf.retry_policy as { max_retries?: number }).max_retries ?? maxRetries;
   } else {
     const [wf] = await db.select().from(workflow_registry).where(eq(workflow_registry.name, workflowName)).limit(1);
     if (wf?.webhook_path) webhookPath = wf.webhook_path;
     if (wf?.id) registryId = wf.id;
+    if (wf?.timeout_ms) timeoutMs = wf.timeout_ms;
+    if (wf?.retry_policy) maxRetries = (wf.retry_policy as { max_retries?: number }).max_retries ?? maxRetries;
   }
 
   const payload = { event, timestamp: new Date().toISOString(), data };
   const startMs = Date.now();
-  const maxRetries = 3;
   let attempt = 0;
   let lastError = '';
 
@@ -284,19 +314,20 @@ async function triggerByName(
       payload,
       triggered_by_event: event,
       workflow_registry_id: registryId ?? null,
+      mission_id: opts.missionId ?? null,
       max_retries: maxRetries,
     })
     .returning();
 
   while (attempt < maxRetries) {
     attempt++;
-    const result = await attemptFire(webhookPath, payload);
+    const result = await attemptFire(webhookPath, payload, timeoutMs);
 
     if (result.ok) {
       const durationMs = Date.now() - startMs;
       await db
         .update(automation_runs)
-        .set({ status: 'success', result: { fired: true, attempt, duration_ms: durationMs }, duration_ms: durationMs, retry_count: attempt - 1 })
+        .set({ status: 'success', result: { fired: true, attempt, duration_ms: durationMs, response: result.body ?? null }, duration_ms: durationMs, retry_count: attempt - 1 })
         .where(eq(automation_runs.id, run.id));
 
       if (registryId) {
@@ -307,6 +338,7 @@ async function triggerByName(
             last_run_status: 'success',
             total_runs: sql`${workflow_registry.total_runs} + 1`,
             success_count: sql`${workflow_registry.success_count} + 1`,
+            health_status: 'healthy',
             updated_at: new Date(),
           })
           .where(eq(workflow_registry.id, registryId));
@@ -319,10 +351,10 @@ async function triggerByName(
         entityId: run.id,
         title: `Workflow fired: ${workflowName}`,
         severity: 'info',
-        metadata: { event, attempt, durationMs },
+        metadata: { event, attempt, durationMs, missionId: opts.missionId },
       });
 
-      return { run_id: run.id, workflow: workflowName, status: 'success', attempt };
+      return { run_id: run.id, workflow: workflowName, status: 'success' as const, attempt, response: result.body };
     }
 
     lastError = result.error ?? `HTTP ${result.status}`;
@@ -343,6 +375,7 @@ async function triggerByName(
         last_run_status: 'failed',
         total_runs: sql`${workflow_registry.total_runs} + 1`,
         failed_count: sql`${workflow_registry.failed_count} + 1`,
+        health_status: 'degraded',
         updated_at: new Date(),
       })
       .where(eq(workflow_registry.id, registryId));
@@ -355,10 +388,10 @@ async function triggerByName(
     entityId: run.id,
     title: `Workflow failed: ${workflowName}`,
     severity: 'error',
-    metadata: { event, attempts: attempt, error: lastError },
+    metadata: { event, attempts: attempt, error: lastError, missionId: opts.missionId },
   });
 
-  return { run_id: run.id, workflow: workflowName, status: 'failed', attempts: attempt, error: lastError };
+  return { run_id: run.id, workflow: workflowName, status: 'failed' as const, attempts: attempt, error: lastError };
 }
 
 // ── Dispatch event to all matching workflows ────────────────────────────────
@@ -671,6 +704,117 @@ export const seedWorkflows = async () => {
         title: `Workflow seeded: ${wfDef.name}`,
         severity: 'info',
         metadata: { seeded: true },
+      });
+    }
+  }
+
+  // ── Release Intel Mission Dispatcher Workflows ────────────────────────────
+  // One workflow per mission_type (release_missions.mission_type). Not
+  // triggered via dispatchEvent's fan-out — mission.worker.ts calls
+  // triggerByName(workflowName, ...) directly by name, so each gets its own
+  // dedicated event name to keep the registry's event_triggers meaningful.
+
+  const missionWorkflows: Array<{
+    name: string;
+    description: string;
+    event_triggers: string[];
+    webhook_path: string;
+    timeout_ms: number;
+    priority: number;
+    required_inputs: string[];
+    expected_outputs: string[];
+    metadata: Record<string, unknown>;
+  }> = [
+    {
+      name: 'playlist_pitch',
+      description: 'Playlist Intelligence — discovers editorial/curator playlist opportunities and pitches the release',
+      event_triggers: ['release.intel.mission.playlist.dispatched'],
+      webhook_path: '/webhook/playlist-pitch',
+      timeout_ms: 8000,
+      priority: 80,
+      required_inputs: ['release', 'artist', 'mission', 'metadata', 'priority', 'context'],
+      expected_outputs: ['playlists_found', 'editorial_opportunities', 'curator_contacts', 'priority_playlists', 'genre_matching', 'acceptance_probability'],
+      metadata: { template: 'datiam-playlist-pitch-v1', mission_type: 'playlist' },
+    },
+    {
+      name: 'sync_pitch',
+      description: 'Sync Intelligence — discovers film/TV/game/ad sync licensing opportunities for the release',
+      event_triggers: ['release.intel.mission.sync.dispatched'],
+      webhook_path: '/webhook/sync-pitch',
+      timeout_ms: 8000,
+      priority: 60,
+      required_inputs: ['release', 'artist', 'mission', 'metadata', 'priority', 'context'],
+      expected_outputs: ['film_opportunities', 'tv_opportunities', 'games', 'ads', 'music_supervisors', 'sync_agencies', 'licensing_targets'],
+      metadata: { template: 'datiam-sync-pitch-v1', mission_type: 'sync' },
+    },
+    {
+      name: 'fan_growth',
+      description: 'Fan Intelligence — cross-platform audience growth analysis and prediction',
+      event_triggers: ['release.intel.mission.fan_growth.dispatched'],
+      webhook_path: '/webhook/fan-growth',
+      timeout_ms: 8000,
+      priority: 50,
+      required_inputs: ['release', 'artist', 'mission', 'metadata', 'priority', 'context'],
+      expected_outputs: ['audience_growth', 'top_countries', 'top_cities', 'follower_velocity', 'fan_overlap', 'growth_prediction'],
+      metadata: { template: 'datiam-fan-growth-v1', mission_type: 'fan_growth' },
+    },
+    {
+      name: 'content_calendar',
+      description: 'Content Intelligence — generates content ideas, posting schedule, and campaign timeline',
+      event_triggers: ['release.intel.mission.content.dispatched'],
+      webhook_path: '/webhook/content-calendar',
+      timeout_ms: 8000,
+      priority: 70,
+      required_inputs: ['release', 'artist', 'mission', 'metadata', 'priority', 'context'],
+      expected_outputs: ['content_ideas', 'release_calendar', 'posting_schedule', 'captions', 'hooks', 'hashtags', 'campaign_timeline'],
+      metadata: { template: 'datiam-content-calendar-v1', mission_type: 'content' },
+    },
+    {
+      name: 'press_outreach',
+      description: 'Outreach Intelligence — discovers and contacts blogs, radio, DJs, and curators; runs email campaigns',
+      event_triggers: ['release.intel.mission.outreach.dispatched'],
+      webhook_path: '/webhook/press-outreach',
+      timeout_ms: 8000,
+      priority: 40,
+      required_inputs: ['release', 'artist', 'mission', 'metadata', 'priority', 'context'],
+      expected_outputs: ['emails_sent', 'opens', 'clicks', 'replies', 'bounce_rate'],
+      metadata: { template: 'datiam-press-outreach-v1', mission_type: 'outreach' },
+    },
+    {
+      name: 'analytics_refresh',
+      description: 'Analytics Intelligence — collects cross-platform streaming/engagement metrics and compares to the prior snapshot',
+      event_triggers: ['release.intel.mission.analytics.dispatched'],
+      webhook_path: '/webhook/analytics-refresh',
+      timeout_ms: 8000,
+      priority: 30,
+      required_inputs: ['release', 'artist', 'mission', 'metadata', 'priority', 'context'],
+      expected_outputs: ['spotify_streams', 'apple_streams', 'youtube', 'tiktok', 'instagram', 'followers', 'playlist_additions', 'save_rate', 'listener_growth'],
+      metadata: { template: 'datiam-analytics-refresh-v1', mission_type: 'analytics' },
+    },
+  ];
+
+  for (const wfDef of missionWorkflows) {
+    const exists = await db
+      .select({ id: workflow_registry.id })
+      .from(workflow_registry)
+      .where(eq(workflow_registry.name, wfDef.name))
+      .limit(1);
+
+    if (!exists.length) {
+      const [wf] = await db
+        .insert(workflow_registry)
+        .values({ ...wfDef, is_active: true, version: 'v1' })
+        .returning();
+      seeded.push(wf);
+
+      logActivity({
+        eventType: 'workflow.registered',
+        module: 'automation',
+        entityType: 'workflow_registry',
+        entityId: wf.id,
+        title: `Workflow seeded: ${wfDef.name}`,
+        severity: 'info',
+        metadata: { seeded: true, mission_type: wfDef.metadata.mission_type },
       });
     }
   }

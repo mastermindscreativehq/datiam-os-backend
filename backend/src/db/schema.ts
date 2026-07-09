@@ -636,6 +636,14 @@ export const workflow_registry = pgTable(
     success_count: integer('success_count').notNull().default(0),
     failed_count: integer('failed_count').notNull().default(0),
     metadata: jsonb('metadata'),
+    // Mission Dispatcher (migration 0049) — per-workflow execution contract.
+    retry_policy: jsonb('retry_policy').notNull().default({ max_retries: 3, backoff: 'exponential', base_delay_ms: 2000 }),
+    timeout_ms: integer('timeout_ms').notNull().default(8000),
+    priority: integer('priority').notNull().default(0),
+    required_inputs: jsonb('required_inputs').notNull().default([]),
+    expected_outputs: jsonb('expected_outputs').notNull().default([]),
+    health_status: text('health_status').notNull().default('unknown'),
+    version: text('version').notNull().default('v1'),
     created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   },
@@ -660,6 +668,10 @@ export const automation_runs = pgTable(
     duration_ms: integer('duration_ms'),
     triggered_by_event: text('triggered_by_event'),
     workflow_registry_id: uuid('workflow_registry_id').references(() => workflow_registry.id, { onDelete: 'set null' }),
+    // Mission Dispatcher (migration 0049) — links a run back to the mission
+    // that dispatched it, so a mission's execution_history is a query
+    // (WHERE mission_id = ...) instead of a duplicated column.
+    mission_id: uuid('mission_id').references((): AnyPgColumn => release_missions.id, { onDelete: 'set null' }),
     created_at: timestamp('created_at').defaultNow().notNull(),
   },
   (t) => ({
@@ -668,6 +680,7 @@ export const automation_runs = pgTable(
     registryIdx:    index('automation_runs_registry_id_idx').on(t.workflow_registry_id),
     eventIdx:       index('automation_runs_triggered_by_idx').on(t.triggered_by_event),
     createdAtIdx:   index('automation_runs_created_at_idx').on(t.created_at),
+    missionIdx:     index('automation_runs_mission_id_idx').on(t.mission_id),
   }),
 );
 
@@ -3279,6 +3292,8 @@ export const releaseMissionTypeEnum = pgEnum('release_mission_type', [
 
 export const releaseMissionStatusEnum = pgEnum('release_mission_status', [
   'pending', 'active', 'blocked', 'completed', 'cancelled',
+  // Mission Dispatcher (migration 0049) — automation-managed execution states.
+  'queued', 'running', 'waiting', 'failed', 'retrying',
 ]);
 
 export const releaseIntelStatusEnum = pgEnum('release_intel_status', [
@@ -3364,15 +3379,25 @@ export const release_missions = pgTable(
     progress_percentage: numeric('progress_percentage', { precision: 5, scale: 2 }).notNull().default('0'),
     due_date:            date('due_date'),
     mission_params:      jsonb('mission_params').notNull().default({}),
+    // Mission Dispatcher (migration 0049) — execution tracking.
+    owner:               text('owner'),
+    started_at:          timestamp('started_at', { withTimezone: true }),
+    workflow_id:         uuid('workflow_id').references(() => workflow_registry.id, { onDelete: 'set null' }),
+    queue_job_id:        text('queue_job_id'),
+    automation_run_id:   uuid('automation_run_id').references((): AnyPgColumn => automation_runs.id, { onDelete: 'set null' }),
+    retry_count:         integer('retry_count').notNull().default(0),
+    last_error:          text('last_error'),
     created_at:          timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updated_at:          timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
     completed_at:        timestamp('completed_at', { withTimezone: true }),
   },
   (t) => ({
-    releaseIdx: index('release_missions_release_id_idx').on(t.release_id),
-    artistIdx:  index('release_missions_artist_id_idx').on(t.artist_id),
-    statusIdx:  index('release_missions_status_idx').on(t.status),
-    typeIdx:    index('release_missions_type_idx').on(t.mission_type),
+    releaseIdx:      index('release_missions_release_id_idx').on(t.release_id),
+    artistIdx:       index('release_missions_artist_id_idx').on(t.artist_id),
+    statusIdx:       index('release_missions_status_idx').on(t.status),
+    typeIdx:         index('release_missions_type_idx').on(t.mission_type),
+    workflowIdx:     index('release_missions_workflow_id_idx').on(t.workflow_id),
+    automationRunIdx: index('release_missions_automation_run_id_idx').on(t.automation_run_id),
   }),
 );
 
@@ -3391,4 +3416,6 @@ export const releaseExecutiveBriefsRelations = relations(release_executive_brief
 export const releaseMissionsRelations = relations(release_missions, ({ one }) => ({
   release: one(releases, { fields: [release_missions.release_id], references: [releases.id] }),
   artist:  one(artist_profiles, { fields: [release_missions.artist_id], references: [artist_profiles.id] }),
+  workflow: one(workflow_registry, { fields: [release_missions.workflow_id], references: [workflow_registry.id] }),
+  latestRun: one(automation_runs, { fields: [release_missions.automation_run_id], references: [automation_runs.id] }),
 }));

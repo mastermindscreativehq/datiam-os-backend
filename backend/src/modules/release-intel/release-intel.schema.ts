@@ -6,12 +6,26 @@ export const analyzeReleaseSchema = z.object({
 
 export const updateMissionSchema = z
   .object({
-    status: z.enum(['pending', 'active', 'blocked', 'completed', 'cancelled']).optional(),
+    status: z.enum([
+      'pending', 'active', 'blocked', 'completed', 'cancelled',
+      'queued', 'running', 'waiting', 'failed', 'retrying',
+    ]).optional(),
     progress_percentage: z.number().min(0).max(100).optional(),
     due_date: z.string().optional().nullable(),
     priority: z.number().int().optional(),
   })
   .refine((obj) => Object.keys(obj).length > 0, { message: 'At least one field must be provided' });
 
+// n8n → DATIAM: a workflow reports back on a mission it's executing.
+export const missionCallbackSchema = z.object({
+  status: z.enum(['completed', 'failed', 'partial']),
+  progress_percentage: z.number().min(0).max(100).optional(),
+  results: z.record(z.unknown()).optional(),
+  summary: z.string().optional(),
+  error: z.string().optional(),
+  execution_id: z.string().optional(),
+});
+
 export type AnalyzeReleaseInput = z.infer<typeof analyzeReleaseSchema>;
 export type UpdateMissionInput = z.infer<typeof updateMissionSchema>;
+export type MissionCallbackInput = z.infer<typeof missionCallbackSchema>;

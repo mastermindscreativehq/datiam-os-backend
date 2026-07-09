@@ -21,6 +21,7 @@ import { startEnergyWorker, stopEnergyWorker } from './modules/energy/energy.wor
 import { startDnaWorker, stopDnaWorker } from './modules/audio-dna/audio-dna.worker';
 import { startSyncWorker, stopSyncWorker } from './modules/sync-intelligence/sync-intelligence.worker';
 import { startReleaseIntelWorker, stopReleaseIntelWorker } from './modules/release-intel/release-intel.worker';
+import { startMissionWorkers, stopMissionWorkers } from './modules/release-intel/mission.worker';
 import { startWatchdog, stopWatchdog } from './modules/monitoring/watchdog.service';
 import { startPublishWorker, stopPublishWorker } from './modules/publishing-engine/publish.worker';
 import { startAnalyticsSyncWorker, stopAnalyticsSyncWorker } from './modules/analytics-hub/analytics-sync.worker';
@@ -122,6 +123,12 @@ async function main(): Promise<void> {
     }
 
     try {
+      startMissionWorkers();
+    } catch (err) {
+      console.warn('[MissionWorker] Workers failed to start (non-fatal):', err);
+    }
+
+    try {
       startWatchdog();
     } catch (err) {
       console.warn('[Watchdog] Failed to start (non-fatal):', err);
@@ -203,6 +210,7 @@ async function main(): Promise<void> {
     stopWatchdog();
     void Promise.allSettled([
       stopSonicWorkers(), stopAudioWorker(), stopEnergyWorker(), stopDnaWorker(), stopSyncWorker(), stopReleaseIntelWorker(),
+      stopMissionWorkers(),
       stopPublishWorker(), stopAnalyticsSyncWorker(), stopTrendScanWorker(),
       stopAmbassadorScoreWorker(), stopAIGenerationWorker(), stopContentSyncWorker(),
     ]).finally(() => server.close(() => process.exit(0)));
@@ -213,6 +221,7 @@ async function main(): Promise<void> {
     stopWatchdog();
     void Promise.allSettled([
       stopSonicWorkers(), stopAudioWorker(), stopEnergyWorker(), stopDnaWorker(), stopSyncWorker(), stopReleaseIntelWorker(),
+      stopMissionWorkers(),
       stopPublishWorker(), stopAnalyticsSyncWorker(), stopTrendScanWorker(),
       stopAmbassadorScoreWorker(), stopAIGenerationWorker(), stopContentSyncWorker(),
     ]).finally(() => server.close(() => process.exit(0)));

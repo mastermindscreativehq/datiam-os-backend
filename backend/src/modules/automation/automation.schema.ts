@@ -31,6 +31,12 @@ export const runHistoryQuerySchema = z.object({
 
 // ── Workflow Registry schemas ───────────────────────────────────────────────
 
+const retryPolicySchema = z.object({
+  max_retries: z.number().int().min(0).max(10),
+  backoff: z.enum(['exponential', 'linear']),
+  base_delay_ms: z.number().int().min(0),
+});
+
 export const createWorkflowSchema = z.object({
   name: z.string().min(1).max(100),
   description: z.string().optional(),
@@ -39,6 +45,12 @@ export const createWorkflowSchema = z.object({
   webhook_path: z.string().optional(),
   is_active: z.boolean().optional().default(true),
   metadata: z.record(z.unknown()).optional(),
+  retry_policy: retryPolicySchema.optional(),
+  timeout_ms: z.number().int().min(1000).max(60_000).optional(),
+  priority: z.number().int().optional(),
+  required_inputs: z.array(z.string()).optional(),
+  expected_outputs: z.array(z.string()).optional(),
+  version: z.string().optional(),
 });
 
 export const updateWorkflowSchema = z.object({
@@ -49,6 +61,12 @@ export const updateWorkflowSchema = z.object({
   webhook_path: z.string().optional(),
   is_active: z.boolean().optional(),
   metadata: z.record(z.unknown()).optional(),
+  retry_policy: retryPolicySchema.optional(),
+  timeout_ms: z.number().int().min(1000).max(60_000).optional(),
+  priority: z.number().int().optional(),
+  required_inputs: z.array(z.string()).optional(),
+  expected_outputs: z.array(z.string()).optional(),
+  version: z.string().optional(),
 });
 
 export const triggerWorkflowSchema = z.object({

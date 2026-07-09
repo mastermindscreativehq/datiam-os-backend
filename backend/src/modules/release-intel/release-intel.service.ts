@@ -1,4 +1,4 @@
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, and, notInArray } from 'drizzle-orm';
 import { db } from '../../db';
 import {
   releases,
@@ -15,13 +15,14 @@ import { logActivity } from '../../lib/activityLogger';
 import { contentVaultService } from '../content/content-vault.service';
 import { runIntelligence } from '../intelligence-core/intelligence-core.service';
 import type { IntelligenceContext, ProviderResult } from '../intelligence-core/intelligence-core.types';
-import type { UpdateMissionInput } from './release-intel.schema';
+import type { UpdateMissionInput, MissionCallbackInput } from './release-intel.schema';
 import {
   onReleaseIntelAnalyzed,
   onReleaseIntelBriefGenerated,
   onReleaseIntelMissionsCreated,
   onReleaseIntelFailed,
 } from './release-intel.webhooks';
+import { dispatchMission } from './mission-dispatcher.service';
 
 // ── Timing / countries / DSP recommendation ──────────────────────────────────
 // Release-specific business logic — not a generic Intelligence Core provider,
@@ -346,7 +347,16 @@ async function createDownstreamMissions(
     },
   ];
 
-  await db.insert(release_missions).values(missions);
+  const insertedMissions = await db.insert(release_missions).values(missions).returning({ id: release_missions.id });
+
+  // Automatically dispatch every newly created mission — Release Intel no
+  // longer just declares work-items, it puts them on the execution pipeline
+  // (BullMQ → Automation Registry → n8n) immediately. Fire-and-forget: mission
+  // creation must never block on downstream workflow dispatch.
+  Promise.allSettled(insertedMissions.map((m) => dispatchMission(m.id))).then((results) => {
+    const failed = results.filter((r) => r.status === 'rejected').length;
+    if (failed > 0) console.warn(`[ReleaseIntel] ${failed}/${results.length} mission dispatch(es) failed to enqueue`);
+  });
 
   // Seed real content_ideas rows via the existing Content Vault service — reused, not duplicated.
   await Promise.allSettled([
@@ -540,5 +550,68 @@ export async function updateMission(missionId: string, input: UpdateMissionInput
   if (input.priority !== undefined) values.priority = input.priority;
 
   const [updated] = await db.update(release_missions).set(values).where(eq(release_missions.id, missionId)).returning();
+  return updated;
+}
+
+// ── Mission results (n8n → DATIAM callback) ──────────────────────────────────
+// n8n workflows are execution-only — this persists whatever they measured
+// (playlists found, emails sent, streams collected, ...) and, only on a
+// genuine terminal result, refreshes the Executive Brief so it reflects real
+// outcomes instead of just the pre-execution prediction.
+
+export async function applyMissionResult(missionId: string, input: MissionCallbackInput, secret?: string) {
+  const configuredSecret = process.env.N8N_WEBHOOK_SECRET;
+  if (configuredSecret && secret !== configuredSecret) {
+    throw new AppError('Invalid webhook secret', 401, 'INVALID_WEBHOOK_SECRET');
+  }
+
+  const [mission] = await db.select().from(release_missions).where(eq(release_missions.id, missionId)).limit(1);
+  if (!mission) throw new AppError('Mission not found', 404, 'MISSION_NOT_FOUND');
+
+  const isTerminal = input.status === 'completed' || input.status === 'failed';
+  const nextStatus = input.status === 'completed' ? 'completed' : input.status === 'failed' ? 'failed' : 'active';
+
+  const missionParams: Record<string, unknown> = { ...(mission.mission_params as Record<string, unknown>) };
+  if (input.results) missionParams.results = input.results;
+
+  const values: Partial<NewReleaseMission> = {
+    status: nextStatus,
+    mission_params: missionParams,
+    last_error: input.status === 'failed' ? (input.error ?? 'Workflow reported failure') : null,
+    updated_at: new Date(),
+  };
+  if (input.progress_percentage !== undefined) values.progress_percentage = input.progress_percentage.toString();
+  else if (input.status === 'completed') values.progress_percentage = '100';
+  if (input.status === 'completed') values.completed_at = new Date();
+
+  const [updated] = await db.update(release_missions).set(values).where(eq(release_missions.id, missionId)).returning();
+
+  logActivity({
+    eventType: input.status === 'failed' ? 'release_intel.mission.failed' : 'release_intel.mission.result',
+    module: 'release-intel',
+    entityType: 'release_mission',
+    entityId: missionId,
+    title: input.summary ?? `${mission.title}: ${input.status}`,
+    severity: input.status === 'failed' ? 'error' : 'info',
+    metadata: { release_id: mission.release_id, mission_type: mission.mission_type, execution_id: input.execution_id, results: input.results },
+  });
+
+  if (isTerminal) {
+    // Refresh once the whole mission wave for this release has settled —
+    // not per-mission, so six missions completing seconds apart doesn't
+    // trigger six Anthropic calls and six new brief rows.
+    const stillRunning = await db
+      .select({ id: release_missions.id })
+      .from(release_missions)
+      .where(and(eq(release_missions.release_id, mission.release_id), notInArray(release_missions.status, ['completed', 'failed', 'cancelled'])))
+      .limit(1);
+
+    if (stillRunning.length === 0) {
+      analyzeRelease(mission.release_id, { force: true }).catch((err) => {
+        console.warn('[ReleaseIntel] Brief refresh after mission wave completed failed (non-fatal):', err instanceof Error ? err.message : String(err));
+      });
+    }
+  }
+
   return updated;
 }

@@ -316,6 +316,13 @@
       "when": 1782950410000,
       "tag": "0048_release_intel",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1782950411000,
+      "tag": "0049_mission_dispatcher",
+      "breakpoints": true
     }
   ]
 }

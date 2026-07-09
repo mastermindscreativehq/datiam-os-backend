@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import * as service from './release-intel.service';
+import * as dispatcher from './mission-dispatcher.service';
 
 const ok = (res: Response, data: unknown, status = 200) => res.status(status).json({ success: true, data });
 
@@ -38,5 +39,36 @@ export const getMissionsHandler = async (req: Request, res: Response, next: Next
 export const updateMissionHandler = async (req: Request, res: Response, next: NextFunction) => {
   try {
     ok(res, await service.updateMission(req.params.missionId, req.body));
+  } catch (e) { next(e); }
+};
+
+export const dispatchMissionHandler = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    ok(res, await dispatcher.dispatchMission(req.params.missionId), 202);
+  } catch (e) { next(e); }
+};
+
+export const retryMissionHandler = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    ok(res, await dispatcher.retryMission(req.params.missionId), 202);
+  } catch (e) { next(e); }
+};
+
+export const cancelMissionHandler = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    ok(res, await dispatcher.cancelMission(req.params.missionId));
+  } catch (e) { next(e); }
+};
+
+export const getMissionExecutionHandler = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    ok(res, await dispatcher.getMissionExecution(req.params.missionId));
+  } catch (e) { next(e); }
+};
+
+export const missionCallbackHandler = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const secret = (req.headers['x-datiam-secret'] ?? req.headers['x-webhook-secret']) as string | undefined;
+    ok(res, await service.applyMissionResult(req.params.missionId, req.body, secret));
   } catch (e) { next(e); }
 };

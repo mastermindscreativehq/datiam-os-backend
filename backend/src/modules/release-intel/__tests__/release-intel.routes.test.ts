@@ -6,8 +6,17 @@ const mockService = vi.hoisted(() => ({
   getBriefHistory: vi.fn(),
   getMissions: vi.fn(),
   updateMission: vi.fn(),
+  applyMissionResult: vi.fn(),
 }));
 vi.mock('../release-intel.service', () => mockService);
+
+const mockDispatcher = vi.hoisted(() => ({
+  dispatchMission: vi.fn(),
+  retryMission: vi.fn(),
+  cancelMission: vi.fn(),
+  getMissionExecution: vi.fn(),
+}));
+vi.mock('../mission-dispatcher.service', () => mockDispatcher);
 
 import supertest from 'supertest';
 import app from '../../../app';
@@ -31,6 +40,11 @@ beforeAll(() => {
   mockService.getBriefHistory.mockResolvedValue([sampleSnapshot.brief]);
   mockService.getMissions.mockResolvedValue(sampleSnapshot.missions);
   mockService.updateMission.mockResolvedValue({ ...sampleSnapshot.missions[0], status: 'active' });
+  mockService.applyMissionResult.mockResolvedValue({ ...sampleSnapshot.missions[0], status: 'completed' });
+  mockDispatcher.dispatchMission.mockResolvedValue({ status: 'queued', queueJobId: 'job-1' });
+  mockDispatcher.retryMission.mockResolvedValue({ status: 'queued', queueJobId: 'job-2' });
+  mockDispatcher.cancelMission.mockResolvedValue({ ...sampleSnapshot.missions[0], status: 'cancelled' });
+  mockDispatcher.getMissionExecution.mockResolvedValue({ mission: sampleSnapshot.missions[0], execution_history: [], queue_status: null });
 });
 
 describe('GET /api/release-intel/:releaseId', () => {
@@ -115,5 +129,70 @@ describe('PATCH /api/release-intel/missions/:missionId', () => {
   it('returns 401 without a token', async () => {
     const res = await agent.patch(`/api/release-intel/missions/${MISSION_ID}`).send({ status: 'active' });
     expect(res.status).toBe(401);
+  });
+});
+
+describe('POST /api/release-intel/missions/:missionId/dispatch', () => {
+  it('returns 401 without a token', async () => {
+    expect((await agent.post(`/api/release-intel/missions/${MISSION_ID}/dispatch`)).status).toBe(401);
+  });
+
+  it('dispatches the mission and returns 202', async () => {
+    const res = await agent.post(`/api/release-intel/missions/${MISSION_ID}/dispatch`).set(authHeader());
+    expect(res.status).toBe(202);
+    expect(res.body.data.status).toBe('queued');
+    expect(mockDispatcher.dispatchMission).toHaveBeenCalledWith(MISSION_ID);
+  });
+});
+
+describe('POST /api/release-intel/missions/:missionId/retry', () => {
+  it('retries the mission and returns 202', async () => {
+    const res = await agent.post(`/api/release-intel/missions/${MISSION_ID}/retry`).set(authHeader());
+    expect(res.status).toBe(202);
+    expect(mockDispatcher.retryMission).toHaveBeenCalledWith(MISSION_ID);
+  });
+});
+
+describe('POST /api/release-intel/missions/:missionId/cancel', () => {
+  it('cancels the mission', async () => {
+    const res = await agent.post(`/api/release-intel/missions/${MISSION_ID}/cancel`).set(authHeader());
+    expect(res.status).toBe(200);
+    expect(res.body.data.status).toBe('cancelled');
+    expect(mockDispatcher.cancelMission).toHaveBeenCalledWith(MISSION_ID);
+  });
+});
+
+describe('GET /api/release-intel/missions/:missionId/execution', () => {
+  it('returns 401 without a token', async () => {
+    expect((await agent.get(`/api/release-intel/missions/${MISSION_ID}/execution`)).status).toBe(401);
+  });
+
+  it('returns the execution history', async () => {
+    const res = await agent.get(`/api/release-intel/missions/${MISSION_ID}/execution`).set(authHeader());
+    expect(res.status).toBe(200);
+    expect(res.body.data.execution_history).toEqual([]);
+    expect(mockDispatcher.getMissionExecution).toHaveBeenCalledWith(MISSION_ID);
+  });
+});
+
+describe('POST /api/release-intel/missions/:missionId/callback', () => {
+  it('does not require a JWT — n8n authenticates via X-DATIAM-Secret instead', async () => {
+    const res = await agent
+      .post(`/api/release-intel/missions/${MISSION_ID}/callback`)
+      .send({ status: 'completed', results: { playlists_found: 12 } });
+
+    expect(res.status).toBe(200);
+    expect(mockService.applyMissionResult).toHaveBeenCalledWith(
+      MISSION_ID,
+      { status: 'completed', results: { playlists_found: 12 } },
+      undefined,
+    );
+  });
+
+  it('rejects an invalid status value', async () => {
+    const res = await agent
+      .post(`/api/release-intel/missions/${MISSION_ID}/callback`)
+      .send({ status: 'not_a_real_status' });
+    expect(res.status).toBe(400);
   });
 });

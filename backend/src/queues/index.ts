@@ -94,6 +94,18 @@ export const growthAmbassadorQueue    = process.env.REDIS_URL ? createQueue('gro
 export const growthAIGenerationQueue  = process.env.REDIS_URL ? createQueue('growth-ai-generation')  : null;
 export const growthContentSyncQueue   = process.env.REDIS_URL ? createQueue('growth-content-sync')   : null;
 
+// Release Intel Mission Dispatcher — one queue per mission type (playlist,
+// sync, fan_growth, content, outreach, analytics). Each mission created by
+// Release Intel is enqueued onto the queue matching its mission_type, picked
+// up by the matching worker in modules/release-intel/mission.worker.ts, and
+// dispatched to n8n via the existing automation registry.
+export const missionPlaylistQueue  = process.env.REDIS_URL ? createQueue('playlist')  : null;
+export const missionSyncQueue      = process.env.REDIS_URL ? createQueue('sync')      : null;
+export const missionFanQueue       = process.env.REDIS_URL ? createQueue('fan')       : null;
+export const missionContentQueue   = process.env.REDIS_URL ? createQueue('content')   : null;
+export const missionOutreachQueue  = process.env.REDIS_URL ? createQueue('outreach')  : null;
+export const missionAnalyticsQueue = process.env.REDIS_URL ? createQueue('analytics') : null;
+
 export async function enqueueGrowthJob(
   queue: ReturnType<typeof createQueue>,
   jobName: string,
