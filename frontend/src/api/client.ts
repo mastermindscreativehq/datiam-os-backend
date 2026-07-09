@@ -70,7 +70,8 @@ export const dashboard = {
 
 // ── Activity ─────────────────────────────────────────────────────────────────
 export const activity = {
-  recent: () => apiClient.get('/activity/recent'),
+  recent: (params?: { entityType?: string; entityId?: string; limit?: number }) =>
+    apiClient.get('/activity/recent', { params }),
   stats:  () => apiClient.get('/activity/stats'),
 }
 
@@ -100,12 +101,26 @@ export const catalog = {
 // ── Releases ────────────────────────────────────────────────────────────────
 export const releases = {
   list:            () => apiClient.get('/releases'),
+  getById:         (id: string) => apiClient.get(`/releases/${id}`),
   create:          (body: Record<string, unknown>) => apiClient.post('/releases', body),
   update:          (id: string, body: Record<string, unknown>) => apiClient.patch(`/releases/${id}`, body),
   remove:          (id: string) => apiClient.delete(`/releases/${id}`),
   getChecklist:    (id: string) => apiClient.get(`/releases/${id}/checklist`),
   updateChecklist: (id: string, body: Record<string, unknown>) => apiClient.patch(`/releases/${id}/checklist`, body),
   getState:        (id: string) => apiClient.get(`/releases/${id}/state`),
+}
+
+// ── Release Intel (Phase 1 orchestration layer — /api/release-intel) ────────
+// Distinct from the older `release-intelligence` module above (migration 0035).
+export const releaseIntel = {
+  getSnapshot:   (releaseId: string) => apiClient.get(`/release-intel/${releaseId}`),
+  analyze:       (releaseId: string, force = false) =>
+    apiClient.post(`/release-intel/${releaseId}/analyze`, { force }, { timeout: 60_000 }),
+  getBrief:      (releaseId: string, history = false) =>
+    apiClient.get(`/release-intel/${releaseId}/brief`, { params: history ? { history: 'true' } : {} }),
+  getMissions:   (releaseId: string) => apiClient.get(`/release-intel/${releaseId}/missions`),
+  updateMission: (missionId: string, body: Record<string, unknown>) =>
+    apiClient.patch(`/release-intel/missions/${missionId}`, body),
 }
 
 // ── Sync Pitches ────────────────────────────────────────────────────────────

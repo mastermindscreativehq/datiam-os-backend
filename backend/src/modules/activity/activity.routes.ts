@@ -8,9 +8,14 @@ const router = Router();
 
 router.use(authenticate);
 
-router.get('/recent', async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.get('/recent', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    success(res, await getRecentActivity());
+    const { entityType, entityId, limit } = req.query as { entityType?: string; entityId?: string; limit?: string };
+    success(res, await getRecentActivity({
+      entityType,
+      entityId,
+      limit: limit ? Number(limit) : undefined,
+    }));
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(JSON.stringify({ event: 'activity_recent_error', error: message }));

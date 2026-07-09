@@ -1,4 +1,4 @@
-import { desc, isNotNull, sql } from 'drizzle-orm';
+import { and, desc, eq, isNotNull, sql } from 'drizzle-orm';
 import { db } from '../../db';
 import { activity_log } from '../../db/schema';
 import { logActivity as libLogActivity } from '../../lib/activityLogger';
@@ -27,8 +27,19 @@ export const logActivity = (input: LegacyLogInput): void => {
   });
 };
 
-export const getRecentActivity = async (limit = 50) => {
+export interface RecentActivityFilters {
+  entityType?: string;
+  entityId?: string;
+  limit?: number;
+}
+
+export const getRecentActivity = async (filters: RecentActivityFilters = {}) => {
+  const { entityType, entityId, limit = 50 } = filters;
   try {
+    const conditions = [];
+    if (entityType) conditions.push(eq(activity_log.entity_type, entityType));
+    if (entityId) conditions.push(eq(activity_log.entity_id, entityId));
+
     return await db
       .select({
         id:          activity_log.id,
@@ -48,6 +59,7 @@ export const getRecentActivity = async (limit = 50) => {
         created_at:  activity_log.created_at,
       })
       .from(activity_log)
+      .where(conditions.length ? and(...conditions) : undefined)
       .orderBy(desc(activity_log.created_at))
       .limit(limit);
   } catch (err) {

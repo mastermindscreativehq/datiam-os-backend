@@ -1,0 +1,161 @@
+// Types mirror the Release Intel Phase 1 backend exactly (migration 0048,
+// /api/release-intel) — see backend/src/modules/release-intel/*. Do not add
+// fields here that the backend doesn't actually return.
+
+export interface ReleaseRecord {
+  id: string
+  artist_id: string | null
+  release_title: string
+  title: string
+  release_type: 'single' | 'ep' | 'album'
+  type: string
+  music_status: 'draft' | 'scheduled' | 'released'
+  status: string
+  genre: string | null
+  release_date: string | null
+  cover_art_url: string | null
+  description: string | null
+  upc: string | null
+  distributor: string | null
+  spotify_url: string | null
+  apple_music_url: string | null
+  audiomack_url: string | null
+  boomplay_url: string | null
+  youtube_url: string | null
+  release_state: string
+  created_at: string
+  updated_at: string
+}
+
+export type ReleaseIntelStatus = 'pending' | 'analyzing' | 'complete' | 'failed'
+export type DataCompleteness = 'full' | 'metadata_only'
+
+export interface RecommendedCountry {
+  country: string
+  score: number
+  source: string
+}
+
+export interface RecommendedDsp {
+  platform: string
+  configured: boolean
+  priority: 'ready' | 'action_needed'
+}
+
+export interface RolloutStrategy {
+  phase: string
+  recommendation: string
+}
+
+export interface RecommendedReleaseWindow {
+  earliestSubmission: string | null
+  targetReleaseDate: string | null
+  leadTimeDays: number | null
+  reasoning: string
+}
+
+export interface ReleaseIntelAnalysis {
+  id: string
+  release_id: string
+  status: ReleaseIntelStatus
+  commercial_score: string | null
+  playlist_score: string | null
+  sync_score: string | null
+  viral_score: string | null
+  data_completeness: DataCompleteness
+  resolved_audio_upload_id: string | null
+  recommended_release_window: RecommendedReleaseWindow | null
+  recommended_countries: RecommendedCountry[] | null
+  recommended_dsps: RecommendedDsp[] | null
+  rollout_strategy: RolloutStrategy | null
+  analysis_version: string
+  failure_reason: string | null
+  analyzed_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ExecutiveBrief {
+  id: string
+  release_id: string
+  summary: string
+  strengths: string[]
+  weaknesses: string[]
+  commercial_outlook: string
+  viral_outlook: string
+  sync_outlook: string
+  playlist_outlook: string
+  audience_recommendations: string[]
+  priority_actions: string[]
+  risk_assessment: string
+  execution_plan_30d: string[]
+  used_ai: boolean
+  confidence_score: string
+  created_at: string
+}
+
+export type MissionType = 'playlist' | 'sync' | 'fan_growth' | 'content' | 'outreach' | 'analytics'
+export type MissionStatus = 'pending' | 'active' | 'blocked' | 'completed' | 'cancelled'
+
+export interface ReleaseMission {
+  id: string
+  release_id: string
+  artist_id: string | null
+  mission_type: MissionType
+  title: string
+  description: string
+  status: MissionStatus
+  priority: number
+  target_metrics: Record<string, unknown>
+  progress_percentage: string
+  due_date: string | null
+  mission_params: Record<string, unknown>
+  created_at: string
+  updated_at: string
+  completed_at: string | null
+}
+
+export interface ActivityEvent {
+  id: string
+  event_type: string | null
+  module: string | null
+  title: string
+  description: string | null
+  severity: string | null
+  metadata: Record<string, unknown> | null
+  created_at: string
+}
+
+export interface AutomationRun {
+  id: string
+  workflow_name: string
+  status: string
+  triggered_by_event: string | null
+  duration_ms: number | null
+  created_at: string
+  payload: { event?: string; data?: Record<string, unknown> } | null
+  error_message: string | null
+}
+
+export interface DiagnosticCall {
+  label: string
+  method: string
+  url: string
+  status: number | 'error'
+  latencyMs: number
+  at: string
+}
+
+export interface DiagnosticsState {
+  calls: DiagnosticCall[]
+  lastAnalysisDurationMs: number | null
+  errors: string[]
+  warnings: string[]
+}
+
+export interface ReleaseIntelSnapshot {
+  release: ReleaseRecord
+  analysis: ReleaseIntelAnalysis | null
+  brief: ExecutiveBrief | null
+  missions: ReleaseMission[]
+}
