@@ -5,6 +5,7 @@ import rateLimit from 'express-rate-limit';
 
 import { requestId } from './middleware/requestId';
 import { requestLogger } from './middleware/requestLogger';
+import { requestTimeout } from './middleware/requestTimeout';
 import { errorHandler } from './middleware/errorHandler';
 import { pingRouter, healthRouter, monitoringRouter } from './modules/monitoring/health.routes';
 
@@ -114,6 +115,11 @@ app.use(cors({
 app.options('*', cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(requestLogger);
+// 90s covers every route's own timeout budget (AI calls up to 90s) except the
+// large-file audio upload endpoints, which stream multi-minute uploads.
+app.use(requestTimeout(90_000, {
+  skip: (req) => req.path.startsWith('/api/audio/upload') || req.path.startsWith('/api/audio/stems'),
+}));
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
