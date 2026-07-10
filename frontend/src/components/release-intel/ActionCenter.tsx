@@ -1,22 +1,22 @@
 import WidgetCard from '../dashboard/WidgetCard'
-import type { ReleaseIntelAnalysis, ReleaseMission } from './types'
+import type { MissionType, ReleaseIntelAnalysis, ReleaseMission } from './types'
+import { MISSION_TYPE_LABELS } from './format'
 
 interface Props {
   analysis: ReleaseIntelAnalysis | null
   missions: ReleaseMission[]
   onAnalyze: (force: boolean) => void
   onRefresh: () => void
+  onOpenMissionTab: (type: MissionType) => void
   analyzing: boolean
   refreshing: boolean
   canWrite: boolean
 }
 
-function scrollToMission(type: string) {
-  document.getElementById(`mission-${type}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-}
+const MISSION_TYPES: MissionType[] = ['playlist', 'sync', 'fan_growth', 'content', 'outreach', 'analytics']
 
-export default function ActionCenter({ analysis, missions, onAnalyze, onRefresh, analyzing, refreshing, canWrite }: Props) {
-  const hasMission = (type: string) => missions.some(m => m.mission_type === type)
+export default function ActionCenter({ analysis, missions, onAnalyze, onRefresh, onOpenMissionTab, analyzing, refreshing, canWrite }: Props) {
+  const hasMission = (type: MissionType) => missions.some(m => m.mission_type === type)
 
   return (
     <WidgetCard title="ACTION CENTER" accent="green">
@@ -38,14 +38,14 @@ export default function ActionCenter({ analysis, missions, onAnalyze, onRefresh,
           {refreshing ? 'REFRESHING…' : '↻ REFRESH'}
         </button>
 
-        {['playlist', 'fan_growth', 'outreach', 'analytics'].map(type => (
+        {MISSION_TYPES.map(type => (
           <button
             key={type}
             disabled={!hasMission(type)}
-            onClick={() => scrollToMission(type)}
+            onClick={() => onOpenMissionTab(type)}
             className="text-[10px] font-mono tracking-widest px-4 py-2 border border-gray-700 text-gray-400 hover:border-[#00ff41]/30 hover:text-[#00ff41] rounded transition-colors disabled:opacity-30"
           >
-            OPEN {type.replace('_', ' ').toUpperCase()} MISSION
+            OPEN {MISSION_TYPE_LABELS[type]} MISSION
           </button>
         ))}
 

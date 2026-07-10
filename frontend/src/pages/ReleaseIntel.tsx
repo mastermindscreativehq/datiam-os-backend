@@ -7,6 +7,7 @@ import ErrorMessage from '../components/ErrorMessage'
 import EmptyState from '../components/EmptyState'
 import Toast from '../components/Toast'
 import ReleaseSelectorBar from '../components/release-intel/ReleaseSelectorBar'
+import TabBar from '../components/release-intel/TabBar'
 import ReleaseSummary from '../components/release-intel/ReleaseSummary'
 import ExecutiveBriefCard from '../components/release-intel/ExecutiveBriefCard'
 import ScoreBoard from '../components/release-intel/ScoreBoard'
@@ -17,10 +18,17 @@ import AnalysisDetails from '../components/release-intel/AnalysisDetails'
 import DiagnosticsPanel from '../components/release-intel/DiagnosticsPanel'
 import AutomationStatusPanel from '../components/release-intel/AutomationStatusPanel'
 import FutureIntegrations from '../components/release-intel/FutureIntegrations'
+import PlaylistPitchTab from '../components/release-intel/PlaylistPitchTab'
+import SyncPitchTab from '../components/release-intel/SyncPitchTab'
+import PressOutreachTab from '../components/release-intel/PressOutreachTab'
+import FanGrowthTab from '../components/release-intel/FanGrowthTab'
+import ContentCalendarTab from '../components/release-intel/ContentCalendarTab'
+import AnalyticsTab from '../components/release-intel/AnalyticsTab'
 import type {
-  ReleaseRecord, ReleaseIntelSnapshot, ActivityEvent, DiagnosticsState, AutomationRun,
+  ReleaseRecord, ReleaseIntelSnapshot, ActivityEvent, DiagnosticsState, AutomationRun, MissionExecution,
 } from '../components/release-intel/types'
-import { ACTIVE_MISSION_STATUSES } from '../components/release-intel/types'
+import { ACTIVE_MISSION_STATUSES, RELEASE_INTEL_TABS } from '../components/release-intel/types'
+import type { ReleaseIntelTabKey } from '../components/release-intel/types'
 
 interface ArtistOption { id: string; stage_name: string }
 
@@ -58,6 +66,10 @@ export default function ReleaseIntel() {
   const [refreshing, setRefreshing] = useState(false)
   const [updatingMissionId, setUpdatingMissionId] = useState<string | null>(null)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+
+  const [activeTab, setActiveTab] = useState<ReleaseIntelTabKey>('overview')
+  const [executions, setExecutions] = useState<Record<string, MissionExecution | null>>({})
+  const [executionLoading, setExecutionLoading] = useState<Record<string, boolean>>({})
 
   const [diagnostics, setDiagnostics] = useState<DiagnosticsState>({
     calls: [], lastAnalysisDurationMs: null, errors: [], warnings: [],
@@ -195,6 +207,18 @@ export default function ReleaseIntel() {
     }
   }, [timed, selectedId, loadSnapshot])
 
+  const loadExecution = useCallback(async (missionId: string) => {
+    setExecutionLoading(s => ({ ...s, [missionId]: true }))
+    try {
+      const res = await timed('mission execution', 'GET', `/release-intel/missions/${missionId}/execution`, () => releaseIntelApi.getMissionExecution(missionId))
+      setExecutions(s => ({ ...s, [missionId]: res.data?.data ?? null }))
+    } catch {
+      setExecutions(s => ({ ...s, [missionId]: null }))
+    } finally {
+      setExecutionLoading(s => ({ ...s, [missionId]: false }))
+    }
+  }, [timed])
+
   const runMissionAction = useCallback(async (
     label: string, missionId: string, successMessage: string,
     call: () => Promise<unknown>,
@@ -204,12 +228,14 @@ export default function ReleaseIntel() {
       await timed(label, 'POST', `/release-intel/missions/${missionId}`, call)
       setToast({ message: successMessage, type: 'success' })
       if (selectedId) await Promise.all([loadSnapshot(selectedId), loadTimeline(selectedId)])
+      // Only refresh execution history if this mission's tab has already loaded it once.
+      if (executions[missionId] !== undefined) await loadExecution(missionId)
     } catch (err: any) {
       setToast({ message: err.response?.data?.message ?? `Failed to ${label}`, type: 'error' })
     } finally {
       setUpdatingMissionId(null)
     }
-  }, [timed, selectedId, loadSnapshot, loadTimeline])
+  }, [timed, selectedId, loadSnapshot, loadTimeline, executions, loadExecution])
 
   const handleDispatchMission = useCallback((missionId: string) =>
     runMissionAction('dispatch mission', missionId, 'Mission dispatched', () => releaseIntelApi.dispatchMission(missionId)),
@@ -237,6 +263,16 @@ export default function ReleaseIntel() {
     if (!snapshot?.release.artist_id) return null
     return artistsList.find(a => a.id === snapshot.release.artist_id)?.stage_name ?? null
   }, [snapshot, artistsList])
+
+  const missionTabProps = useMemo(() => ({
+    onUpdateMission: handleUpdateMission,
+    onDispatchMission: handleDispatchMission,
+    onRetryMission: handleRetryMission,
+    onCancelMission: handleCancelMission,
+    updatingId: updatingMissionId,
+    canWrite,
+    onLoadExecution: loadExecution,
+  }), [handleUpdateMission, handleDispatchMission, handleRetryMission, handleCancelMission, updatingMissionId, canWrite, loadExecution])
 
   if (releasesLoading) {
     return <div className="flex justify-center py-24"><LoadingSpinner text="LOADING RELEASES..." /></div>
@@ -283,46 +319,125 @@ export default function ReleaseIntel() {
 
       {!snapshotLoading && !snapshotError && snapshot && (
         <>
-          <ReleaseSummary release={snapshot.release} analysis={snapshot.analysis} artistName={artistName} />
-          <ExecutiveBriefCard brief={snapshot.brief} />
-          <ScoreBoard analysis={snapshot.analysis} brief={snapshot.brief} missions={snapshot.missions} />
-          <MissionBoard
-            missions={snapshot.missions}
-            onUpdateMission={handleUpdateMission}
-            onDispatchMission={handleDispatchMission}
-            onRetryMission={handleRetryMission}
-            onCancelMission={handleCancelMission}
-            updatingId={updatingMissionId}
-            canWrite={canWrite}
+          <TabBar
+            tabs={RELEASE_INTEL_TABS}
+            activeTab={activeTab}
+            onSelect={setActiveTab}
+            countByTab={{ missions: snapshot.missions.length }}
           />
-          <MissionTimeline
-            release={snapshot.release}
-            analysis={snapshot.analysis}
-            brief={snapshot.brief}
-            missions={snapshot.missions}
-            events={events}
-          />
-          <ActionCenter
-            analysis={snapshot.analysis}
-            missions={snapshot.missions}
-            onAnalyze={handleAnalyze}
-            onRefresh={handleRefresh}
-            analyzing={analyzing}
-            refreshing={refreshing}
-            canWrite={canWrite}
-          />
-          <AnalysisDetails analysis={snapshot.analysis} brief={snapshot.brief} />
-          <DiagnosticsPanel diagnostics={diagnostics} releaseId={selectedId} missions={snapshot.missions} />
-          <AutomationStatusPanel
-            analysis={snapshot.analysis}
-            missions={snapshot.missions}
-            overview={automationOverview}
-            n8nHealth={n8nHealth}
-            registryEntry={registryEntry}
-            releaseRuns={releaseRuns}
-            missionsHealth={missionsHealth}
-          />
-          <FutureIntegrations />
+
+          {activeTab === 'overview' && (
+            <div className="space-y-5">
+              <ReleaseSummary release={snapshot.release} analysis={snapshot.analysis} artistName={artistName} />
+              <ScoreBoard analysis={snapshot.analysis} brief={snapshot.brief} missions={snapshot.missions} />
+              <ActionCenter
+                analysis={snapshot.analysis}
+                missions={snapshot.missions}
+                onAnalyze={handleAnalyze}
+                onRefresh={handleRefresh}
+                onOpenMissionTab={setActiveTab}
+                analyzing={analyzing}
+                refreshing={refreshing}
+                canWrite={canWrite}
+              />
+              <MissionTimeline
+                release={snapshot.release}
+                analysis={snapshot.analysis}
+                brief={snapshot.brief}
+                missions={snapshot.missions}
+                events={events}
+              />
+            </div>
+          )}
+
+          {activeTab === 'intelligence' && (
+            <div className="space-y-5">
+              <ExecutiveBriefCard brief={snapshot.brief} />
+              <AnalysisDetails analysis={snapshot.analysis} brief={snapshot.brief} />
+            </div>
+          )}
+
+          {activeTab === 'missions' && (
+            <MissionBoard
+              missions={snapshot.missions}
+              onUpdateMission={handleUpdateMission}
+              onDispatchMission={handleDispatchMission}
+              onRetryMission={handleRetryMission}
+              onCancelMission={handleCancelMission}
+              updatingId={updatingMissionId}
+              canWrite={canWrite}
+            />
+          )}
+
+          {activeTab === 'playlist' && (
+            <PlaylistPitchTab
+              mission={snapshot.missions.find(m => m.mission_type === 'playlist')}
+              execution={executions[snapshot.missions.find(m => m.mission_type === 'playlist')?.id ?? ''] ?? null}
+              executionLoading={executionLoading[snapshot.missions.find(m => m.mission_type === 'playlist')?.id ?? ''] ?? false}
+              {...missionTabProps}
+            />
+          )}
+
+          {activeTab === 'sync' && (
+            <SyncPitchTab
+              mission={snapshot.missions.find(m => m.mission_type === 'sync')}
+              execution={executions[snapshot.missions.find(m => m.mission_type === 'sync')?.id ?? ''] ?? null}
+              executionLoading={executionLoading[snapshot.missions.find(m => m.mission_type === 'sync')?.id ?? ''] ?? false}
+              {...missionTabProps}
+            />
+          )}
+
+          {activeTab === 'outreach' && (
+            <PressOutreachTab
+              mission={snapshot.missions.find(m => m.mission_type === 'outreach')}
+              execution={executions[snapshot.missions.find(m => m.mission_type === 'outreach')?.id ?? ''] ?? null}
+              executionLoading={executionLoading[snapshot.missions.find(m => m.mission_type === 'outreach')?.id ?? ''] ?? false}
+              {...missionTabProps}
+            />
+          )}
+
+          {activeTab === 'fan_growth' && (
+            <FanGrowthTab
+              mission={snapshot.missions.find(m => m.mission_type === 'fan_growth')}
+              execution={executions[snapshot.missions.find(m => m.mission_type === 'fan_growth')?.id ?? ''] ?? null}
+              executionLoading={executionLoading[snapshot.missions.find(m => m.mission_type === 'fan_growth')?.id ?? ''] ?? false}
+              {...missionTabProps}
+            />
+          )}
+
+          {activeTab === 'content' && (
+            <ContentCalendarTab
+              mission={snapshot.missions.find(m => m.mission_type === 'content')}
+              execution={executions[snapshot.missions.find(m => m.mission_type === 'content')?.id ?? ''] ?? null}
+              executionLoading={executionLoading[snapshot.missions.find(m => m.mission_type === 'content')?.id ?? ''] ?? false}
+              {...missionTabProps}
+            />
+          )}
+
+          {activeTab === 'analytics' && (
+            <AnalyticsTab
+              mission={snapshot.missions.find(m => m.mission_type === 'analytics')}
+              execution={executions[snapshot.missions.find(m => m.mission_type === 'analytics')?.id ?? ''] ?? null}
+              executionLoading={executionLoading[snapshot.missions.find(m => m.mission_type === 'analytics')?.id ?? ''] ?? false}
+              {...missionTabProps}
+            />
+          )}
+
+          {activeTab === 'diagnostics' && (
+            <div className="space-y-5">
+              <DiagnosticsPanel diagnostics={diagnostics} releaseId={selectedId} missions={snapshot.missions} />
+              <AutomationStatusPanel
+                analysis={snapshot.analysis}
+                missions={snapshot.missions}
+                overview={automationOverview}
+                n8nHealth={n8nHealth}
+                registryEntry={registryEntry}
+                releaseRuns={releaseRuns}
+                missionsHealth={missionsHealth}
+              />
+              <FutureIntegrations />
+            </div>
+          )}
         </>
       )}
 
