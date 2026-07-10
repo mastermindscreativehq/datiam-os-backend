@@ -36,6 +36,13 @@ services:
       # DATIAM backend — used by Growth OS workflows that call back to the API
       - DATIAM_API_URL=http://host.docker.internal:3000
       - DATIAM_API_TOKEN=
+      # Release Intel Mission Dispatcher — must equal the backend's N8N_WEBHOOK_SECRET
+      # (checked by POST /api/release-intel/missions/:missionId/callback)
+      - DATIAM_WEBHOOK_SECRET=
+      # Release Intel mission executors (playlist/sync/fan/content/outreach/analytics
+      # workflows) — optional, only required once you connect real data sources
+      - SYNC_LICENSING_API_KEY=
+      - MEDIA_CONTACT_DISCOVERY_API_KEY=
     volumes:
       - n8n_data:/home/node/.n8n
     networks:

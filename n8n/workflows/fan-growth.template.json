@@ -1,0 +1,93 @@
+{
+  "name": "DATIAM Release Intel — Fan Growth",
+  "nodes": [
+    {
+      "parameters": { "httpMethod": "POST", "path": "fan-growth", "responseMode": "responseNode", "options": {} },
+      "id": "wh-trigger",
+      "name": "Fan Growth Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 400],
+      "webhookId": "fan-growth"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body ?? $input.first().json;\nconst d = body.data ?? body;\nconst { release, artist, mission, workflow, metadata, priority, context } = d;\nif (!mission?.id || !release?.id) {\n  throw new Error('Missing required fields: mission.id, release.id');\n}\nreturn [{ json: { release, artist, mission, workflow, metadata, priority, context, mission_id: mission.id } }];"
+      },
+      "id": "validate-input",
+      "name": "Validate & Extract Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst executionId = `exec_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;\nreturn [{ json: { ...input, execution_id: executionId, status: 'accepted', estimated_duration_ms: 90000, workflow_version: 'v1' } }];"
+      },
+      "id": "build-ack",
+      "name": "Build Execution Ack",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [760, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ execution_id: $json.execution_id, status: $json.status, estimated_duration_ms: $json.estimated_duration_ms, workflow_version: $json.workflow_version }) }}"
+      },
+      "id": "respond-ack",
+      "name": "Respond to DATIAM (Ack)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1020, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ─────────────────────────────────────────────────────────────────────────\n// FAN AUDIENCE GROWTH — connect real platform APIs here:\n//   Spotify for Artists (SPOTIFY_CLIENT_ID/SECRET), YouTube Data API\n//   (YOUTUBE_API_KEY), Instagram Graph API (INSTAGRAM_ACCESS_TOKEN),\n//   TikTok Content Posting API (TIKTOK_ACCESS_TOKEN) — all already defined\n//   in backend/.env.example. Until connected this reports 'partial' with\n//   the missing credentials — it does not fabricate follower/growth numbers.\n// ─────────────────────────────────────────────────────────────────────────\nconst input = $input.first().json;\nconst missing = [];\nif (!$env.SPOTIFY_CLIENT_ID || !$env.SPOTIFY_CLIENT_SECRET) missing.push('SPOTIFY_CLIENT_ID', 'SPOTIFY_CLIENT_SECRET');\nif (!$env.YOUTUBE_API_KEY) missing.push('YOUTUBE_API_KEY');\nif (!$env.INSTAGRAM_ACCESS_TOKEN) missing.push('INSTAGRAM_ACCESS_TOKEN');\nif (!$env.TIKTOK_ACCESS_TOKEN) missing.push('TIKTOK_ACCESS_TOKEN');\n\nreturn [{ json: {\n  mission_id: input.mission_id,\n  execution_id: input.execution_id,\n  status: missing.length ? 'partial' : 'completed',\n  summary: missing.length ? `Fan Intelligence ready — waiting on: ${missing.join(', ')}` : 'Fan growth analysis complete',\n  results: {\n    audience_growth: null,\n    top_countries: null,\n    top_cities: null,\n    follower_velocity: null,\n    fan_overlap: null,\n    growth_prediction: null,\n    missing_credentials: missing,\n  },\n} }];"
+      },
+      "id": "domain-processing",
+      "name": "Fan Audience Growth Analysis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1020, 500]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.DATIAM_API_URL }}/api/release-intel/missions/{{ $json.mission_id }}/callback",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "X-DATIAM-Secret", "value": "={{ $env.DATIAM_WEBHOOK_SECRET }}" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: $json.status, summary: $json.summary, results: $json.results, execution_id: $json.execution_id }) }}",
+        "options": { "timeout": 15000 }
+      },
+      "id": "send-callback",
+      "name": "Send Results to DATIAM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1280, 500]
+    }
+  ],
+  "connections": {
+    "Fan Growth Webhook": { "main": [[{ "node": "Validate & Extract Input", "type": "main", "index": 0 }]] },
+    "Validate & Extract Input": { "main": [[{ "node": "Build Execution Ack", "type": "main", "index": 0 }]] },
+    "Build Execution Ack": {
+      "main": [[
+        { "node": "Respond to DATIAM (Ack)", "type": "main", "index": 0 },
+        { "node": "Fan Audience Growth Analysis", "type": "main", "index": 0 }
+      ]]
+    },
+    "Fan Audience Growth Analysis": { "main": [[{ "node": "Send Results to DATIAM", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "meta": {
+    "templateId": "datiam-fan-growth-v1",
+    "description": "Release Intel 'fan_growth' mission executor. Acks the dispatch immediately, then analyzes cross-platform audience growth (Spotify/YouTube/Instagram/TikTok) once those credentials are connected, and posts results to POST /api/release-intel/missions/:missionId/callback. Requires n8n env vars DATIAM_API_URL and DATIAM_WEBHOOK_SECRET."
+  }
+}

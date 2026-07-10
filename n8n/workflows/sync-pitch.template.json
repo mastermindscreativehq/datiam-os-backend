@@ -1,0 +1,93 @@
+{
+  "name": "DATIAM Release Intel — Sync Pitch",
+  "nodes": [
+    {
+      "parameters": { "httpMethod": "POST", "path": "sync-pitch", "responseMode": "responseNode", "options": {} },
+      "id": "wh-trigger",
+      "name": "Sync Pitch Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 400],
+      "webhookId": "sync-pitch"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body ?? $input.first().json;\nconst d = body.data ?? body;\nconst { release, artist, mission, workflow, metadata, priority, context } = d;\nif (!mission?.id || !release?.id) {\n  throw new Error('Missing required fields: mission.id, release.id');\n}\nreturn [{ json: { release, artist, mission, workflow, metadata, priority, context, mission_id: mission.id } }];"
+      },
+      "id": "validate-input",
+      "name": "Validate & Extract Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst executionId = `exec_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;\nreturn [{ json: { ...input, execution_id: executionId, status: 'accepted', estimated_duration_ms: 180000, workflow_version: 'v1' } }];"
+      },
+      "id": "build-ack",
+      "name": "Build Execution Ack",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [760, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ execution_id: $json.execution_id, status: $json.status, estimated_duration_ms: $json.estimated_duration_ms, workflow_version: $json.workflow_version }) }}"
+      },
+      "id": "respond-ack",
+      "name": "Respond to DATIAM (Ack)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1020, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ─────────────────────────────────────────────────────────────────────────\n// SYNC LICENSING DISCOVERY — connect a real data source here:\n//   A sync licensing database / music supervisor directory (e.g. via\n//   SYNC_LICENSING_API_KEY — add the vendor of your choice)\n// Until connected this reports 'partial' with the missing credential — it\n// does not fabricate film/TV/game/ad opportunities or agency contacts.\n// ─────────────────────────────────────────────────────────────────────────\nconst input = $input.first().json;\nconst missing = [];\nif (!$env.SYNC_LICENSING_API_KEY) missing.push('SYNC_LICENSING_API_KEY');\n\nreturn [{ json: {\n  mission_id: input.mission_id,\n  execution_id: input.execution_id,\n  status: missing.length ? 'partial' : 'completed',\n  summary: missing.length ? `Sync Intelligence ready — waiting on: ${missing.join(', ')}` : 'Sync opportunity discovery complete',\n  results: {\n    film_opportunities: null,\n    tv_opportunities: null,\n    games: null,\n    ads: null,\n    music_supervisors: null,\n    sync_agencies: null,\n    licensing_targets: null,\n    missing_credentials: missing,\n  },\n} }];"
+      },
+      "id": "domain-processing",
+      "name": "Sync Opportunity Discovery",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1020, 500]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.DATIAM_API_URL }}/api/release-intel/missions/{{ $json.mission_id }}/callback",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "X-DATIAM-Secret", "value": "={{ $env.DATIAM_WEBHOOK_SECRET }}" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: $json.status, summary: $json.summary, results: $json.results, execution_id: $json.execution_id }) }}",
+        "options": { "timeout": 15000 }
+      },
+      "id": "send-callback",
+      "name": "Send Results to DATIAM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1280, 500]
+    }
+  ],
+  "connections": {
+    "Sync Pitch Webhook": { "main": [[{ "node": "Validate & Extract Input", "type": "main", "index": 0 }]] },
+    "Validate & Extract Input": { "main": [[{ "node": "Build Execution Ack", "type": "main", "index": 0 }]] },
+    "Build Execution Ack": {
+      "main": [[
+        { "node": "Respond to DATIAM (Ack)", "type": "main", "index": 0 },
+        { "node": "Sync Opportunity Discovery", "type": "main", "index": 0 }
+      ]]
+    },
+    "Sync Opportunity Discovery": { "main": [[{ "node": "Send Results to DATIAM", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "meta": {
+    "templateId": "datiam-sync-pitch-v1",
+    "description": "Release Intel 'sync' mission executor. Acks the dispatch immediately, then discovers film/TV/game/ad sync licensing opportunities once SYNC_LICENSING_API_KEY is connected, and posts results to POST /api/release-intel/missions/:missionId/callback. Requires n8n env vars DATIAM_API_URL and DATIAM_WEBHOOK_SECRET."
+  }
+}

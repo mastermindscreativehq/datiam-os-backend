@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { releases as releasesApi, artists as artistsApi, activity as activityApi, automation as automationApi, releaseIntel as releaseIntelApi } from '../api/client'
+import { releases as releasesApi, artists as artistsApi, activity as activityApi, automation as automationApi, releaseIntel as releaseIntelApi, monitoring as monitoringApi } from '../api/client'
 import { useAuthStore } from '../store/authStore'
 import LoadingSpinner from '../components/LoadingSpinner'
 import ErrorMessage from '../components/ErrorMessage'
@@ -20,6 +20,7 @@ import FutureIntegrations from '../components/release-intel/FutureIntegrations'
 import type {
   ReleaseRecord, ReleaseIntelSnapshot, ActivityEvent, DiagnosticsState, AutomationRun,
 } from '../components/release-intel/types'
+import { ACTIVE_MISSION_STATUSES } from '../components/release-intel/types'
 
 interface ArtistOption { id: string; stage_name: string }
 
@@ -51,6 +52,7 @@ export default function ReleaseIntel() {
   const [automationOverview, setAutomationOverview] = useState<any>(null)
   const [n8nHealth, setN8nHealth] = useState<any>(null)
   const [registryEntry, setRegistryEntry] = useState<any>(null)
+  const [missionsHealth, setMissionsHealth] = useState<any>(null)
 
   const [analyzing, setAnalyzing] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
@@ -128,11 +130,12 @@ export default function ReleaseIntel() {
 
   const loadAutomation = useCallback(async (releaseId: string) => {
     try {
-      const [statsRes, healthRes, registryRes, historyRes] = await Promise.all([
+      const [statsRes, healthRes, registryRes, historyRes, missionsHealthRes] = await Promise.all([
         timed('automation stats', 'GET', '/automation/stats', () => automationApi.stats()).catch(() => null),
         timed('automation health', 'GET', '/automation/health', () => automationApi.health()).catch(() => null),
         timed('automation registry', 'GET', '/automation/registry', () => automationApi.registry.list()).catch(() => null),
         timed('automation history', 'GET', '/automation/history', () => automationApi.history({ limit: 200 })).catch(() => null),
+        timed('mission workflow health', 'GET', '/monitoring/missions', () => monitoringApi.missions()).catch(() => null),
       ])
       setAutomationOverview(statsRes?.data?.data?.overview ?? null)
       setN8nHealth(healthRes?.data?.data ?? null)
@@ -140,6 +143,7 @@ export default function ReleaseIntel() {
       setRegistryEntry(registry.find((w: any) => w.name === 'release-intelligence') ?? null)
       const runs = normaliseList(historyRes?.data?.data, 'runs') as AutomationRun[]
       setReleaseRuns(runs.filter(r => r.payload?.data?.release_id === releaseId))
+      setMissionsHealth(missionsHealthRes?.data ?? null)
     } catch {
       setAutomationOverview(null)
     }
@@ -190,6 +194,44 @@ export default function ReleaseIntel() {
       setUpdatingMissionId(null)
     }
   }, [timed, selectedId, loadSnapshot])
+
+  const runMissionAction = useCallback(async (
+    label: string, missionId: string, successMessage: string,
+    call: () => Promise<unknown>,
+  ) => {
+    setUpdatingMissionId(missionId)
+    try {
+      await timed(label, 'POST', `/release-intel/missions/${missionId}`, call)
+      setToast({ message: successMessage, type: 'success' })
+      if (selectedId) await Promise.all([loadSnapshot(selectedId), loadTimeline(selectedId)])
+    } catch (err: any) {
+      setToast({ message: err.response?.data?.message ?? `Failed to ${label}`, type: 'error' })
+    } finally {
+      setUpdatingMissionId(null)
+    }
+  }, [timed, selectedId, loadSnapshot, loadTimeline])
+
+  const handleDispatchMission = useCallback((missionId: string) =>
+    runMissionAction('dispatch mission', missionId, 'Mission dispatched', () => releaseIntelApi.dispatchMission(missionId)),
+  [runMissionAction])
+
+  const handleRetryMission = useCallback((missionId: string) =>
+    runMissionAction('retry mission', missionId, 'Mission re-dispatched', () => releaseIntelApi.retryMission(missionId)),
+  [runMissionAction])
+
+  const handleCancelMission = useCallback((missionId: string) =>
+    runMissionAction('cancel mission', missionId, 'Mission cancelled', () => releaseIntelApi.cancelMission(missionId)),
+  [runMissionAction])
+
+  // Live mission progress: poll only while at least one mission is actually
+  // in-flight (queued/running/waiting/retrying) — no polling otherwise, since
+  // this page is plain-REST-on-demand everywhere else.
+  const hasActiveMissions = (snapshot?.missions ?? []).some(m => ACTIVE_MISSION_STATUSES.includes(m.status))
+  useEffect(() => {
+    if (!hasActiveMissions || !selectedId) return
+    const interval = setInterval(() => { loadSnapshot(selectedId) }, 5000)
+    return () => clearInterval(interval)
+  }, [hasActiveMissions, selectedId, loadSnapshot])
 
   const artistName = useMemo(() => {
     if (!snapshot?.release.artist_id) return null
@@ -247,6 +289,9 @@ export default function ReleaseIntel() {
           <MissionBoard
             missions={snapshot.missions}
             onUpdateMission={handleUpdateMission}
+            onDispatchMission={handleDispatchMission}
+            onRetryMission={handleRetryMission}
+            onCancelMission={handleCancelMission}
             updatingId={updatingMissionId}
             canWrite={canWrite}
           />
@@ -275,6 +320,7 @@ export default function ReleaseIntel() {
             n8nHealth={n8nHealth}
             registryEntry={registryEntry}
             releaseRuns={releaseRuns}
+            missionsHealth={missionsHealth}
           />
           <FutureIntegrations />
         </>

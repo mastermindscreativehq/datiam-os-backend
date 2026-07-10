@@ -43,6 +43,12 @@ export const MISSION_STATUS_COLORS: Record<string, string> = {
   blocked: 'text-orange-400 border-orange-400/25',
   completed: 'text-[#00ff41] border-[#00ff41]/25',
   cancelled: 'text-red-400/70 border-red-400/25',
+  // Mission Dispatcher — automation-managed execution states
+  queued: 'text-gray-400 border-gray-400/25',
+  running: 'text-[#00d4ff] border-[#00d4ff]/25 animate-pulse',
+  waiting: 'text-yellow-400 border-yellow-400/25',
+  failed: 'text-red-400 border-red-400/25',
+  retrying: 'text-orange-400 border-orange-400/25 animate-pulse',
 }
 
 export const ANALYSIS_STATUS_COLORS: Record<string, string> = {

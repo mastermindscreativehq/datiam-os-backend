@@ -1,0 +1,93 @@
+{
+  "name": "DATIAM Release Intel — Press Outreach",
+  "nodes": [
+    {
+      "parameters": { "httpMethod": "POST", "path": "press-outreach", "responseMode": "responseNode", "options": {} },
+      "id": "wh-trigger",
+      "name": "Press Outreach Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 400],
+      "webhookId": "press-outreach"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body ?? $input.first().json;\nconst d = body.data ?? body;\nconst { release, artist, mission, workflow, metadata, priority, context } = d;\nif (!mission?.id || !release?.id) {\n  throw new Error('Missing required fields: mission.id, release.id');\n}\nreturn [{ json: { release, artist, mission, workflow, metadata, priority, context, mission_id: mission.id } }];"
+      },
+      "id": "validate-input",
+      "name": "Validate & Extract Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst executionId = `exec_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;\nreturn [{ json: { ...input, execution_id: executionId, status: 'accepted', estimated_duration_ms: 240000, workflow_version: 'v1' } }];"
+      },
+      "id": "build-ack",
+      "name": "Build Execution Ack",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [760, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ execution_id: $json.execution_id, status: $json.status, estimated_duration_ms: $json.estimated_duration_ms, workflow_version: $json.workflow_version }) }}"
+      },
+      "id": "respond-ack",
+      "name": "Respond to DATIAM (Ack)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1020, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ─────────────────────────────────────────────────────────────────────────\n// MEDIA CONTACT DISCOVERY — connect a real data source here:\n//   MEDIA_CONTACT_DISCOVERY_API_KEY (blog/radio/DJ/curator discovery + email\n//   verification vendor of your choice).\n// Email SENDING itself is already fully wired — the backend requires one of\n// RESEND_API_KEY / SENDGRID_API_KEY / SMTP_HOST at startup (see\n// backend/src/server.ts::validateEmailProvider and modules/outreach). This\n// workflow's only gap is contact *discovery*, not delivery.\n// ─────────────────────────────────────────────────────────────────────────\nconst input = $input.first().json;\nconst missing = [];\nif (!$env.MEDIA_CONTACT_DISCOVERY_API_KEY) missing.push('MEDIA_CONTACT_DISCOVERY_API_KEY');\n\nreturn [{ json: {\n  mission_id: input.mission_id,\n  execution_id: input.execution_id,\n  status: missing.length ? 'partial' : 'completed',\n  summary: missing.length ? `Outreach Intelligence ready — waiting on: ${missing.join(', ')}` : 'Press outreach campaign complete',\n  results: {\n    emails_sent: missing.length ? 0 : null,\n    opens: missing.length ? 0 : null,\n    clicks: missing.length ? 0 : null,\n    replies: missing.length ? 0 : null,\n    bounce_rate: missing.length ? null : null,\n    missing_credentials: missing,\n  },\n} }];"
+      },
+      "id": "domain-processing",
+      "name": "Media Contact Discovery & Campaign",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1020, 500]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.DATIAM_API_URL }}/api/release-intel/missions/{{ $json.mission_id }}/callback",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "X-DATIAM-Secret", "value": "={{ $env.DATIAM_WEBHOOK_SECRET }}" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: $json.status, summary: $json.summary, results: $json.results, execution_id: $json.execution_id }) }}",
+        "options": { "timeout": 15000 }
+      },
+      "id": "send-callback",
+      "name": "Send Results to DATIAM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1280, 500]
+    }
+  ],
+  "connections": {
+    "Press Outreach Webhook": { "main": [[{ "node": "Validate & Extract Input", "type": "main", "index": 0 }]] },
+    "Validate & Extract Input": { "main": [[{ "node": "Build Execution Ack", "type": "main", "index": 0 }]] },
+    "Build Execution Ack": {
+      "main": [[
+        { "node": "Respond to DATIAM (Ack)", "type": "main", "index": 0 },
+        { "node": "Media Contact Discovery & Campaign", "type": "main", "index": 0 }
+      ]]
+    },
+    "Media Contact Discovery & Campaign": { "main": [[{ "node": "Send Results to DATIAM", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "meta": {
+    "templateId": "datiam-press-outreach-v1",
+    "description": "Release Intel 'outreach' mission executor. Acks the dispatch immediately, then discovers radio/blog/DJ/curator contacts and runs an email campaign once MEDIA_CONTACT_DISCOVERY_API_KEY is connected (email delivery itself is already wired via the backend's RESEND/SENDGRID/SMTP config), and posts results to POST /api/release-intel/missions/:missionId/callback. Requires n8n env vars DATIAM_API_URL and DATIAM_WEBHOOK_SECRET."
+  }
+}

@@ -28,6 +28,26 @@ interface N8nHealth {
   url: string | null
 }
 
+export interface MissionWorkflowHealth {
+  name: string
+  registered: boolean
+  is_active: boolean
+  health_status: string
+  total_runs: number
+  success_count: number
+  failed_count: number
+  avg_runtime_ms: number
+  last_dispatch_at: string | null
+  throughput_per_hour: number | null
+}
+
+export interface MissionsHealth {
+  status: 'healthy' | 'degraded'
+  workflows: MissionWorkflowHealth[]
+  dead_letter_count: number
+  queues: Array<{ name: string; status: string; waiting: number; active: number; failed: number }>
+}
+
 interface Props {
   analysis: ReleaseIntelAnalysis | null
   missions: ReleaseMission[]
@@ -35,6 +55,7 @@ interface Props {
   n8nHealth: N8nHealth | null
   registryEntry: RegistryEntry | null
   releaseRuns: AutomationRun[]
+  missionsHealth: MissionsHealth | null
 }
 
 const HEALTH_COLOR: Record<string, string> = {
@@ -58,10 +79,12 @@ function Row({ label, status, detail }: { label: string; status: string; detail?
   )
 }
 
-export default function AutomationStatusPanel({ analysis, missions, overview, n8nHealth, registryEntry, releaseRuns }: Props) {
+export default function AutomationStatusPanel({ analysis, missions, overview, n8nHealth, registryEntry, releaseRuns, missionsHealth }: Props) {
   const triggerFired = Boolean(analysis)
   const dispatchEvents = ['release.intel.analyzed', 'release.intel.brief.generated', 'release.intel.mission.created', 'release.intel.failed']
   const runsByEvent = new Map(releaseRuns.map(r => [r.payload?.event, r]))
+  const anyMissionExecuting = missions.some(m => ['queued', 'running', 'waiting', 'retrying'].includes(m.status))
+  const anyMissionDispatched = missions.some(m => m.status !== 'pending')
 
   return (
     <WidgetCard title="AUTOMATION STATUS" accent="cyan">
@@ -98,8 +121,8 @@ export default function AutomationStatusPanel({ analysis, missions, overview, n8
         />
         <Row
           label="EXECUTION"
-          status="NOT CONNECTED"
-          detail="Downstream execution modules are not yet wired to Release Intel missions"
+          status={anyMissionExecuting ? 'IN PROGRESS' : anyMissionDispatched ? 'DISPATCHED' : missions.length > 0 ? 'PENDING DISPATCH' : 'NOT CONNECTED'}
+          detail="Mission Dispatcher: Mission → BullMQ → Automation Registry → n8n → Executive Brief refresh"
         />
 
         <div className="pt-3">
@@ -120,6 +143,25 @@ export default function AutomationStatusPanel({ analysis, missions, overview, n8
             )
           })}
         </div>
+
+        {missionsHealth && (
+          <div className="pt-3">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-[9px] font-mono text-gray-600 tracking-widest">MISSION WORKFLOWS (SYSTEM-WIDE)</div>
+              {missionsHealth.dead_letter_count > 0 && (
+                <span className="text-[9px] font-mono text-red-400">{missionsHealth.dead_letter_count} DEAD-LETTERED</span>
+              )}
+            </div>
+            {missionsHealth.workflows.map(wf => (
+              <div key={wf.name} className="flex items-center justify-between text-[9px] font-mono py-1">
+                <span className="text-gray-500">{wf.name}</span>
+                <span className={wf.health_status === 'healthy' ? 'text-[#00ff41]' : wf.health_status === 'degraded' ? 'text-red-400' : 'text-gray-600'}>
+                  {wf.registered ? wf.health_status.toUpperCase() : 'NOT SEEDED'} · {wf.success_count}/{wf.total_runs} · avg {wf.avg_runtime_ms}ms
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </WidgetCard>
   )

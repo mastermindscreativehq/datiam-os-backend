@@ -121,6 +121,10 @@ export const releaseIntel = {
   getMissions:   (releaseId: string) => apiClient.get(`/release-intel/${releaseId}/missions`),
   updateMission: (missionId: string, body: Record<string, unknown>) =>
     apiClient.patch(`/release-intel/missions/${missionId}`, body),
+  dispatchMission: (missionId: string) => apiClient.post(`/release-intel/missions/${missionId}/dispatch`),
+  retryMission:    (missionId: string) => apiClient.post(`/release-intel/missions/${missionId}/retry`),
+  cancelMission:   (missionId: string) => apiClient.post(`/release-intel/missions/${missionId}/cancel`),
+  getMissionExecution: (missionId: string) => apiClient.get(`/release-intel/missions/${missionId}/execution`),
 }
 
 // ── Sync Pitches ────────────────────────────────────────────────────────────
@@ -343,6 +347,9 @@ export const monitoring = {
   history:         () => apiClient.get('/monitoring/history'),
   incidents:       () => apiClient.get('/monitoring/incidents'),
   resolveIncident: (id: string) => apiClient.post(`/monitoring/incidents/${id}/resolve`),
+  // Release Intel Mission Dispatcher — BullMQ queue depth, workflow registry
+  // health, and n8n health for the 6 mission-type workflows.
+  missions:        () => apiClient.get('/monitoring/missions'),
 }
 
 // ── Music Intelligence ───────────────────────────────────────────────────────

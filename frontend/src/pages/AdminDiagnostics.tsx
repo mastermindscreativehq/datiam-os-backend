@@ -39,6 +39,37 @@ interface Incident {
   created_at: string
 }
 
+interface MissionQueueStat {
+  name: string
+  workflow: string
+  status: string
+  waiting: number
+  active: number
+  failed: number
+  delayed: number
+}
+
+interface MissionWorkflowStat {
+  name: string
+  registered: boolean
+  is_active: boolean
+  health_status: string
+  total_runs: number
+  success_count: number
+  failed_count: number
+  avg_runtime_ms: number
+  last_dispatch_at: string | null
+  throughput_per_hour: number | null
+}
+
+interface MissionsHealthResponse {
+  status: string
+  n8n: { status: string; url: string | null }
+  queues: MissionQueueStat[]
+  workflows: MissionWorkflowStat[]
+  dead_letter_count: number
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function formatUptime(seconds: number): string {
@@ -105,6 +136,7 @@ export default function AdminDiagnostics() {
   const [health, setHealth]       = useState<HealthStatus | null>(null)
   const [history, setHistory]     = useState<HealthCheck[]>([])
   const [incidents, setIncidents] = useState<Incident[]>([])
+  const [missionsHealth, setMissionsHealth] = useState<MissionsHealthResponse | null>(null)
   const [loading, setLoading]     = useState(true)
   const [error, setError]         = useState<string | null>(null)
   const [countdown, setCountdown] = useState(30)
@@ -114,15 +146,17 @@ export default function AdminDiagnostics() {
     setLoading(true)
     setError(null)
     try {
-      const [statusRes, historyRes, incidentsRes] = await Promise.allSettled([
+      const [statusRes, historyRes, incidentsRes, missionsRes] = await Promise.allSettled([
         monitoring.status(),
         monitoring.history(),
         monitoring.incidents(),
+        monitoring.missions(),
       ])
 
       if (statusRes.status === 'fulfilled')   setHealth(statusRes.value.data)
       if (historyRes.status === 'fulfilled')  setHistory(historyRes.value.data.data ?? [])
       if (incidentsRes.status === 'fulfilled') setIncidents(incidentsRes.value.data.data ?? [])
+      if (missionsRes.status === 'fulfilled') setMissionsHealth(missionsRes.value.data ?? null)
 
       if (statusRes.status === 'rejected') {
         setError('Failed to reach the API. Check backend connectivity.')
@@ -366,6 +400,65 @@ export default function AdminDiagnostics() {
           </div>
         </div>
       </section>
+
+      {/* Mission Dispatcher — Release Intel's playlist/sync/fan/content/outreach/analytics queues */}
+      {missionsHealth && (
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="text-[10px] font-mono tracking-[0.2em] text-[#00ff41]/40">
+              MISSION DISPATCHER {missionsHealth.dead_letter_count > 0 && (
+                <span className="text-red-400">({missionsHealth.dead_letter_count} DEAD-LETTERED)</span>
+              )}
+            </div>
+            <div className="text-[10px] font-mono text-gray-500">
+              n8n: <span className={missionsHealth.n8n.status === 'healthy' ? 'text-[#00ff41]' : 'text-red-400'}>{missionsHealth.n8n.status.toUpperCase()}</span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            {missionsHealth.queues.map((q) => (
+              <StatCard
+                key={q.name}
+                label={q.name.toUpperCase()}
+                value={q.status === 'not_configured' ? 'NO REDIS' : `${q.waiting + q.active} IN FLIGHT`}
+                sub={q.status === 'not_configured' ? 'inline fallback active' : `${q.failed} failed · ${q.delayed} delayed`}
+                status={q.status === 'healthy' ? (q.failed > 0 ? 'warning' : 'healthy') : q.status}
+              />
+            ))}
+          </div>
+
+          <div className="border border-[#00ff41]/10 rounded overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-[10px] font-mono">
+                <thead>
+                  <tr className="border-b border-[#00ff41]/10 bg-[#0a0a0a]">
+                    {['WORKFLOW', 'HEALTH', 'RUNS', 'AVG RUNTIME', 'THROUGHPUT/HR', 'LAST DISPATCH'].map((h) => (
+                      <th key={h} className="px-3 py-2 text-left tracking-[0.15em] text-[#00ff41]/30">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {missionsHealth.workflows.map((wf, i) => (
+                    <tr key={wf.name} className={`border-b border-[#00ff41]/5 ${i % 2 === 0 ? 'bg-transparent' : 'bg-[#0a0a0a]'}`}>
+                      <td className="px-3 py-2 text-gray-400 whitespace-nowrap">{wf.name}</td>
+                      <td className="px-3 py-2 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <Dot status={wf.registered ? wf.health_status : 'unknown'} />
+                          <span className="text-gray-400">{wf.registered ? wf.health_status.toUpperCase() : 'NOT SEEDED'}</span>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 text-[#00d4ff]/60 whitespace-nowrap">{wf.success_count}/{wf.total_runs}{wf.failed_count > 0 ? ` (${wf.failed_count} failed)` : ''}</td>
+                      <td className="px-3 py-2 text-gray-400 whitespace-nowrap">{wf.avg_runtime_ms}ms</td>
+                      <td className="px-3 py-2 text-gray-400 whitespace-nowrap">{wf.throughput_per_hour ?? 0}</td>
+                      <td className="px-3 py-2 text-gray-500 whitespace-nowrap">{wf.last_dispatch_at ? formatTimestamp(wf.last_dispatch_at) : '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* All incidents (resolved) */}
       {incidents.filter((i) => i.status === 'resolved').length > 0 && (

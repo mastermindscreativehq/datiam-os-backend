@@ -95,7 +95,10 @@ export interface ExecutiveBrief {
 }
 
 export type MissionType = 'playlist' | 'sync' | 'fan_growth' | 'content' | 'outreach' | 'analytics'
-export type MissionStatus = 'pending' | 'active' | 'blocked' | 'completed' | 'cancelled'
+export type MissionStatus =
+  | 'pending' | 'active' | 'blocked' | 'completed' | 'cancelled'
+  // Mission Dispatcher — automation-managed execution states
+  | 'queued' | 'running' | 'waiting' | 'failed' | 'retrying'
 
 export interface ReleaseMission {
   id: string
@@ -113,6 +116,33 @@ export interface ReleaseMission {
   created_at: string
   updated_at: string
   completed_at: string | null
+  // Mission Dispatcher fields (migration 0049)
+  owner: string | null
+  started_at: string | null
+  workflow_id: string | null
+  queue_job_id: string | null
+  automation_run_id: string | null
+  retry_count: number
+  last_error: string | null
+}
+
+export const ACTIVE_MISSION_STATUSES: MissionStatus[] = ['queued', 'running', 'waiting', 'retrying']
+
+export interface MissionExecutionRun {
+  id: string
+  workflow_name: string
+  status: string
+  duration_ms: number | null
+  retry_count: number
+  error_message: string | null
+  result: { fired?: boolean; response?: Record<string, unknown> | null } | null
+  created_at: string
+}
+
+export interface MissionExecution {
+  mission: ReleaseMission
+  execution_history: MissionExecutionRun[]
+  queue_status: string | null
 }
 
 export interface ActivityEvent {
