@@ -79,7 +79,7 @@ export default function MissionWorkspaceTab({
             title="Mission not yet generated"
             message="This mission is created automatically the first time Release Intel analysis completes for this release."
             hint="Run analysis from the Overview tab."
-            color={accent === 'orange' || accent === 'fuchsia' || accent === 'yellow' ? accent : 'green'}
+            color={accent}
           />
         </div>
       </WidgetCard>
