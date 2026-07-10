@@ -15,9 +15,12 @@ Open http://localhost:3000
 
 ## Environment Variables
 
-```
-VITE_API_URL=https://datiam-os-backend-production.up.railway.app
-```
+`VITE_API_URL` is mode-scoped via Vite's env file loading:
+
+- `.env.development` → `http://localhost:4000/api` (used by `npm run dev`)
+- `.env` → `https://datiam-os-backend-production.up.railway.app/api` (used by `npm run build` / production, since `.env.development` doesn't apply outside dev mode)
+
+No manual switching needed — `npm run dev` always talks to the local backend, and production builds always talk to Railway.
 
 ## Testing Login
 

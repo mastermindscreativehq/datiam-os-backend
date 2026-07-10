@@ -13,14 +13,18 @@ import {
 } from '../../db/schema';
 import { AppError } from '../../middleware/errorHandler';
 import { logActivity } from '../../lib/activityLogger';
+import { dispatchEvent } from '../automation/automation.service';
+import { AUTOMATION_CATEGORY_EVENTS, type AutomationCategory } from '../automation/automation-categories';
 import {
   onCampaignStarted,
   onCampaignCompleted,
+  onReleaseUpdated,
 } from './release-intelligence.webhooks';
 import type {
   CreateCampaignInput,
   UpdateCampaignInput,
   UpdateDspStatusInput,
+  UpdateReleaseFieldsInput,
 } from './release-intelligence.schema';
 
 const ENGINE_VERSION = 'release-intelligence-v1';
@@ -418,6 +422,54 @@ export const getReleaseDetail = async (releaseId: string) => {
     timeline:        buildTimeline(release, dsps, campaigns),
     engine_version:  ENGINE_VERSION,
   };
+};
+
+// ─── Release Field Updates (migration 0051) ──────────────────────────────────
+
+export const updateRelease = async (releaseId: string, input: UpdateReleaseFieldsInput) => {
+  const [existing] = await db.select().from(releases).where(eq(releases.id, releaseId)).limit(1);
+  if (!existing) throw new AppError('Release not found', 404);
+
+  const values: Record<string, unknown> = { ...input };
+  for (const key of Object.keys(values)) {
+    if (values[key] === '') values[key] = null;
+  }
+  if (values.release_date) values.release_date = String(values.release_date);
+
+  const [updated] = await db
+    .update(releases)
+    .set({ ...values, updated_at: new Date() })
+    .where(eq(releases.id, releaseId))
+    .returning();
+
+  await onReleaseUpdated(
+    updated as unknown as Record<string, unknown>,
+    input as unknown as Record<string, unknown>,
+  );
+  dispatchEvent('release.updated', { release: updated, changes: input }).catch(() => {});
+
+  return updated;
+};
+
+export const dispatchReleaseAutomation = async (
+  releaseId: string,
+  category: AutomationCategory,
+  extra: { notes?: string; metadata?: Record<string, unknown> },
+) => {
+  const [release] = await db.select().from(releases).where(eq(releases.id, releaseId)).limit(1);
+  if (!release) throw new AppError('Release not found', 404);
+
+  const event = AUTOMATION_CATEGORY_EVENTS[category];
+  const result = await dispatchEvent(event, {
+    category,
+    release_id: release.id,
+    artist_id: release.artist_id,
+    release_title: release.release_title,
+    notes: extra.notes,
+    ...extra.metadata,
+  });
+
+  return { category, ...result };
 };
 
 // ─── Timeline ─────────────────────────────────────────────────────────────────

@@ -13,6 +13,7 @@ import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import { env } from './config/env';
+import { checkRedisAvailability } from './queues';
 import app from './app';
 import { startSchedulerWorker, stopSchedulerWorker } from './modules/scheduler/scheduler.worker';
 import { startSonicWorkers, stopSonicWorkers } from './modules/sonic-world/sonic-queue-workers';
@@ -66,6 +67,11 @@ function validateEmailProvider(): void {
 async function main(): Promise<void> {
   validateEmailProvider();
   await runMigrations();
+
+  if (process.env.REDIS_URL && !(await checkRedisAvailability())) {
+    console.warn('[Redis] Unreachable at startup — running in Redis-optional mode; all Redis-dependent queues/workers are disabled for this process.');
+    delete process.env.REDIS_URL;
+  }
 
   const server = app.listen(port, () => {
     console.log(JSON.stringify({

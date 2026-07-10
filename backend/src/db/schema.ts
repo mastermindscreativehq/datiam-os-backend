@@ -259,6 +259,37 @@ export const artist_profiles = pgTable('artist_profiles', {
   genre_primary: text('genre_primary'),
   genre_secondary: text('genre_secondary'),
   brand_statement: text('brand_statement'),
+  // Artist & Catalog Engine v1 (migration 0037) — previously live-only, now typed here
+  genres: text('genres').array().default([]),
+  countries: text('countries').array().default([]),
+  catalog_status: text('catalog_status').default('active'),
+  // Artist Intelligence v1 (migration 0051) — identity
+  city: text('city'),
+  region: text('region'),
+  verified: boolean('verified').default(false).notNull(),
+  // Artist Intelligence v1 — business metadata
+  management_company: text('management_company'),
+  management_contact_name: text('management_contact_name'),
+  management_contact_email: text('management_contact_email'),
+  management_contact_phone: text('management_contact_phone'),
+  booking_agent: text('booking_agent'),
+  booking_contact_email: text('booking_contact_email'),
+  booking_contact_phone: text('booking_contact_phone'),
+  label_name: text('label_name'),
+  publisher_name: text('publisher_name'),
+  pro_affiliation: text('pro_affiliation'),
+  press_contact_email: text('press_contact_email'),
+  // Artist Intelligence v1 — distribution
+  distributor_name: text('distributor_name'),
+  distributor_artist_id: text('distributor_artist_id'),
+  primary_territory: text('primary_territory'),
+  territories: jsonb('territories').default([]),
+  // Artist Intelligence v1 — rights management
+  ipi_number: text('ipi_number'),
+  isni_code: text('isni_code'),
+  master_rights_owner: text('master_rights_owner'),
+  publishing_rights_owner: text('publishing_rights_owner'),
+  rights_notes: text('rights_notes'),
   created_at: timestamp('created_at').defaultNow().notNull(),
   updated_at: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -384,6 +415,18 @@ export const releases = pgTable(
     youtube_url: text('youtube_url'),
     status: releasePublishStatusEnum('status').default('planning').notNull(),
     release_state: releaseStateEnum('release_state').default('draft').notNull(),
+    // Artist & Catalog Engine v1 (migration 0037) — previously live-only, now typed here
+    preorder_date: date('preorder_date'),
+    catalog_release_type: text('catalog_release_type').default('single'),
+    // Release Intelligence v1 (migration 0051) — additional streaming platform URLs
+    deezer_url: text('deezer_url'),
+    tidal_url: text('tidal_url'),
+    amazon_music_url: text('amazon_music_url'),
+    youtube_music_url: text('youtube_music_url'),
+    soundcloud_url: text('soundcloud_url'),
+    // Release Intelligence v1 — territories + lead-track ISRC convenience field
+    territories: jsonb('territories').default([]),
+    primary_isrc: text('primary_isrc'),
     created_at: timestamp('created_at').defaultNow().notNull(),
     updated_at: timestamp('updated_at').defaultNow().notNull(),
   },
@@ -3418,4 +3461,52 @@ export const releaseMissionsRelations = relations(release_missions, ({ one }) =>
   artist:  one(artist_profiles, { fields: [release_missions.artist_id], references: [artist_profiles.id] }),
   workflow: one(workflow_registry, { fields: [release_missions.workflow_id], references: [workflow_registry.id] }),
   latestRun: one(automation_runs, { fields: [release_missions.automation_run_id], references: [automation_runs.id] }),
+}));
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Music Links Hub v1  (migration 0051)
+// Single source of truth for every artist/release URL — music platform links,
+// social media links, smart links, pre-save links, business/distribution links.
+// Exactly one of artist_id / release_id is set (enforced by a DB CHECK).
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const musicLinkCategoryEnum = pgEnum('music_link_category', [
+  'music_platform', 'social_media', 'smart_link', 'pre_save', 'business', 'distribution', 'other',
+]);
+
+export const music_links = pgTable(
+  'music_links',
+  {
+    id:             uuid('id').primaryKey().defaultRandom().notNull(),
+    artist_id:      uuid('artist_id').references(() => artist_profiles.id, { onDelete: 'cascade' }),
+    release_id:     uuid('release_id').references(() => releases.id, { onDelete: 'cascade' }),
+    link_category:  musicLinkCategoryEnum('link_category').notNull(),
+    platform:       text('platform').notNull(),
+    url:            text('url').notNull(),
+    label:          text('label'),
+    is_primary:     boolean('is_primary').notNull().default(false),
+    is_active:      boolean('is_active').notNull().default(true),
+    click_count:    integer('click_count').notNull().default(0),
+    territory:      text('territory'),
+    display_order:  integer('display_order').notNull().default(0),
+    metadata:       jsonb('metadata').default({}),
+    created_at:     timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updated_at:     timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    artistIdx:         index('music_links_artist_id_idx').on(t.artist_id),
+    releaseIdx:        index('music_links_release_id_idx').on(t.release_id),
+    categoryIdx:       index('music_links_category_idx').on(t.link_category),
+    platformIdx:       index('music_links_platform_idx').on(t.platform),
+    artistCategoryIdx: index('music_links_artist_category_idx').on(t.artist_id, t.link_category),
+    releaseCategoryIdx: index('music_links_release_category_idx').on(t.release_id, t.link_category),
+  }),
+);
+
+export type MusicLink    = typeof music_links.$inferSelect;
+export type NewMusicLink = typeof music_links.$inferInsert;
+
+export const musicLinksRelations = relations(music_links, ({ one }) => ({
+  artist:  one(artist_profiles, { fields: [music_links.artist_id], references: [artist_profiles.id] }),
+  release: one(releases, { fields: [music_links.release_id], references: [releases.id] }),
 }));

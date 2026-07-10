@@ -56,6 +56,8 @@ import missionControlRouter from './modules/mission-control/missionControl.route
 import releaseIntelligenceRouter from './modules/release-intelligence/release-intelligence.routes';
 import releaseIntelRouter from './modules/release-intel/release-intel.routes';
 import catalogEngineRouter from './modules/catalog-engine/catalog-engine.routes';
+import artistIntelligenceRouter from './modules/artist-intelligence/artist-intelligence.routes';
+import musicLinksRouter from './modules/music-links/music-links.routes';
 
 // Growth OS routers
 import contentVaultRouter from './modules/content/content-vault.routes';
@@ -198,6 +200,8 @@ app.use('/api/release-intelligence', releaseIntelligenceRouter);
 app.use('/api/release-intel',        releaseIntelRouter);
 app.use('/api/catalog',              catalogEngineRouter);
 app.use('/api/catalog-engine',       catalogEngineRouter);
+app.use('/api/artist-intelligence',  artistIntelligenceRouter);
+app.use('/api/music-links',          musicLinksRouter);
 
 // ---- Growth OS Routes ----
 app.use('/api/growth/content',       contentVaultRouter);

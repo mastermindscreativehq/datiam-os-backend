@@ -46,6 +46,8 @@ import PaymentIntelligence from './pages/PaymentIntelligence'
 import MissionControl from './pages/MissionControl'
 import ReleaseIntelligence from './pages/ReleaseIntelligence'
 import ReleaseIntel from './pages/ReleaseIntel'
+import ArtistIntelligence from './pages/ArtistIntelligence'
+import MusicLinksHub from './pages/MusicLinksHub'
 import AutomationDashboard from './pages/AutomationDashboard'
 import CatalogArtists from './pages/catalog/CatalogArtists'
 import CatalogArtistDetail from './pages/catalog/CatalogArtistDetail'
@@ -112,6 +114,10 @@ function App() {
           {/* Release Intel Phase 1 — separate module (migration 0048, /api/release-intel) */}
           <Route path="release-intel" element={<ReleaseIntel />} />
           <Route path="release-intel/:id" element={<ReleaseIntel />} />
+          {/* Artist Intelligence + Music Links Hub (migration 0051) */}
+          <Route path="artist-intelligence" element={<ArtistIntelligence />} />
+          <Route path="artist-intelligence/:id" element={<ArtistIntelligence />} />
+          <Route path="music-links" element={<MusicLinksHub />} />
           {/* DATIAM Automation Layer */}
           <Route path="automation" element={<AutomationDashboard />} />
           {/* DATIAM Artist & Catalog Engine */}

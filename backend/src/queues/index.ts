@@ -7,14 +7,50 @@ import { Queue } from 'bullmq';
 // ECONNRESET on Railway proxy is fixed by keepAlive, not TLS.
 function buildRedisOpts(url: string): RedisOptions {
   const isTls = url.startsWith('rediss://');
+  const isProd = process.env.NODE_ENV === 'production';
   return {
     maxRetriesPerRequest: null,
     enableReadyCheck: false,
     keepAlive: 30_000,
     connectTimeout: 30_000,
-    retryStrategy: (times: number) => Math.min(times * 200, 5_000),
+    lazyConnect: true,
+    // In dev/test, Redis is optional — give up after a few attempts instead of
+    // retrying forever every 5s and flooding logs when it's unreachable.
+    // In production, keep retrying indefinitely so a transient blip recovers.
+    retryStrategy: (times: number) => {
+      if (!isProd && times > 3) return null;
+      return Math.min(times * 200, 5_000);
+    },
     ...(isTls ? { tls: { rejectUnauthorized: false } } : {}),
   };
+}
+
+/**
+ * One-shot reachability probe, used at startup to decide whether to enable
+ * Redis-dependent queues/workers for this process. Never retries and always
+ * cleans up its socket, regardless of outcome.
+ */
+export async function checkRedisAvailability(timeoutMs = 3_000): Promise<boolean> {
+  const redisUrl = process.env.REDIS_URL;
+  if (!redisUrl) return false;
+
+  const isTls = redisUrl.startsWith('rediss://');
+  const probe = new IORedis(redisUrl, {
+    lazyConnect: true,
+    connectTimeout: timeoutMs,
+    retryStrategy: () => null,
+    ...(isTls ? { tls: { rejectUnauthorized: false } } : {}),
+  });
+
+  try {
+    await probe.connect();
+    await probe.ping();
+    return true;
+  } catch {
+    return false;
+  } finally {
+    probe.disconnect();
+  }
 }
 
 let redisConnection: IORedis | null = null;

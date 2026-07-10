@@ -38,6 +38,24 @@ export function useReleaseDetail(id: string) {
   })
 }
 
+export function useUpdateRelease(releaseId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: Record<string, unknown>) => releaseIntelligenceApi.updateRelease(releaseId, body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: RELEASE_INTEL_KEYS.detail(releaseId) })
+      qc.invalidateQueries({ queryKey: RELEASE_INTEL_KEYS.readiness(releaseId) })
+    },
+  })
+}
+
+export function useDispatchReleaseAutomation(releaseId: string) {
+  return useMutation({
+    mutationFn: ({ category, body }: { category: string; body?: Record<string, unknown> }) =>
+      releaseIntelligenceApi.dispatchAutomation(releaseId, category, body ?? {}),
+  })
+}
+
 export function useReleaseReadiness(id: string) {
   return useQuery({
     queryKey: RELEASE_INTEL_KEYS.readiness(id),

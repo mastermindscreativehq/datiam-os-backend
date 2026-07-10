@@ -5,6 +5,8 @@ import {
   createCampaignSchema,
   updateCampaignSchema,
   updateDspStatusSchema,
+  updateReleaseFieldsSchema,
+  dispatchReleaseAutomationSchema,
 } from './release-intelligence.schema';
 import * as controller from './release-intelligence.controller';
 
@@ -31,6 +33,11 @@ router.patch('/recommendations/:recId/action', canWrite, controller.actionRecomm
 
 // Release detail
 router.get('/:id', canRead, controller.getReleaseDetailHandler);
+router.patch('/:id', canWrite, validate(updateReleaseFieldsSchema), controller.updateReleaseHandler);
+
+// Automation dispatch (playlist/sync/dj/blog/social/analytics/campaign)
+router.post('/:id/automation/:category',
+  canWrite, validate(dispatchReleaseAutomationSchema), controller.dispatchReleaseAutomationHandler);
 
 // Readiness
 router.get('/:id/readiness', canRead, controller.getReadinessHandler);

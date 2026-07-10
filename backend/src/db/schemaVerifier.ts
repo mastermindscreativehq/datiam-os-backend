@@ -16,6 +16,7 @@ const REQUIRED_TABLES = [
   'activity_log', 'songs', 'releases',
   'audio_dna', 'audio_dna_jobs',
   'sync_intelligence', 'sync_intelligence_jobs',
+  'music_links',
 ];
 
 const REQUIRED_COLUMNS: ColumnCheck[] = [
@@ -60,6 +61,20 @@ const REQUIRED_COLUMNS: ColumnCheck[] = [
   { table: 'releases', column: 'cover_art_url' },
   { table: 'releases', column: 'description' },
   { table: 'releases', column: 'total_tracks' },
+  // artist_profiles — Artist Intelligence v1 (migration 0051)
+  { table: 'artist_profiles', column: 'management_company' },
+  { table: 'artist_profiles', column: 'territories' },
+  { table: 'artist_profiles', column: 'ipi_number' },
+  { table: 'artist_profiles', column: 'distributor_name' },
+  { table: 'artist_profiles', column: 'verified' },
+  // releases — Release Intelligence v1 (migration 0051)
+  { table: 'releases', column: 'territories' },
+  { table: 'releases', column: 'primary_isrc' },
+  { table: 'releases', column: 'deezer_url' },
+  // music_links — Music Links Hub v1 (migration 0051)
+  { table: 'music_links', column: 'artist_id' },
+  { table: 'music_links', column: 'release_id' },
+  { table: 'music_links', column: 'link_category' },
 ];
 
 export async function verifySchema(): Promise<SchemaReport> {

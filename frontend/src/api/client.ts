@@ -127,6 +127,26 @@ export const releaseIntel = {
   getMissionExecution: (missionId: string) => apiClient.get(`/release-intel/missions/${missionId}/execution`),
 }
 
+// ── Artist Intelligence (migration 0051 — /api/artist-intelligence) ─────────
+export const artistIntelligence = {
+  create: (body: Record<string, unknown>) => apiClient.post('/artist-intelligence', body),
+  get:    (id: string) => apiClient.get(`/artist-intelligence/${id}`),
+  update: (id: string, body: Record<string, unknown>) => apiClient.patch(`/artist-intelligence/${id}`, body),
+  dispatchAutomation: (id: string, category: string, body: Record<string, unknown> = {}) =>
+    apiClient.post(`/artist-intelligence/${id}/automation/${category}`, body),
+}
+
+// ── Music Links Hub (migration 0051 — /api/music-links) ─────────────────────
+export const musicLinks = {
+  list:      (params: Record<string, unknown> = {}) => apiClient.get('/music-links', { params }),
+  byArtist:  (artistId: string)  => apiClient.get(`/music-links/artist/${artistId}`),
+  byRelease: (releaseId: string) => apiClient.get(`/music-links/release/${releaseId}`),
+  create:    (body: Record<string, unknown>) => apiClient.post('/music-links', body),
+  update:    (id: string, body: Record<string, unknown>) => apiClient.patch(`/music-links/${id}`, body),
+  remove:    (id: string) => apiClient.delete(`/music-links/${id}`),
+  reorder:   (body: Array<{ id: string; display_order: number }>) => apiClient.patch('/music-links/reorder', body),
+}
+
 // ── Sync Pitches ────────────────────────────────────────────────────────────
 export const syncPitches = {
   list:   () => apiClient.get('/sync/pitches'),

@@ -15,6 +15,11 @@ const DSP_FIELDS: Array<{ key: keyof ReleaseRecord; label: string }> = [
   { key: 'audiomack_url', label: 'Audiomack' },
   { key: 'boomplay_url', label: 'Boomplay' },
   { key: 'youtube_url', label: 'YouTube Music' },
+  { key: 'deezer_url', label: 'Deezer' },
+  { key: 'tidal_url', label: 'Tidal' },
+  { key: 'amazon_music_url', label: 'Amazon Music' },
+  { key: 'youtube_music_url', label: 'YT Music' },
+  { key: 'soundcloud_url', label: 'SoundCloud' },
 ]
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
@@ -76,6 +81,22 @@ export default function ReleaseSummary({ release, analysis, artistName }: Props)
         <Field label="COMMERCIAL READINESS">
           <span className="text-[#00d4ff]">{release.release_state.replace(/_/g, ' ').toUpperCase()}</span>
           <div className="text-[9px] text-gray-600 mt-0.5">from release checklist/state engine</div>
+        </Field>
+
+        <Field label="PRIMARY ISRC">{release.primary_isrc ?? '—'}</Field>
+
+        <Field label="TERRITORIES">
+          {release.territories && release.territories.length > 0 ? (
+            <div className="flex flex-wrap gap-1.5">
+              {release.territories.map((t) => (
+                <span key={t} className="text-[9px] font-mono px-1.5 py-0.5 rounded border border-[#00d4ff]/25 text-[#00d4ff]">
+                  {t}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <span className="text-gray-600">—</span>
+          )}
         </Field>
       </div>
     </WidgetCard>

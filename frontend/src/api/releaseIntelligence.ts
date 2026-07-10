@@ -19,6 +19,9 @@ export const releaseIntelligenceApi = {
   getCalendar:      (artistId?: string, year?: number, month?: number) =>
     api.get('/calendar', { params: { artist_id: artistId, year, month } }).then(r => r.data.data),
   getReleaseDetail: (id: string) => api.get(`/${id}`).then(r => r.data.data),
+  updateRelease:    (id: string, body: Record<string, unknown>) => api.patch(`/${id}`, body).then(r => r.data.data),
+  dispatchAutomation: (id: string, category: string, body: Record<string, unknown> = {}) =>
+    api.post(`/${id}/automation/${category}`, body).then(r => r.data.data),
   getReadiness:     (id: string) => api.get(`/${id}/readiness`).then(r => r.data.data),
   getDspStatuses:   (id: string) => api.get(`/${id}/dsp-status`).then(r => r.data.data),
   updateDspStatus:  (id: string, platform: string, body: Record<string, unknown>) =>

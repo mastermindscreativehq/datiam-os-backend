@@ -22,6 +22,14 @@ export interface ReleaseRecord {
   audiomack_url: string | null
   boomplay_url: string | null
   youtube_url: string | null
+  // Release Intelligence v1 (migration 0051)
+  deezer_url: string | null
+  tidal_url: string | null
+  amazon_music_url: string | null
+  youtube_music_url: string | null
+  soundcloud_url: string | null
+  territories: string[] | null
+  primary_isrc: string | null
   release_state: string
   created_at: string
   updated_at: string

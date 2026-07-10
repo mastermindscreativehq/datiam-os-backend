@@ -36,6 +36,8 @@ const NAV = [
   { to: '/payment-intelligence',     label: 'PAYMENTS',             icon: '✦' },
   { to: '/release-intelligence',    label: 'RELEASE CAMPAIGNS',    icon: '◎' },
   { to: '/release-intel',           label: 'RELEASE INTEL',        icon: '⬡' },
+  { to: '/artist-intelligence',     label: 'ARTIST INTEL',         icon: '⬟' },
+  { to: '/music-links',             label: 'MUSIC LINKS HUB',      icon: '◈' },
   { to: '/activity',                 label: 'ACTIVITY',             icon: '◈' },
   { to: '/admin/diagnostics',        label: 'DIAGNOSTICS',          icon: '⬡' },
   { to: '/growth',               label: 'GROWTH OS',     icon: '⬡' },

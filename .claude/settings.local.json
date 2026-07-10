@@ -134,7 +134,22 @@
       "PowerShell(Set-Location \"C:\\\\Users\\\\user\\\\datiam-os\\\\.claude\\\\worktrees\\\\agent-afff184e26800a60d\\\\backend\"; $result = & npx tsc --noEmit --project tsconfig.json 2>&1; $result | Out-String | Select-String \"catalog-engine\" -AllMatches | ForEach-Object { $_.Line })",
       "PowerShell(Set-Location \"C:\\\\Users\\\\user\\\\datiam-os\\\\.claude\\\\worktrees\\\\agent-afff184e26800a60d\\\\backend\"; $result = npx tsc --noEmit 2>&1 | Out-String; Write-Output $result.Substring\\(0, [Math]::Min\\(4000, $result.Length\\)\\))",
       "PowerShell(Set-Location \"C:\\\\Users\\\\user\\\\datiam-os\\\\.claude\\\\worktrees\\\\agent-afff184e26800a60d\\\\backend\"; $result = node_modules\\\\.bin\\\\tsc --noEmit 2>&1 | Out-String; Write-Output $result.Substring\\(0, [Math]::Min\\(5000, $result.Length\\)\\))",
-      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\user\\\\datiam-os\\\\.claude\\\\worktrees\\\\agent-ae236e769d0bc980a\\\\frontend\\\\src\\\\\" -Recurse | Where-Object { !$_.PSIsContainer } | Select-Object FullName | Sort-Object FullName)"
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\user\\\\datiam-os\\\\.claude\\\\worktrees\\\\agent-ae236e769d0bc980a\\\\frontend\\\\src\\\\\" -Recurse | Where-Object { !$_.PSIsContainer } | Select-Object FullName | Sort-Object FullName)",
+      "Bash(powershell -Command \"Get-CimInstance Win32_Process | Where-Object { \\\\$_.CommandLine -like '*vite*' -or \\\\$_.CommandLine -like '*npm run dev*' } | Select-Object ProcessId, CommandLine\" 2>&1)",
+      "Bash(powershell -Command \"Stop-Process -Id 20396,14480,33040,30084 -Force -ErrorAction SilentlyContinue\" 2>&1)",
+      "Read(//tmp/**)",
+      "Bash(ls /tmp/)",
+      "Bash(powershell -Command \"Get-NetTCPConnection -State Listen -LocalPort 3000,3001,4000 -ErrorAction SilentlyContinue | Select-Object LocalPort,OwningProcess\" 2>&1)",
+      "Bash(echo \"started with pid $!\")",
+      "Bash(kill 3309 3317)",
+      "Bash(kill 3309)",
+      "Bash(pkill -f \"ts-node-dev\")",
+      "Bash(NODE_ENV=development REDIS_URL=\"redis://default:pass@zephyr-proxy.rlwy.net:56888\" npm run dev)",
+      "Bash(echo \"started pid $!\")",
+      "Bash(kill -9 3384 3539)",
+      "Bash(kill -9 3736)",
+      "Bash(pkill -f \"src/server.ts\")",
+      "Bash(rm -f /tmp/inspect*.mjs /tmp/server.log)"
     ]
   }
 }

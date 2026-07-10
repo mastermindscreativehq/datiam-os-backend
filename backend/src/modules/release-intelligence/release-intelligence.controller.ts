@@ -1,5 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import * as service from './release-intelligence.service';
+import { isAutomationCategory } from '../automation/automation-categories';
+import { AppError } from '../../middleware/errorHandler';
 
 const ok = (res: Response, data: unknown) => res.json({ success: true, data });
 
@@ -109,5 +111,20 @@ export const getReadinessHandler = async (req: Request, res: Response, next: Nex
 export const getSummaryHandler = async (req: Request, res: Response, next: NextFunction) => {
   try {
     ok(res, await service.getReleaseIntelligenceSummary());
+  } catch (e) { next(e); }
+};
+
+export const updateReleaseHandler = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    ok(res, await service.updateRelease(req.params.id, req.body));
+  } catch (e) { next(e); }
+};
+
+export const dispatchReleaseAutomationHandler = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!isAutomationCategory(req.params.category)) {
+      throw new AppError(`Unknown automation category: ${req.params.category}`, 400);
+    }
+    ok(res, await service.dispatchReleaseAutomation(req.params.id, req.params.category, req.body ?? {}));
   } catch (e) { next(e); }
 };

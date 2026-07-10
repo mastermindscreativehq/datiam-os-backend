@@ -507,6 +507,19 @@ export const getEventTypes = () => ({
     'release.intel.brief.generated',
     'release.intel.mission.created',
     'release.intel.failed',
+    // Music Links Hub events
+    'music_links.created',
+    'music_links.updated',
+    'music_links.deleted',
+    // Growth OS campaign events (previously missing from this list despite being seeded/used)
+    'campaign.created',
+    // Manual automation dispatch (Artist/Release Intelligence "automation" tab)
+    'automation.playlist_pitch.requested',
+    'automation.sync_pitch.requested',
+    'automation.dj_outreach.requested',
+    'automation.blog_outreach.requested',
+    'automation.social_scheduling.requested',
+    'automation.analytics_updates.requested',
   ],
 });
 
@@ -819,6 +832,74 @@ export const seedWorkflows = async () => {
     }
   }
 
+  // ── Music Links Hub + dedicated outreach-segment workflows ───────────────
+
+  const artistIntelWorkflows: Array<{
+    name: string;
+    description: string;
+    event_triggers: string[];
+    webhook_path: string;
+    metadata: Record<string, unknown>;
+  }> = [
+    {
+      name: 'music-links-events',
+      description: 'Fires when an artist/release URL is added, updated, or removed via the Music Links Hub',
+      event_triggers: ['music_links.created', 'music_links.updated', 'music_links.deleted'],
+      webhook_path: '/webhook/music-links',
+      metadata: { template: 'datiam-music-links-events-v1' },
+    },
+    {
+      name: 'dj-outreach',
+      description: 'Automated DJ outreach — discovers and contacts DJs/curators for a release',
+      event_triggers: ['automation.dj_outreach.requested'],
+      webhook_path: '/webhook/dj-outreach',
+      metadata: { template: 'datiam-dj-outreach-v1' },
+    },
+    {
+      name: 'blog-outreach',
+      description: 'Automated blog/press outreach — discovers and contacts music blogs for a release',
+      event_triggers: ['automation.blog_outreach.requested'],
+      webhook_path: '/webhook/blog-outreach',
+      metadata: { template: 'datiam-blog-outreach-v1' },
+    },
+  ];
+
+  for (const wfDef of artistIntelWorkflows) {
+    const exists = await db
+      .select({ id: workflow_registry.id })
+      .from(workflow_registry)
+      .where(eq(workflow_registry.name, wfDef.name))
+      .limit(1);
+
+    if (!exists.length) {
+      const [wf] = await db
+        .insert(workflow_registry)
+        .values({ ...wfDef, is_active: true })
+        .returning();
+      seeded.push(wf);
+
+      logActivity({
+        eventType: 'workflow.registered',
+        module: 'automation',
+        entityType: 'workflow_registry',
+        entityId: wf.id,
+        title: `Workflow seeded: ${wfDef.name}`,
+        severity: 'info',
+        metadata: { seeded: true },
+      });
+    }
+  }
+
+  // ── Append manual-dispatch event triggers to existing mission workflows ──
+  // (playlist pitching / sync pitching / social scheduling / analytics updates
+  // manual dispatch from Artist/Release Intelligence share these workflows
+  // with the release-intel mission dispatcher, distinguished by event name.)
+
+  await ensureEventTrigger('playlist_pitch',    'automation.playlist_pitch.requested');
+  await ensureEventTrigger('sync_pitch',         'automation.sync_pitch.requested');
+  await ensureEventTrigger('content_calendar',   'automation.social_scheduling.requested');
+  await ensureEventTrigger('analytics_refresh',  'automation.analytics_updates.requested');
+
   return {
     seeded: seeded.length,
     message: seeded.length > 0
@@ -826,6 +907,17 @@ export const seedWorkflows = async () => {
       : 'All workflows already registered',
     workflows: seeded,
   };
+};
+
+// Idempotently appends `event` to an existing workflow_registry row's
+// event_triggers array, if it's not already present. No-op if the workflow
+// doesn't exist yet (seedWorkflows always seeds it first in the same call).
+const ensureEventTrigger = async (workflowName: string, event: string) => {
+  await db.execute(sql`
+    UPDATE workflow_registry
+    SET event_triggers = array_append(event_triggers, ${event})
+    WHERE name = ${workflowName} AND NOT (event_triggers @> ARRAY[${event}]::text[])
+  `);
 };
 
 // ── Test Event Dispatch ──────────────────────────────────────────────────────
