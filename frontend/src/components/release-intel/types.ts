@@ -189,3 +189,25 @@ export interface ReleaseIntelSnapshot {
   brief: ExecutiveBrief | null
   missions: ReleaseMission[]
 }
+
+// Workspace tab keys — the six mission-type tabs reuse MissionType values
+// directly so "open this mission's tab" never needs a separate lookup table.
+export type ReleaseIntelTabKey = 'overview' | 'intelligence' | 'missions' | MissionType | 'diagnostics'
+
+export interface ReleaseIntelTab {
+  key: ReleaseIntelTabKey
+  label: string
+}
+
+export const RELEASE_INTEL_TABS: ReleaseIntelTab[] = [
+  { key: 'overview', label: 'Overview' },
+  { key: 'intelligence', label: 'Release Intelligence' },
+  { key: 'missions', label: 'Mission Board' },
+  { key: 'playlist', label: 'Playlist Pitch' },
+  { key: 'sync', label: 'Sync Pitch' },
+  { key: 'outreach', label: 'Press Outreach' },
+  { key: 'fan_growth', label: 'Fan Growth' },
+  { key: 'content', label: 'Content Calendar' },
+  { key: 'analytics', label: 'Analytics' },
+  { key: 'diagnostics', label: 'Diagnostics' },
+]
