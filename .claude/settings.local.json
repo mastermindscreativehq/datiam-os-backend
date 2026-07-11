@@ -173,7 +173,8 @@
       "Bash(git stash *)",
       "Bash(echo \"BACKEND_TSC_EXIT:$?\")",
       "Read(//c/Users/user/**)",
-      "Bash(echo \"FRONTEND_TSC_EXIT:$?\")"
+      "Bash(echo \"FRONTEND_TSC_EXIT:$?\")",
+      "Bash(railway whoami *)"
     ]
   }
 }
