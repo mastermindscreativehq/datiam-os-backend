@@ -26,7 +26,14 @@ export const authenticate = (
     return next(new AppError('No token provided', 401));
   }
 
-  const token = authHeader.split(' ')[1];
+  const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+
+  console.log('[AUTH-DIAG] RAW AUTH HEADER');
+  console.log(authHeader);
+  console.log('[AUTH-DIAG] EXTRACTED TOKEN');
+  console.log(token);
+  console.log('[AUTH-DIAG] TOKEN LENGTH');
+  console.log(token.length);
 
   // ==========================================================
   // EXTRA RAW TOKEN DIAGNOSTICS
