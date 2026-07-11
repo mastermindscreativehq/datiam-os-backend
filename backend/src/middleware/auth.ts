@@ -1,5 +1,4 @@
 import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
 import { verifyToken } from '../utils/jwt';
 import { AppError } from './errorHandler';
 
@@ -15,6 +14,14 @@ declare global {
   }
 }
 
+// A syntactically valid JWS: three dot-separated base64url segments, nothing else.
+// Extracting against this shape (rather than trusting whatever text follows
+// "Bearer ") means a header mangled by an intermediary — stray whitespace,
+// wrapping quotes, or a truncated copy-paste — fails fast with a distinct
+// error instead of being handed to jwt.verify, which reports both a malformed
+// token and a secret mismatch as the same opaque "invalid token".
+const JWS_SHAPE = /^[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+$/;
+
 export const authenticate = (
   req: Request,
   _res: Response,
@@ -26,79 +33,11 @@ export const authenticate = (
     return next(new AppError('No token provided', 401));
   }
 
-  const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+  const token = authHeader.slice('Bearer '.length).trim();
 
-  console.log('[AUTH-DIAG] RAW AUTH HEADER');
-  console.log(authHeader);
-  console.log('[AUTH-DIAG] EXTRACTED TOKEN');
-  console.log(token);
-  console.log('[AUTH-DIAG] TOKEN LENGTH');
-  console.log(token.length);
-
-  // ==========================================================
-  // EXTRA RAW TOKEN DIAGNOSTICS
-  // ==========================================================
-
-  console.log("========== RAW AUTH HEADER ==========");
-  console.log(authHeader);
-
-  console.log("========== RAW AUTH HEADER JSON ==========");
-  console.log(JSON.stringify(authHeader));
-
-  console.log("========== AUTH HEADER LENGTH ==========");
-  console.log(authHeader.length);
-
-  console.log("========== TOKEN ==========");
-  console.log(token);
-
-  console.log("========== TOKEN JSON ==========");
-  console.log(JSON.stringify(token));
-
-  console.log("========== TOKEN LENGTH ==========");
-  console.log(token.length);
-
-  console.log("========== TOKEN FIRST 20 ==========");
-  console.log(token.slice(0, 20));
-
-  console.log("========== TOKEN LAST 20 ==========");
-  console.log(token.slice(-20));
-
-  console.log("========== JWT DECODE ==========");
-  console.log(jwt.decode(token, { complete: true }));
-
-  // ==========================================================
-  // EXISTING AUTH DIAGNOSTICS
-  // ==========================================================
-
-  let decodedHeader: unknown = null;
-
-  try {
-    decodedHeader = jwt.decode(token, { complete: true })?.header ?? null;
-  } catch (decodeErr) {
-    decodedHeader = {
-      decodeError:
-        decodeErr instanceof Error
-          ? decodeErr.message
-          : String(decodeErr),
-    };
+  if (!JWS_SHAPE.test(token)) {
+    return next(new AppError('Malformed authorization token', 401));
   }
-
-  console.log(
-    '[AUTH-DIAG] middleware, before verifyToken',
-    JSON.stringify({
-      tokenPrefix: token.slice(0, 20),
-      jwtHeader: decodedHeader,
-      deploymentId: process.env.RAILWAY_DEPLOYMENT_ID ?? null,
-      replicaId: process.env.RAILWAY_REPLICA_ID ?? null,
-      gitCommitSha: process.env.RAILWAY_GIT_COMMIT_SHA ?? null,
-      hostname: process.env.HOSTNAME ?? null,
-      pid: process.pid,
-    })
-  );
-
-  // ==========================================================
-  // VERIFY TOKEN
-  // ==========================================================
 
   try {
     const decoded = verifyToken(token);
@@ -110,25 +49,7 @@ export const authenticate = (
     };
 
     next();
-  } catch (err) {
-    console.log("========== VERIFY TOKEN FAILED ==========");
-    console.log(err);
-
-    if (err instanceof Error) {
-      console.log("Error name:", err.name);
-      console.log("Error message:", err.message);
-      console.log("Stack:");
-      console.log(err.stack);
-    }
-
-    console.log(
-      '[AUTH-DIAG] verifyToken threw',
-      JSON.stringify({
-        name: err instanceof Error ? err.name : typeof err,
-        message: err instanceof Error ? err.message : String(err),
-      })
-    );
-
+  } catch {
     next(new AppError('Invalid or expired token', 401));
   }
 };
