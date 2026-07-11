@@ -43,13 +43,33 @@
     },
     {
       "parameters": {
-        "jsCode": "// ─────────────────────────────────────────────────────────────────────────\n// CROSS-PLATFORM ANALYTICS — connect real APIs here (all already defined\n// in backend/.env.example, reused by modules/analytics-hub for the same\n// purpose): SPOTIFY_CLIENT_ID/SECRET, YOUTUBE_API_KEY,\n// INSTAGRAM_ACCESS_TOKEN, TIKTOK_ACCESS_TOKEN. Comparison against the prior\n// snapshot happens on the DATIAM side once results are posted back — this\n// node does not fabricate stream/follower counts.\n// ─────────────────────────────────────────────────────────────────────────\nconst input = $input.first().json;\nconst missing = [];\nif (!$env.SPOTIFY_CLIENT_ID || !$env.SPOTIFY_CLIENT_SECRET) missing.push('SPOTIFY_CLIENT_ID', 'SPOTIFY_CLIENT_SECRET');\nif (!$env.YOUTUBE_API_KEY) missing.push('YOUTUBE_API_KEY');\nif (!$env.INSTAGRAM_ACCESS_TOKEN) missing.push('INSTAGRAM_ACCESS_TOKEN');\nif (!$env.TIKTOK_ACCESS_TOKEN) missing.push('TIKTOK_ACCESS_TOKEN');\n\nreturn [{ json: {\n  mission_id: input.mission_id,\n  execution_id: input.execution_id,\n  status: missing.length ? 'partial' : 'completed',\n  summary: missing.length ? `Analytics Intelligence ready — waiting on: ${missing.join(', ')}` : 'Analytics refresh complete',\n  results: {\n    spotify_streams: null,\n    apple_streams: null,\n    youtube: null,\n    tiktok: null,\n    instagram: null,\n    followers: null,\n    playlist_additions: null,\n    save_rate: null,\n    listener_growth: null,\n    missing_credentials: missing,\n  },\n} }];"
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            { "id": "cred-1", "name": "SPOTIFY_CLIENT_ID", "value": "={{ $env.SPOTIFY_CLIENT_ID }}", "type": "string" },
+            { "id": "cred-2", "name": "SPOTIFY_CLIENT_SECRET", "value": "={{ $env.SPOTIFY_CLIENT_SECRET }}", "type": "string" },
+            { "id": "cred-3", "name": "YOUTUBE_API_KEY", "value": "={{ $env.YOUTUBE_API_KEY }}", "type": "string" },
+            { "id": "cred-4", "name": "INSTAGRAM_ACCESS_TOKEN", "value": "={{ $env.INSTAGRAM_ACCESS_TOKEN }}", "type": "string" },
+            { "id": "cred-5", "name": "TIKTOK_ACCESS_TOKEN", "value": "={{ $env.TIKTOK_ACCESS_TOKEN }}", "type": "string" }
+          ]
+        },
+        "options": { "includeOtherFields": true }
+      },
+      "id": "load-credential-flags",
+      "name": "Load Credential Flags",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1020, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ─────────────────────────────────────────────────────────────────────────\n// CROSS-PLATFORM ANALYTICS — connect real APIs here (all already defined\n// in backend/.env.example, reused by modules/analytics-hub for the same\n// purpose): SPOTIFY_CLIENT_ID/SECRET, YOUTUBE_API_KEY,\n// INSTAGRAM_ACCESS_TOKEN, TIKTOK_ACCESS_TOKEN. Comparison against the prior\n// snapshot happens on the DATIAM side once results are posted back — this\n// node does not fabricate stream/follower counts.\n// Credential values are injected upstream by the 'Load Credential Flags'\n// node (Set node expressions) since Code nodes cannot access $env directly.\n// ─────────────────────────────────────────────────────────────────────────\nconst input = $input.first().json;\nconst missing = [];\nif (!input.SPOTIFY_CLIENT_ID || !input.SPOTIFY_CLIENT_SECRET) missing.push('SPOTIFY_CLIENT_ID', 'SPOTIFY_CLIENT_SECRET');\nif (!input.YOUTUBE_API_KEY) missing.push('YOUTUBE_API_KEY');\nif (!input.INSTAGRAM_ACCESS_TOKEN) missing.push('INSTAGRAM_ACCESS_TOKEN');\nif (!input.TIKTOK_ACCESS_TOKEN) missing.push('TIKTOK_ACCESS_TOKEN');\n\nreturn [{ json: {\n  mission_id: input.mission_id,\n  execution_id: input.execution_id,\n  status: missing.length ? 'partial' : 'completed',\n  summary: missing.length ? `Analytics Intelligence ready — waiting on: ${missing.join(', ')}` : 'Analytics refresh complete',\n  results: {\n    spotify_streams: null,\n    apple_streams: null,\n    youtube: null,\n    tiktok: null,\n    instagram: null,\n    followers: null,\n    playlist_additions: null,\n    save_rate: null,\n    listener_growth: null,\n    missing_credentials: missing,\n  },\n} }];"
       },
       "id": "domain-processing",
       "name": "Cross-Platform Analytics Collection",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1020, 500]
+      "position": [1280, 500]
     },
     {
       "parameters": {
@@ -71,7 +91,7 @@
       "name": "Send Results to DATIAM",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1280, 500]
+      "position": [1540, 500]
     }
   ],
   "connections": {
@@ -80,9 +100,10 @@
     "Build Execution Ack": {
       "main": [[
         { "node": "Respond to DATIAM (Ack)", "type": "main", "index": 0 },
-        { "node": "Cross-Platform Analytics Collection", "type": "main", "index": 0 }
+        { "node": "Load Credential Flags", "type": "main", "index": 0 }
       ]]
     },
+    "Load Credential Flags": { "main": [[{ "node": "Cross-Platform Analytics Collection", "type": "main", "index": 0 }]] },
     "Cross-Platform Analytics Collection": { "main": [[{ "node": "Send Results to DATIAM", "type": "main", "index": 0 }]] }
   },
   "settings": { "executionOrder": "v1" },

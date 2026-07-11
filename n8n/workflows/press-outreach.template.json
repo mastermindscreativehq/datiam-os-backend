@@ -43,13 +43,29 @@
     },
     {
       "parameters": {
-        "jsCode": "// ─────────────────────────────────────────────────────────────────────────\n// MEDIA CONTACT DISCOVERY — connect a real data source here:\n//   MEDIA_CONTACT_DISCOVERY_API_KEY (blog/radio/DJ/curator discovery + email\n//   verification vendor of your choice).\n// Email SENDING itself is already fully wired — the backend requires one of\n// RESEND_API_KEY / SENDGRID_API_KEY / SMTP_HOST at startup (see\n// backend/src/server.ts::validateEmailProvider and modules/outreach). This\n// workflow's only gap is contact *discovery*, not delivery.\n// ─────────────────────────────────────────────────────────────────────────\nconst input = $input.first().json;\nconst missing = [];\nif (!$env.MEDIA_CONTACT_DISCOVERY_API_KEY) missing.push('MEDIA_CONTACT_DISCOVERY_API_KEY');\n\nreturn [{ json: {\n  mission_id: input.mission_id,\n  execution_id: input.execution_id,\n  status: missing.length ? 'partial' : 'completed',\n  summary: missing.length ? `Outreach Intelligence ready — waiting on: ${missing.join(', ')}` : 'Press outreach campaign complete',\n  results: {\n    emails_sent: missing.length ? 0 : null,\n    opens: missing.length ? 0 : null,\n    clicks: missing.length ? 0 : null,\n    replies: missing.length ? 0 : null,\n    bounce_rate: missing.length ? null : null,\n    missing_credentials: missing,\n  },\n} }];"
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            { "id": "cred-1", "name": "MEDIA_CONTACT_DISCOVERY_API_KEY", "value": "={{ $env.MEDIA_CONTACT_DISCOVERY_API_KEY }}", "type": "string" }
+          ]
+        },
+        "options": { "includeOtherFields": true }
+      },
+      "id": "load-credential-flags",
+      "name": "Load Credential Flags",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1020, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ─────────────────────────────────────────────────────────────────────────\n// MEDIA CONTACT DISCOVERY — connect a real data source here:\n//   MEDIA_CONTACT_DISCOVERY_API_KEY (blog/radio/DJ/curator discovery + email\n//   verification vendor of your choice).\n// Email SENDING itself is already fully wired — the backend requires one of\n// RESEND_API_KEY / SENDGRID_API_KEY / SMTP_HOST at startup (see\n// backend/src/server.ts::validateEmailProvider and modules/outreach). This\n// workflow's only gap is contact *discovery*, not delivery.\n// Credential values are injected upstream by the 'Load Credential Flags'\n// node (Set node expressions) since Code nodes cannot access $env directly.\n// ─────────────────────────────────────────────────────────────────────────\nconst input = $input.first().json;\nconst missing = [];\nif (!input.MEDIA_CONTACT_DISCOVERY_API_KEY) missing.push('MEDIA_CONTACT_DISCOVERY_API_KEY');\n\nreturn [{ json: {\n  mission_id: input.mission_id,\n  execution_id: input.execution_id,\n  status: missing.length ? 'partial' : 'completed',\n  summary: missing.length ? `Outreach Intelligence ready — waiting on: ${missing.join(', ')}` : 'Press outreach campaign complete',\n  results: {\n    emails_sent: missing.length ? 0 : null,\n    opens: missing.length ? 0 : null,\n    clicks: missing.length ? 0 : null,\n    replies: missing.length ? 0 : null,\n    bounce_rate: missing.length ? null : null,\n    missing_credentials: missing,\n  },\n} }];"
       },
       "id": "domain-processing",
       "name": "Media Contact Discovery & Campaign",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1020, 500]
+      "position": [1280, 500]
     },
     {
       "parameters": {
@@ -71,7 +87,7 @@
       "name": "Send Results to DATIAM",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1280, 500]
+      "position": [1540, 500]
     }
   ],
   "connections": {
@@ -80,9 +96,10 @@
     "Build Execution Ack": {
       "main": [[
         { "node": "Respond to DATIAM (Ack)", "type": "main", "index": 0 },
-        { "node": "Media Contact Discovery & Campaign", "type": "main", "index": 0 }
+        { "node": "Load Credential Flags", "type": "main", "index": 0 }
       ]]
     },
+    "Load Credential Flags": { "main": [[{ "node": "Media Contact Discovery & Campaign", "type": "main", "index": 0 }]] },
     "Media Contact Discovery & Campaign": { "main": [[{ "node": "Send Results to DATIAM", "type": "main", "index": 0 }]] }
   },
   "settings": { "executionOrder": "v1" },

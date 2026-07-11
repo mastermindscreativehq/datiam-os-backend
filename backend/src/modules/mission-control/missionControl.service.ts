@@ -24,68 +24,75 @@ export async function getMissionBrief() {
   ] = await Promise.allSettled([
     // Releases due in next 30 days or overdue
     db.execute(sql`
-      SELECT id, title, release_type, release_date, status
+      SELECT id, release_title as title, release_type, release_date, status
       FROM releases
       WHERE release_date IS NOT NULL
         AND release_date <= ${in30Days.toISOString()}
       ORDER BY release_date ASC
       LIMIT 10
     `),
-    // Contracts awaiting review
+    // Contracts awaiting review (drafted/generated/sent/viewed — not yet signed/expired/cancelled)
     db.execute(sql`
-      SELECT id, title, status, company_name, value, expiry_date
-      FROM contracts
-      WHERE status IN ('draft','under_review','sent','awaiting_signature')
-      ORDER BY created_at DESC
+      SELECT c.id, c.contract_title as title, c.status, co.name as company_name, c.contract_value as value, c.expires_at as expiry_date
+      FROM contracts c
+      LEFT JOIN companies co ON co.id = c.company_id
+      WHERE c.status IN ('draft','generated','sent','viewed')
+      ORDER BY c.created_at DESC
       LIMIT 10
     `),
-    // Active outreach campaigns
+    // In-flight outreach campaigns (queued/sent, awaiting a reply)
     db.execute(sql`
-      SELECT id, name, status, total_contacts, reply_count, meeting_count
-      FROM outreach_campaigns
-      WHERE status IN ('active','paused')
+      SELECT id, status, territory, created_at
+      FROM outreach_campaign
+      WHERE status IN ('queued','sent')
       ORDER BY created_at DESC
       LIMIT 10
     `),
     // Meetings scheduled today or upcoming 7 days
     db.execute(sql`
-      SELECT id, title, status, scheduled_at, contact_name, company_name
-      FROM meetings
-      WHERE status IN ('scheduled','confirmed')
-        AND scheduled_at >= ${today.toISOString()}
-        AND scheduled_at <= ${in7Days.toISOString()}
-      ORDER BY scheduled_at ASC
+      SELECT m.id, m.meeting_title as title, m.status, m.scheduled_at, lc.full_name as contact_name
+      FROM meetings m
+      LEFT JOIN licensing_contacts lc ON lc.id = m.contact_id
+      WHERE m.status IN ('scheduled','confirmed')
+        AND m.scheduled_at >= ${today.toISOString()}
+        AND m.scheduled_at <= ${in7Days.toISOString()}
+      ORDER BY m.scheduled_at ASC
       LIMIT 10
     `),
     // Payments expected (pending/overdue)
     db.execute(sql`
-      SELECT id, title, status, amount, currency, due_date, company_name
-      FROM payments
-      WHERE status IN ('pending','overdue','invoice_sent')
-      ORDER BY due_date ASC
+      SELECT p.id, p.invoice_number as title, p.payment_status as status, p.payment_amount as amount, p.currency, p.due_date, co.name as company_name
+      FROM payments p
+      LEFT JOIN companies co ON co.id = p.company_id
+      WHERE p.payment_status IN ('pending','overdue','invoice_sent')
+      ORDER BY p.due_date ASC
       LIMIT 10
     `),
-    // High-priority sync pitches
+    // High-priority sync/licensing placement opportunities
     db.execute(sql`
-      SELECT id, song_title, supervisor_name, company_name, status, score
-      FROM sync_pitches
-      WHERE status NOT IN ('rejected','archived')
-      ORDER BY score DESC NULLS LAST, created_at DESC
+      SELECT po.id, po.title, lc.full_name as supervisor_name, co.name as company_name, po.status, po.ai_sync_score as score
+      FROM placement_opportunities po
+      LEFT JOIN companies co ON co.id = po.company_id
+      LEFT JOIN licensing_contacts lc ON lc.id = po.contact_id
+      WHERE po.status NOT IN ('rejected','withdrawn','expired')
+        AND po.deleted_at IS NULL
+      ORDER BY po.ai_sync_score DESC NULLS LAST, po.created_at DESC
       LIMIT 10
     `),
     // Open deals
     db.execute(sql`
-      SELECT id, title, stage, deal_score, projected_value, company_name
-      FROM deals
-      WHERE status = 'open'
-      ORDER BY deal_score DESC NULLS LAST
+      SELECT d.id, d.deal_name as title, d.stage, d.deal_score, d.projected_value, co.name as company_name
+      FROM deals d
+      LEFT JOIN companies co ON co.id = d.company_id
+      WHERE d.status = 'open'
+      ORDER BY d.deal_score DESC NULLS LAST
       LIMIT 10
     `),
     // Recent automation runs
     db.execute(sql`
-      SELECT id, name, status, run_at, error_message
+      SELECT id, workflow_name, status, created_at, error_message
       FROM automation_runs
-      ORDER BY run_at DESC
+      ORDER BY created_at DESC
       LIMIT 20
     `),
     // Catalog missing metadata
@@ -109,15 +116,11 @@ export async function getMissionBrief() {
   });
 
   const contractsAwaitingReview = contracts.filter(c =>
-    ['under_review','awaiting_signature','sent'].includes(c.status)
+    ['draft','generated','sent','viewed'].includes(c.status)
   );
 
-  const outreachFollowups = outreach.filter(o => {
-    const replyRate = o.total_contacts > 0
-      ? (Number(o.reply_count) / Number(o.total_contacts))
-      : 0;
-    return o.status === 'active' && replyRate < 0.1;
-  });
+  // Pitched but not yet replied — worth a follow-up nudge
+  const outreachFollowups = outreach.filter(o => o.status === 'sent');
 
   const meetingsToday = meetings.filter(m => {
     const mt = m.scheduled_at ? new Date(m.scheduled_at) : null;
@@ -153,14 +156,14 @@ export async function getMissionBrief() {
     risks.push({ type: 'payment', severity: 'critical', title: `Overdue payment: ${p.title ?? p.company_name ?? 'Unknown'}`, detail: `${p.currency ?? 'USD'} ${p.amount ?? 0}`, href: '/payment-intelligence' });
   });
 
-  // Inactive outreach
-  outreach.filter(o => o.status === 'paused').forEach(o => {
-    risks.push({ type: 'outreach', severity: 'medium', title: `Paused campaign: ${o.name}`, detail: `${o.total_contacts ?? 0} contacts reached`, href: '/outreach' });
+  // Outreach awaiting a reply
+  outreachFollowups.forEach(o => {
+    risks.push({ type: 'outreach', severity: 'medium', title: `Awaiting reply: ${o.territory ?? 'campaign'}`, detail: 'Pitched, no reply yet', href: '/outreach' });
   });
 
   // Failed automations
   autoRuns.filter(r => r.status === 'failed').slice(0, 3).forEach(r => {
-    risks.push({ type: 'automation', severity: 'high', title: `Failed automation: ${r.name}`, detail: r.error_message ?? 'No details', href: '/automation-runs' });
+    risks.push({ type: 'automation', severity: 'high', title: `Failed automation: ${r.workflow_name}`, detail: r.error_message ?? 'No details', href: '/automation-runs' });
   });
 
   // Catalog missing metadata risks
@@ -190,7 +193,7 @@ export async function getMissionBrief() {
   const opportunities: Array<{ type: string; title: string; detail: string; score?: number; href: string }> = [];
 
   syncPitches.slice(0, 5).forEach(s => {
-    opportunities.push({ type: 'sync', title: s.song_title ?? 'Sync opportunity', detail: `${s.supervisor_name ?? ''} · ${s.company_name ?? ''}`, score: s.score ? Number(s.score) : undefined, href: '/sync-pitches' });
+    opportunities.push({ type: 'sync', title: s.title ?? 'Sync opportunity', detail: `${s.supervisor_name ?? ''} · ${s.company_name ?? ''}`, score: s.score ? Number(s.score) : undefined, href: '/sync-pitches' });
   });
 
   dealsRows.slice(0, 5).forEach(d => {
@@ -213,7 +216,7 @@ export async function getMissionBrief() {
     actions.push({ priority: 4, category: 'RELEASE', action: `${releasesDue.length} release(s) due within 7 days`, context: releasesDue.map(r => r.title).join(', '), href: '/releases' });
   }
   if (outreachFollowups.length > 0) {
-    actions.push({ priority: 5, category: 'OUTREACH', action: `${outreachFollowups.length} campaign(s) need follow-up`, context: 'Low reply rate detected', href: '/outreach' });
+    actions.push({ priority: 5, category: 'OUTREACH', action: `${outreachFollowups.length} campaign(s) need follow-up`, context: 'Pitched, awaiting reply', href: '/outreach' });
   }
   if (syncPitches.length > 0) {
     actions.push({ priority: 6, category: 'SYNC', action: `Review ${syncPitches.length} active sync pitch(es)`, context: 'Opportunities identified', href: '/sync-pitches' });
@@ -249,7 +252,7 @@ export async function getMissionBrief() {
       totalRuns,
       successCount,
       failedCount,
-      lastRun: lastRun ? { name: lastRun.name, status: lastRun.status, runAt: lastRun.run_at } : null,
+      lastRun: lastRun ? { name: lastRun.workflow_name, status: lastRun.status, runAt: lastRun.created_at } : null,
       successRate,
       queueHealth: failedCount > totalRuns * 0.3 ? 'degraded' : failedCount > 0 ? 'warning' : 'healthy',
     },
@@ -272,11 +275,26 @@ export async function getGlobalSearch(query: string, limit = 20) {
 
   const searches = await Promise.allSettled([
     db.execute(sql`SELECT id, stage_name as title, COALESCE(legal_name,'') as subtitle FROM artist_profiles WHERE LOWER(stage_name) LIKE ${q} LIMIT 5`),
-    db.execute(sql`SELECT id, title, release_type as subtitle FROM releases WHERE LOWER(title) LIKE ${q} LIMIT 5`),
-    db.execute(sql`SELECT id, title, COALESCE(company_name,'') as subtitle FROM contracts WHERE LOWER(title) LIKE ${q} LIMIT 5`),
-    db.execute(sql`SELECT id, name as title, status as subtitle FROM outreach_campaigns WHERE LOWER(name) LIKE ${q} LIMIT 5`),
-    db.execute(sql`SELECT id, COALESCE(song_title,'Sync Opportunity') as title, COALESCE(supervisor_name,'') as subtitle FROM sync_pitches WHERE LOWER(COALESCE(song_title,'')) LIKE ${q} LIMIT 5`),
-    db.execute(sql`SELECT id, COALESCE(title, company_name, 'Payment') as title, COALESCE(company_name,'') as subtitle FROM payments WHERE LOWER(COALESCE(title,'')) LIKE ${q} OR LOWER(COALESCE(company_name,'')) LIKE ${q} LIMIT 5`),
+    db.execute(sql`SELECT id, release_title as title, release_type as subtitle FROM releases WHERE LOWER(release_title) LIKE ${q} LIMIT 5`),
+    db.execute(sql`
+      SELECT c.id, c.contract_title as title, COALESCE(co.name,'') as subtitle
+      FROM contracts c
+      LEFT JOIN companies co ON co.id = c.company_id
+      WHERE LOWER(c.contract_title) LIKE ${q} LIMIT 5
+    `),
+    db.execute(sql`SELECT id, COALESCE(territory,'Outreach') as title, status as subtitle FROM outreach_campaign WHERE LOWER(COALESCE(territory,'')) LIKE ${q} OR LOWER(COALESCE(notes,'')) LIKE ${q} LIMIT 5`),
+    db.execute(sql`
+      SELECT po.id, po.title, COALESCE(lc.full_name,'') as subtitle
+      FROM placement_opportunities po
+      LEFT JOIN licensing_contacts lc ON lc.id = po.contact_id
+      WHERE LOWER(po.title) LIKE ${q} AND po.deleted_at IS NULL LIMIT 5
+    `),
+    db.execute(sql`
+      SELECT p.id, COALESCE(co.name, p.invoice_number, 'Payment') as title, COALESCE(co.name,'') as subtitle
+      FROM payments p
+      LEFT JOIN companies co ON co.id = p.company_id
+      WHERE LOWER(p.invoice_number) LIKE ${q} OR LOWER(COALESCE(co.name,'')) LIKE ${q} LIMIT 5
+    `),
   ]);
 
   const types  = ['artist', 'release', 'contract', 'campaign', 'sync', 'payment'];

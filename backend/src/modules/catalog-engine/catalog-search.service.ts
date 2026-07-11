@@ -154,101 +154,90 @@ export const getCatalogStats = async () => {
 // ── getMissingMetadata ────────────────────────────────────────────────────────
 
 export const getMissingMetadata = async () => {
-  const [
-    missingIsrcRows,
-    missingUpcRows,
-    missingArtworkRows,
-    songsWithoutReleasesRows,
-    incompleteCreditsRows,
-    upcomingReleasesRows,
-    missingContractsRows,
-  ] = await Promise.all([
-    // Songs missing ISRC
-    db.execute<{ song_id: string; title: string; artist_name: string }>(sql`
-      SELECT s.id AS song_id, s.title, ap.stage_name AS artist_name
-      FROM songs s
-      LEFT JOIN artist_profiles ap ON ap.id = s.artist_id
-      WHERE s.isrc IS NULL OR s.isrc = ''
-      ORDER BY s.created_at DESC
-      LIMIT 100
-    `),
+  // Run sequentially rather than via Promise.all — firing all 7 as concurrent
+  // new connections against Supabase's transaction-mode pooler (on top of the
+  // 8 concurrent queries getMissionBrief already issues alongside this call)
+  // has been observed to stall a connection indefinitely (silently dropped
+  // mid-flight, no RST — the same failure mode documented in db/index.ts).
+  // Sequential execution trades a bit of latency for actually completing.
+  const missingIsrcRows = await db.execute<{ song_id: string; title: string; artist_name: string }>(sql`
+    SELECT s.id AS song_id, s.title, ap.stage_name AS artist_name
+    FROM songs s
+    LEFT JOIN artist_profiles ap ON ap.id = s.artist_id
+    WHERE s.isrc IS NULL OR s.isrc = ''
+    ORDER BY s.created_at DESC
+    LIMIT 100
+  `);
 
-    // Releases missing UPC
-    db.execute<{ release_id: string; title: string; artist_name: string }>(sql`
-      SELECT r.id AS release_id, r.release_title AS title, ap.stage_name AS artist_name
-      FROM releases r
-      LEFT JOIN artist_profiles ap ON ap.id = r.artist_id
-      WHERE r.upc IS NULL OR r.upc = ''
-      ORDER BY r.created_at DESC
-      LIMIT 100
-    `),
+  const missingUpcRows = await db.execute<{ release_id: string; title: string; artist_name: string }>(sql`
+    SELECT r.id AS release_id, r.release_title AS title, ap.stage_name AS artist_name
+    FROM releases r
+    LEFT JOIN artist_profiles ap ON ap.id = r.artist_id
+    WHERE r.upc IS NULL OR r.upc = ''
+    ORDER BY r.created_at DESC
+    LIMIT 100
+  `);
 
-    // Releases missing artwork
-    db.execute<{ release_id: string; title: string; artist_name: string }>(sql`
-      SELECT r.id AS release_id, r.release_title AS title, ap.stage_name AS artist_name
-      FROM releases r
-      LEFT JOIN artist_profiles ap ON ap.id = r.artist_id
-      WHERE NOT EXISTS (
-        SELECT 1 FROM catalog_artwork_assets caa WHERE caa.release_id = r.id
-      )
-      ORDER BY r.created_at DESC
-      LIMIT 100
-    `),
+  const missingArtworkRows = await db.execute<{ release_id: string; title: string; artist_name: string }>(sql`
+    SELECT r.id AS release_id, r.release_title AS title, ap.stage_name AS artist_name
+    FROM releases r
+    LEFT JOIN artist_profiles ap ON ap.id = r.artist_id
+    WHERE NOT EXISTS (
+      SELECT 1 FROM catalog_artwork_assets caa WHERE caa.release_id = r.id
+    )
+    ORDER BY r.created_at DESC
+    LIMIT 100
+  `);
 
-    // Songs not linked to any release
-    db.execute<{ song_id: string; title: string; artist_name: string }>(sql`
-      SELECT s.id AS song_id, s.title, ap.stage_name AS artist_name
-      FROM songs s
-      LEFT JOIN artist_profiles ap ON ap.id = s.artist_id
-      WHERE NOT EXISTS (
-        SELECT 1 FROM catalog_tracks ct WHERE ct.song_id = s.id
-      )
-      ORDER BY s.created_at DESC
-      LIMIT 100
-    `),
+  const songsWithoutReleasesRows = await db.execute<{ song_id: string; title: string; artist_name: string }>(sql`
+    SELECT s.id AS song_id, s.title, ap.stage_name AS artist_name
+    FROM songs s
+    LEFT JOIN artist_profiles ap ON ap.id = s.artist_id
+    WHERE NOT EXISTS (
+      SELECT 1 FROM catalog_tracks ct WHERE ct.song_id = s.id
+    )
+    ORDER BY s.created_at DESC
+    LIMIT 100
+  `);
 
-    // Songs without a 'writer' credit
-    db.execute<{ song_id: string; title: string; missing_roles: string[] }>(sql`
-      SELECT
-        s.id AS song_id,
-        s.title,
-        ARRAY['writer'] AS missing_roles
-      FROM songs s
-      WHERE NOT EXISTS (
-        SELECT 1 FROM catalog_credits cc
-        WHERE cc.song_id = s.id AND cc.role = 'writer'
-      )
-      ORDER BY s.created_at DESC
-      LIMIT 100
-    `),
+  const incompleteCreditsRows = await db.execute<{ song_id: string; title: string; missing_roles: string[] }>(sql`
+    SELECT
+      s.id AS song_id,
+      s.title,
+      ARRAY['writer'] AS missing_roles
+    FROM songs s
+    WHERE NOT EXISTS (
+      SELECT 1 FROM catalog_credits cc
+      WHERE cc.song_id = s.id AND cc.role = 'writer'
+    )
+    ORDER BY s.created_at DESC
+    LIMIT 100
+  `);
 
-    // Upcoming releases in the next 30 days
-    db.execute<{ release_id: string; title: string; release_date: string; days_until: number }>(sql`
-      SELECT
-        r.id AS release_id,
-        r.release_title AS title,
-        r.release_date::text,
-        (r.release_date - CURRENT_DATE)::int AS days_until
-      FROM releases r
-      WHERE r.release_date IS NOT NULL
-        AND r.release_date > CURRENT_DATE
-        AND r.release_date <= CURRENT_DATE + INTERVAL '30 days'
-      ORDER BY r.release_date ASC
-    `),
+  const upcomingReleasesRows = await db.execute<{ release_id: string; title: string; release_date: string; days_until: number }>(sql`
+    SELECT
+      r.id AS release_id,
+      r.release_title AS title,
+      r.release_date::text,
+      (r.release_date - CURRENT_DATE)::int AS days_until
+    FROM releases r
+    WHERE r.release_date IS NOT NULL
+      AND r.release_date > CURRENT_DATE
+      AND r.release_date <= CURRENT_DATE + INTERVAL '30 days'
+    ORDER BY r.release_date ASC
+  `);
 
-    // Releases missing signed contracts (from catalog_documents)
-    db.execute<{ release_id: string; title: string; artist_name: string }>(sql`
-      SELECT r.id AS release_id, r.release_title AS title, ap.stage_name AS artist_name
-      FROM releases r
-      LEFT JOIN artist_profiles ap ON ap.id = r.artist_id
-      WHERE NOT EXISTS (
-        SELECT 1 FROM catalog_documents cd
-        WHERE cd.release_id = r.id AND cd.document_type = 'contract'
-      )
-      ORDER BY r.created_at DESC
-      LIMIT 100
-    `),
-  ]);
+  const missingContractsRows = await db.execute<{ release_id: string; title: string; artist_name: string }>(sql`
+    SELECT r.id AS release_id, r.release_title AS title, ap.stage_name AS artist_name
+    FROM releases r
+    LEFT JOIN artist_profiles ap ON ap.id = r.artist_id
+    WHERE NOT EXISTS (
+      SELECT 1 FROM catalog_documents cd
+      WHERE cd.release_id = r.id AND cd.document_type = 'contract'
+    )
+    ORDER BY r.created_at DESC
+    LIMIT 100
+  `);
 
   return {
     missing_isrc:           missingIsrcRows,

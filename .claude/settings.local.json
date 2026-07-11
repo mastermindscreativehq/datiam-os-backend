@@ -149,7 +149,31 @@
       "Bash(kill -9 3384 3539)",
       "Bash(kill -9 3736)",
       "Bash(pkill -f \"src/server.ts\")",
-      "Bash(rm -f /tmp/inspect*.mjs /tmp/server.log)"
+      "Bash(rm -f /tmp/inspect*.mjs /tmp/server.log)",
+      "Bash(git *)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\('scripts',{}\\), indent=2\\)\\)\")",
+      "Bash(docker --version)",
+      "Bash(kill 22552)",
+      "Bash(kill -9 1133)",
+      "Bash(sort -k6,7)",
+      "Bash(kill -9 725)",
+      "Bash(echo \"exit:$?\")",
+      "PowerShell(Get-NetTCPConnection *)",
+      "PowerShell($conn = Get-NetTCPConnection -LocalPort 4000 -State Listen -ErrorAction SilentlyContinue; if \\($conn\\) { \"STILL LISTENING: $\\($conn.OwningProcess\\)\" } else { \"PORT FREE\" })",
+      "Bash(rm -f /tmp/datiam-server.log)",
+      "Bash(nohup npm run dev)",
+      "Bash(disown)",
+      "Bash(echo \"PID of job: $!\")",
+      "PowerShell($conn = Get-NetTCPConnection -LocalPort 4000 -State Listen -ErrorAction SilentlyContinue; if \\($conn\\) { \"LISTENING pid=$\\($conn.OwningProcess\\)\"; Get-Process -Id $conn.OwningProcess | Format-List Id,StartTime } else { \"PORT FREE\" })",
+      "PowerShell($conn = Get-NetTCPConnection -LocalPort 4000 -State Listen -ErrorAction SilentlyContinue; if \\($conn\\) { \"LISTENING pid=$\\($conn.OwningProcess\\)\" } else { \"PORT FREE\" })",
+      "Bash(nohup npx vite --port 5173)",
+      "Bash(gh auth *)",
+      "Bash(echo \"TSC_EXIT:$?\")",
+      "Bash(git cherry-pick *)",
+      "Bash(git stash *)",
+      "Bash(echo \"BACKEND_TSC_EXIT:$?\")",
+      "Read(//c/Users/user/**)",
+      "Bash(echo \"FRONTEND_TSC_EXIT:$?\")"
     ]
   }
 }

@@ -848,6 +848,14 @@ export const seedWorkflows = async () => {
       webhook_path: '/webhook/music-links',
       metadata: { template: 'datiam-music-links-events-v1' },
     },
+    // TODO(roadmap): dj-outreach and blog-outreach are registered here so the
+    // dispatch endpoints and DLQ tracking work end-to-end, but no n8n workflow
+    // has been built for either yet — no n8n/workflows/*.template.json exists
+    // for them, unlike every other entry in this file. Dispatching either
+    // fails with HTTP 404 until a real workflow is authored (follow the
+    // press-outreach.template.json / playlist-pitch.template.json pattern)
+    // and imported/activated on the n8n instance. Deferred as a standalone
+    // follow-up; not a blocker for this release.
     {
       name: 'dj-outreach',
       description: 'Automated DJ outreach — discovers and contacts DJs/curators for a release',
