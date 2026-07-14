@@ -35,16 +35,6 @@ export const authenticate = (
 
   const token = authHeader.slice('Bearer '.length).trim();
 
-  // TEMP-DEBUG (remove once the "Malformed authorization token" report from
-  // PowerShell clients is root-caused — see conversation 2026-07-12):
-  console.log('[AUTH-TEMP-DEBUG] raw header', JSON.stringify(authHeader));
-  console.log('[AUTH-TEMP-DEBUG] extracted token', JSON.stringify(token));
-  console.log('[AUTH-TEMP-DEBUG] token length', token.length);
-  console.log(
-    '[AUTH-TEMP-DEBUG] char codes',
-    Array.from(token).map((c) => c.codePointAt(0)).join(',')
-  );
-
   if (!JWS_SHAPE.test(token)) {
     return next(new AppError('Malformed authorization token', 401));
   }

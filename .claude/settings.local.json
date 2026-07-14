@@ -174,7 +174,18 @@
       "Bash(echo \"BACKEND_TSC_EXIT:$?\")",
       "Read(//c/Users/user/**)",
       "Bash(echo \"FRONTEND_TSC_EXIT:$?\")",
-      "Bash(railway whoami *)"
+      "Bash(railway whoami *)",
+      "Bash(taskkill //F //PID 16764)",
+      "Bash(tasklist)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(taskkill //F //PID 25784)",
+      "Bash(railway variables *)",
+      "Bash(railway link *)",
+      "Bash(where railway *)",
+      "Bash(timeout 5 bash -c \"cat < /dev/null > /dev/tcp/aws-1-eu-west-2.pooler.supabase.com/6543\")",
+      "Bash(grep -m3 -o '\"[^\"]*token[^\"]*\"\\\\|Bearer [A-Za-z0-9._-]\\\\{10,\\\\}' backend/server-trace-err.log)",
+      "Bash(grep -m5 -o 'AUTH-TEMP-DEBUG[^\\\\\\\\]\\\\{0,120\\\\}' backend/server-trace2-err.log)",
+      "Bash(grep -c \"Bearer ey\\\\|Bearer [A-Za-z0-9_-]\\\\{20,\\\\}\" backend/server-trace-err.log backend/server-trace2-err.log)"
     ]
   }
 }

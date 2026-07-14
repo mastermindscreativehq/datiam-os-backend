@@ -74,10 +74,20 @@ export const useAuthStore = create<AuthState>()((set) => ({
       const payload = res.data?.data ?? res.data
       const user: User = payload?.user ?? payload
       set({ user, isAuthenticated: true, isLoading: false })
-    } catch {
+    } catch (err: any) {
       if (_verifyGen !== myGen) return // stale — do NOT remove the new valid token
-      localStorage.removeItem('datiam_token')
-      set({ user: null, token: null, isAuthenticated: false, isLoading: false })
+      const status = err?.response?.status
+      if (status === 401 || status === 403) {
+        // Genuine auth failure — the backend explicitly rejected this token.
+        localStorage.removeItem('datiam_token')
+        set({ user: null, token: null, isAuthenticated: false, isLoading: false })
+      } else {
+        // Transient failure (network error, backend 5xx, timeout) — we have no
+        // evidence the token itself is invalid. Keep it and stay authenticated
+        // so a temporary backend outage doesn't silently sign the user out and
+        // strip the Authorization header from every subsequent request.
+        set({ isAuthenticated: true, isLoading: false })
+      }
     }
   },
 }))
