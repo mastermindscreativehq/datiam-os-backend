@@ -8,13 +8,14 @@ import { captureMessage } from '../lib/sentry';
 // (browser/axios) never gets a response. This bounds every request to a
 // fixed ceiling so a stalled downstream call fails fast and visibly instead
 // of hanging the request indefinitely.
-export function requestTimeout(ms: number, opts: { skip?: (req: Request) => boolean } = {}) {
+export function requestTimeout(ms: number, opts: { skip?: (req: Request) => boolean; onTimeout?: (req: Request) => void } = {}) {
   return (req: Request, res: Response, next: NextFunction): void => {
     if (opts.skip?.(req)) return next();
 
     const timer = setTimeout(() => {
       if (res.headersSent) return;
       captureMessage('Request timed out', 'error', { path: req.path, method: req.method, requestId: req.requestId });
+      opts.onTimeout?.(req);
       res.status(503).json({
         success: false,
         error: 'Request timed out — the server took too long to respond. Please retry.',

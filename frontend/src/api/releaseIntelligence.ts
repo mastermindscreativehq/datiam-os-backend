@@ -2,7 +2,12 @@ import axios from 'axios'
 
 const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:4000/api'
 
-const api = axios.create({ baseURL: `${BASE}/release-intelligence` })
+// Previously had NO timeout at all (axios default is 0 = wait forever) — if
+// the backend ever stalled (see backend/src/db/index.ts pool notes), this
+// page would spin indefinitely with no error ever surfacing. Backend gives
+// GET routes here a 20s ceiling (see release-intelligence.routes.ts); 25s
+// leaves headroom for network latency so client and server timeouts agree.
+const api = axios.create({ baseURL: `${BASE}/release-intelligence`, timeout: 25_000 })
 api.interceptors.request.use(cfg => {
   const token = localStorage.getItem('datiam_token')
   if (token) cfg.headers.Authorization = `Bearer ${token}`
@@ -21,7 +26,7 @@ export const releaseIntelligenceApi = {
   getReleaseDetail: (id: string) => api.get(`/${id}`).then(r => r.data.data),
   updateRelease:    (id: string, body: Record<string, unknown>) => api.patch(`/${id}`, body).then(r => r.data.data),
   dispatchAutomation: (id: string, category: string, body: Record<string, unknown> = {}) =>
-    api.post(`/${id}/automation/${category}`, body).then(r => r.data.data),
+    api.post(`/${id}/automation/${category}`, body, { timeout: 35_000 }).then(r => r.data.data),
   getReadiness:     (id: string) => api.get(`/${id}/readiness`).then(r => r.data.data),
   getDspStatuses:   (id: string) => api.get(`/${id}/dsp-status`).then(r => r.data.data),
   updateDspStatus:  (id: string, platform: string, body: Record<string, unknown>) =>

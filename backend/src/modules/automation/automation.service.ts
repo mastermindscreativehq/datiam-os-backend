@@ -1,6 +1,6 @@
-import { eq, desc, and, sql } from 'drizzle-orm';
+import { eq, desc, and, sql, inArray } from 'drizzle-orm';
 import { db } from '../../db';
-import { automation_runs, workflow_registry } from '../../db/schema';
+import { automation_runs, workflow_registry, release_missions } from '../../db/schema';
 import { AppError } from '../../middleware/errorHandler';
 import { logActivity } from '../../lib/activityLogger';
 import type {
@@ -78,6 +78,12 @@ export const getRunHistory = async (query: RunHistoryQuery) => {
   if (query.status) conditions.push(eq(automation_runs.status, query.status));
   if (query.source) conditions.push(eq(automation_runs.source, query.source));
   if (query.event)  conditions.push(eq(automation_runs.triggered_by_event, query.event));
+  if (query.release_id) {
+    conditions.push(inArray(
+      automation_runs.mission_id,
+      db.select({ id: release_missions.id }).from(release_missions).where(eq(release_missions.release_id, query.release_id)),
+    ));
+  }
 
   const rows = await db
     .select()

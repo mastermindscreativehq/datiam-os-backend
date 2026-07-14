@@ -25,6 +25,11 @@ export const runHistoryQuerySchema = z.object({
   status: z.enum(['success', 'failed', 'running']).optional(),
   source: z.enum(['backend', 'n8n', 'cron', 'manual']).optional(),
   event: z.string().optional(),
+  // Filters to runs dispatched from a given release's missions (via
+  // automation_runs.mission_id -> release_missions.release_id) — lets callers
+  // like the Release Intel page ask for just their own runs server-side
+  // instead of fetching up to 200 system-wide rows and filtering client-side.
+  release_id: z.string().uuid().optional(),
   limit: z.coerce.number().int().min(1).max(200).optional().default(50),
   offset: z.coerce.number().int().min(0).optional().default(0),
 });

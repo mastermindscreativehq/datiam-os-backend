@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { authenticate, requireRole } from '../../middleware/auth';
 import { validate } from '../../middleware/validate';
+import { requestTimeout } from '../../middleware/requestTimeout';
+import { reportSlowRequest } from '../../db/poolHealth';
 import {
   createCampaignSchema,
   updateCampaignSchema,
@@ -11,6 +13,19 @@ import {
 import * as controller from './release-intelligence.controller';
 
 const router = Router();
+
+// GET reads here (summary/dashboard/calendar/:id/readiness/dsp-status/
+// campaigns/alerts/recommendations) are pure DB lookups with no legitimate
+// reason to run long — a stricter, separate ceiling than the app-wide 90s
+// lets us both fail fast for users and detect pool trouble quickly (see
+// poolHealth.ts). Mutating routes (automation dispatch, alert/rec
+// generation) can legitimately take longer (inline n8n webhook fan-out up
+// to ~30s with retries) and keep the app-wide 90s ceiling.
+router.use(requestTimeout(20_000, {
+  skip: (req) => req.method !== 'GET',
+  onTimeout: () => reportSlowRequest('release-intelligence'),
+}));
+
 router.use(authenticate);
 
 const canRead  = requireRole('owner', 'admin', 'editor', 'team', 'viewer');

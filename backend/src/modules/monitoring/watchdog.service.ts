@@ -1,4 +1,5 @@
-import { sql, eq, and } from 'drizzle-orm';
+import postgres from 'postgres';
+import { eq, and } from 'drizzle-orm';
 import { db } from '../../db';
 import { getRedisConnection } from '../../queues';
 import { health_checks, incidents } from '../../db/schema';
@@ -6,6 +7,53 @@ import { captureException } from '../../lib/sentry';
 import { logActivity } from '../../lib/activityLogger';
 
 let watchdogTimer: ReturnType<typeof setInterval> | null = null;
+
+// The watchdog's own liveness probe runs every 60s, forever, for the life of
+// the process — 1,440+ round-trips/day. Sharing the app's main pool for this
+// means every one of those draws carries the same nonzero risk (see db/index.ts)
+// of permanently wedging a connection on a silently-dropped TCP path, and at
+// this frequency that risk compounds into exactly the "leak that only a
+// restart fixes" pattern. A dedicated, isolated single-connection client
+// means a wedge here can never shrink the pool real user traffic depends on,
+// and — since it's just one disposable connection — it can be closed and
+// recreated on every failed/slow probe, self-healing automatically instead
+// of accumulating.
+let probeClient = createProbeClient();
+
+function createProbeClient() {
+  return postgres(process.env.DATABASE_URL as string, {
+    max: 1,
+    idle_timeout: 10,
+    connect_timeout: 5,
+    ssl: { rejectUnauthorized: false },
+    connection: { statement_timeout: 5_000 },
+  });
+}
+
+async function recreateProbeClient(): Promise<void> {
+  const old = probeClient;
+  probeClient = createProbeClient();
+  try {
+    await old.end({ timeout: 1 });
+  } catch {
+    // ignored — we're discarding this connection anyway
+  }
+}
+
+const PROBE_TIMEOUT_MS = 5_000;
+
+async function probeDatabase(): Promise<boolean> {
+  try {
+    await Promise.race([
+      probeClient`SELECT 1`,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('watchdog probe timed out')), PROBE_TIMEOUT_MS)),
+    ]);
+    return true;
+  } catch (err) {
+    await recreateProbeClient();
+    throw err;
+  }
+}
 
 interface SystemSnapshot {
   database: 'connected' | 'disconnected';
@@ -20,7 +68,7 @@ async function probe(): Promise<SystemSnapshot> {
 
   let database: SystemSnapshot['database'] = 'disconnected';
   try {
-    await db.execute(sql`SELECT 1`);
+    await probeDatabase();
     database = 'connected';
   } catch (err) {
     captureException(err, { component: 'database', source: 'watchdog' });
@@ -150,4 +198,5 @@ export function stopWatchdog(): void {
     watchdogTimer = null;
     console.log('[Watchdog] Stopped');
   }
+  void probeClient.end({ timeout: 1 }).catch(() => {});
 }

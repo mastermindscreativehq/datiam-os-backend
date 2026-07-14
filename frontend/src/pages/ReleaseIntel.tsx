@@ -146,7 +146,7 @@ export default function ReleaseIntel() {
         timed('automation stats', 'GET', '/automation/stats', () => automationApi.stats()).catch(() => null),
         timed('automation health', 'GET', '/automation/health', () => automationApi.health()).catch(() => null),
         timed('automation registry', 'GET', '/automation/registry', () => automationApi.registry.list()).catch(() => null),
-        timed('automation history', 'GET', '/automation/history', () => automationApi.history({ limit: 200 })).catch(() => null),
+        timed('automation history', 'GET', '/automation/history', () => automationApi.history({ release_id: releaseId, limit: 50 })).catch(() => null),
         timed('mission workflow health', 'GET', '/monitoring/missions', () => monitoringApi.missions()).catch(() => null),
       ])
       setAutomationOverview(statsRes?.data?.data?.overview ?? null)
@@ -154,7 +154,7 @@ export default function ReleaseIntel() {
       const registry = normaliseList(registryRes?.data?.data)
       setRegistryEntry(registry.find((w: any) => w.name === 'release-intelligence') ?? null)
       const runs = normaliseList(historyRes?.data?.data, 'runs') as AutomationRun[]
-      setReleaseRuns(runs.filter(r => r.payload?.data?.release_id === releaseId))
+      setReleaseRuns(runs)
       setMissionsHealth(missionsHealthRes?.data ?? null)
     } catch {
       setAutomationOverview(null)

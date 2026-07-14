@@ -13,11 +13,13 @@ const SAFE_DEFAULTS = {
 };
 
 export const getOverview = async (_req: Request, res: Response): Promise<void> => {
+  // Must stay above dashboard.service.ts's QUERY_TIMEOUT_MS (5s) — otherwise this fires
+  // and discards real data before the per-query races even get a chance to resolve.
   const deadline = new Promise<typeof SAFE_DEFAULTS>((resolve) =>
     setTimeout(() => {
       console.log('[Dashboard] controller hard timeout — returning defaults');
       resolve(SAFE_DEFAULTS);
-    }, 1000),
+    }, 6_000),
   );
 
   const data = await Promise.race([

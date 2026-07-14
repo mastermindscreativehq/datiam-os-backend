@@ -12,7 +12,11 @@ import {
 } from '../../db/schema';
 
 // Per-query safety net. Total response time is ~max(query times) since all 7 run concurrently.
-const QUERY_TIMEOUT_MS = 800;
+// Was tightened to 800ms in 33d9946 on the assumption that batching 17 queries into 7 would make
+// each proportionally faster — live testing against production Supabase shows individual batched
+// queries routinely take 1.5-2s+ under completely normal (non-degraded) conditions, so 800ms was
+// firing constantly and silently discarding real results in favor of hardcoded zero defaults.
+const QUERY_TIMEOUT_MS = 5_000;
 
 const SAFE_DEFAULTS = {
   fans:             { total: 0, active: 0, growth_rate: 0, engagement_avg: 0 },

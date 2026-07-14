@@ -1,10 +1,23 @@
 import { Router } from 'express';
 import { authenticate, requireRole } from '../../middleware/auth';
 import { validate } from '../../middleware/validate';
+import { requestTimeout } from '../../middleware/requestTimeout';
+import { reportSlowRequest } from '../../db/poolHealth';
 import { analyzeReleaseSchema, updateMissionSchema, missionCallbackSchema } from './release-intel.schema';
 import * as controller from './release-intel.controller';
 
 const router = Router();
+
+// GET reads here (snapshot/brief/missions) are pure DB lookups with no
+// legitimate reason to run long — a stricter, separate ceiling than the
+// app-wide 90s lets us both fail fast for users and detect pool trouble
+// quickly (see poolHealth.ts). Mutating routes (analyze, dispatch/retry/
+// cancel) can legitimately take longer (AI scoring, inline n8n webhook
+// fan-out up to ~30s with retries) and keep the app-wide 90s ceiling.
+router.use(requestTimeout(20_000, {
+  skip: (req) => req.method !== 'GET',
+  onTimeout: () => reportSlowRequest('release-intel'),
+}));
 
 // ── Inbound n8n callback (no JWT — n8n sends X-DATIAM-Secret, same model as
 // /api/automation/webhook) — must be registered before router.use(authenticate).

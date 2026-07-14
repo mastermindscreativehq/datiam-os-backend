@@ -2,6 +2,8 @@ import { Router } from 'express';
 import * as releasesController from './releases.controller';
 import { validate } from '../../middleware/validate';
 import { authenticate, requireRole } from '../../middleware/auth';
+import { requestTimeout } from '../../middleware/requestTimeout';
+import { reportSlowRequest } from '../../db/poolHealth';
 import {
   createReleaseSchema,
   updateReleaseSchema,
@@ -15,6 +17,14 @@ const canDelete = requireRole('owner', 'admin');
 
 // Main /api/releases router
 export const releasesRouter = Router();
+
+// GET reads here are pure DB lookups with no legitimate reason to run long —
+// a stricter, separate ceiling than the app-wide 90s lets us both fail fast
+// for users and detect pool trouble quickly (see poolHealth.ts).
+releasesRouter.use(requestTimeout(20_000, {
+  skip: (req) => req.method !== 'GET',
+  onTimeout: () => reportSlowRequest('releases'),
+}));
 
 releasesRouter.use(authenticate);
 

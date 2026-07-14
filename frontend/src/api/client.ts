@@ -83,8 +83,10 @@ export const fanIntelligence = {
 }
 
 // ── Artists ─────────────────────────────────────────────────────────────────
+// Backend gives GET /artists a 20s ceiling (see artists.routes.ts) — see note
+// on `releases.list` above.
 export const artists = {
-  list:   () => apiClient.get('/artists'),
+  list:   () => apiClient.get('/artists', { timeout: 25_000 }),
   create: (body: Record<string, unknown>) => apiClient.post('/artists', body),
   update: (id: string, body: Record<string, unknown>) => apiClient.patch(`/artists/${id}`, body),
   remove: (id: string) => apiClient.delete(`/artists/${id}`),
@@ -99,8 +101,11 @@ export const catalog = {
 }
 
 // ── Releases ────────────────────────────────────────────────────────────────
+// Backend gives GET /releases a 20s ceiling (see releases.routes.ts) — give
+// the client a bit more headroom for network latency so client and server
+// timeouts agree instead of the client bailing out first and silently.
 export const releases = {
-  list:            () => apiClient.get('/releases'),
+  list:            () => apiClient.get('/releases', { timeout: 25_000 }),
   getById:         (id: string) => apiClient.get(`/releases/${id}`),
   create:          (body: Record<string, unknown>) => apiClient.post('/releases', body),
   update:          (id: string, body: Record<string, unknown>) => apiClient.patch(`/releases/${id}`, body),
@@ -112,8 +117,10 @@ export const releases = {
 
 // ── Release Intel (Phase 1 orchestration layer — /api/release-intel) ────────
 // Distinct from the older `release-intelligence` module above (migration 0035).
+// Backend gives GET /release-intel/:id a 20s ceiling (see release-intel.routes.ts)
+// — see note on `releases.list` above.
 export const releaseIntel = {
-  getSnapshot:   (releaseId: string) => apiClient.get(`/release-intel/${releaseId}`),
+  getSnapshot:   (releaseId: string) => apiClient.get(`/release-intel/${releaseId}`, { timeout: 25_000 }),
   analyze:       (releaseId: string, force = false) =>
     apiClient.post(`/release-intel/${releaseId}/analyze`, { force }, { timeout: 60_000 }),
   getBrief:      (releaseId: string, history = false) =>
@@ -128,9 +135,11 @@ export const releaseIntel = {
 }
 
 // ── Artist Intelligence (migration 0051 — /api/artist-intelligence) ─────────
+// Backend gives GET /artist-intelligence/:id a 20s ceiling (see
+// artist-intelligence.routes.ts) — see note on `releases.list` above.
 export const artistIntelligence = {
   create: (body: Record<string, unknown>) => apiClient.post('/artist-intelligence', body),
-  get:    (id: string) => apiClient.get(`/artist-intelligence/${id}`),
+  get:    (id: string) => apiClient.get(`/artist-intelligence/${id}`, { timeout: 25_000 }),
   update: (id: string, body: Record<string, unknown>) => apiClient.patch(`/artist-intelligence/${id}`, body),
   dispatchAutomation: (id: string, category: string, body: Record<string, unknown> = {}) =>
     apiClient.post(`/artist-intelligence/${id}/automation/${category}`, body),
@@ -455,7 +464,7 @@ export const automation = {
   report: () => apiClient.get('/automation/report'),
 
   // Run history (paginated)
-  history: (params?: { status?: string; source?: string; event?: string; limit?: number; offset?: number }) =>
+  history: (params?: { status?: string; source?: string; event?: string; release_id?: string; limit?: number; offset?: number }) =>
     apiClient.get('/automation/history', { params }),
 
   // Dead-letter queue
@@ -512,12 +521,14 @@ export const growth = {
     createTask:   (id: string, body: Record<string, unknown>) => apiClient.post(`/growth/campaigns/${id}/tasks`, body),
   },
   social: {
-    list:      (params?: Record<string, unknown>) => apiClient.get('/growth/social/accounts', { params }),
-    create:    (body: Record<string, unknown>)    => apiClient.post('/growth/social/accounts', body),
-    update:    (id: string, body: Record<string, unknown>) => apiClient.patch(`/growth/social/accounts/${id}`, body),
-    remove:    (id: string)                        => apiClient.delete(`/growth/social/accounts/${id}`),
-    platforms: ()                                  => apiClient.get('/growth/social/platforms'),
-    countries: ()                                  => apiClient.get('/growth/social/countries'),
+    // Backend mounts this module at /api/growth/social-accounts (see app.ts),
+    // not /api/growth/social/accounts — these were previously 404ing.
+    list:      (params?: Record<string, unknown>) => apiClient.get('/growth/social-accounts', { params }),
+    create:    (body: Record<string, unknown>)    => apiClient.post('/growth/social-accounts', body),
+    update:    (id: string, body: Record<string, unknown>) => apiClient.patch(`/growth/social-accounts/${id}`, body),
+    remove:    (id: string)                        => apiClient.delete(`/growth/social-accounts/${id}`),
+    platforms: ()                                  => apiClient.get('/growth/social-accounts/platforms'),
+    countries: ()                                  => apiClient.get('/growth/social-accounts/countries'),
   },
   publishing: {
     scheduled: (params?: Record<string, unknown>) => apiClient.get('/growth/publishing/scheduled', { params }),
