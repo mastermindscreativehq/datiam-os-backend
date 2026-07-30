@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { releases as releasesApi, artists as artistsApi, activity as activityApi, automation as automationApi, releaseIntel as releaseIntelApi, monitoring as monitoringApi } from '../api/client'
 import { useAuthStore } from '../store/authStore'
@@ -115,18 +115,33 @@ export default function ReleaseIntel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Mirrors `snapshot` so loadSnapshot (a stable callback) can tell an initial
+  // load from a background refresh/poll without depending on snapshot state.
+  const snapshotRef = useRef<ReleaseIntelSnapshot | null>(null)
+  useEffect(() => { snapshotRef.current = snapshot }, [snapshot])
+
   const loadSnapshot = useCallback(async (releaseId: string) => {
     if (!releaseId) return
-    setSnapshotLoading(true)
-    setSnapshotError('')
+    const isInitialLoad = snapshotRef.current === null
+    // Only show the full-page spinner (which unmounts the tab tree) on the
+    // very first load. Background polls/refreshes update data in place so
+    // mission tabs — and their loading UI — stay mounted and don't flicker.
+    if (isInitialLoad) {
+      setSnapshotLoading(true)
+      setSnapshotError('')
+    }
     try {
       const res = await timed('release intel snapshot', 'GET', `/release-intel/${releaseId}`, () => releaseIntelApi.getSnapshot(releaseId))
-      setSnapshot(res.data?.data ?? null)
+      const next = res.data?.data ?? null
+      setSnapshot(prev => (prev && next && JSON.stringify(prev) === JSON.stringify(next) ? prev : next))
     } catch (err: any) {
-      setSnapshotError(err.response?.data?.message ?? 'Failed to load Release Intel snapshot')
-      setSnapshot(null)
+      // A failed background poll shouldn't blank out already-loaded data.
+      if (isInitialLoad) {
+        setSnapshotError(err.response?.data?.message ?? 'Failed to load Release Intel snapshot')
+        setSnapshot(null)
+      }
     } finally {
-      setSnapshotLoading(false)
+      if (isInitialLoad) setSnapshotLoading(false)
     }
   }, [timed])
 
@@ -163,6 +178,9 @@ export default function ReleaseIntel() {
 
   useEffect(() => {
     if (!selectedId) return
+    // Switching releases is a genuine initial load for the new release, not a
+    // background refresh — reset so loadSnapshot shows the full-page spinner.
+    setSnapshot(null)
     loadSnapshot(selectedId)
     loadTimeline(selectedId)
     loadAutomation(selectedId)
