@@ -32,7 +32,7 @@ export default function ReleaseSelectorBar({
         <div>
           <div className="flex items-center gap-3 mb-1">
             <div className="w-1 h-6 bg-[#00ff41] rounded-full" />
-            <h1 className="text-xl font-bold font-mono text-[#00ff41] tracking-[0.2em] text-glow-green">RELEASE INTEL</h1>
+            <h1 className="text-xl font-bold font-mono text-[#00ff41] tracking-[0.2em] text-glow-green">RELEASE ORCHESTRATOR</h1>
           </div>
           <p className="text-gray-600 text-[11px] font-mono tracking-[0.2em] ml-4">
             OPERATIONAL COMMAND CENTER · MISSION CONTROL FOR RELEASES

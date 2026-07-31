@@ -77,7 +77,7 @@ export default function MissionWorkspaceTab({
           <EmptyState
             icon={icon}
             title="Mission not yet generated"
-            message="This mission is created automatically the first time Release Intel analysis completes for this release."
+            message="This mission is created automatically the first time Release Orchestrator analysis completes for this release."
             hint="Run analysis from the Overview tab."
             color={accent}
           />

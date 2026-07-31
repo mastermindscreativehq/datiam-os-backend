@@ -79,7 +79,7 @@ export default function ScoreBoard({ analysis, brief, missions }: Props) {
               <div className="text-[9px] font-mono text-gray-600">CONFIDENCE: N/A</div>
               <p className="text-[10px] font-mono text-gray-500 leading-relaxed pt-1 border-t border-white/5">
                 {mission
-                  ? `The ${c.label.replace(' SCORE', '').toLowerCase()} mission exists (see Mission Board), but Release Intel does not yet compute a dedicated score for this dimension.`
+                  ? `The ${c.label.replace(' SCORE', '').toLowerCase()} mission exists (see Mission Board), but Release Orchestrator does not yet compute a dedicated score for this dimension.`
                   : 'No dedicated intelligence engine connected yet.'}
               </p>
             </div>

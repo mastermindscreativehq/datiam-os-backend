@@ -12,7 +12,7 @@ interface Card {
 // have no engine at all yet. No fabricated metrics either way.
 const CARDS: Card[] = [
   { label: 'Playlist Intelligence', status: 'Waiting for corresponding intelligence engine.' },
-  { label: 'Fan Intelligence', status: 'Engine exists but is not yet connected to Release Intel mission scoring.', href: '/fan-intelligence' },
+  { label: 'Fan Intelligence', status: 'Engine exists but is not yet connected to Release Orchestrator mission scoring.', href: '/fan-intelligence' },
   { label: 'Sync Intelligence', status: 'Partially connected — the sync score above is computed via the existing Sync Intelligence engine once audio is analyzed.', href: '/sync-intelligence' },
   { label: 'Content Intelligence', status: 'Waiting for corresponding intelligence engine.' },
   { label: 'Outreach Intelligence', status: 'Waiting for corresponding intelligence engine.' },

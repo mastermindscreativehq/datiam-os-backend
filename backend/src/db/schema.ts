@@ -2142,7 +2142,7 @@ export type NewIncident = typeof incidents.$inferInsert;
 export const companyTypeEnum = pgEnum('company_type', [
   'production_house', 'ad_agency', 'music_supervisor_firm', 'brand',
   'streaming_platform', 'game_studio', 'trailer_house', 'music_library',
-  'tv_network', 'film_studio', 'other',
+  'tv_network', 'film_studio', 'label', 'other',
 ]);
 
 export const companyTierEnum = pgEnum('company_tier', [
@@ -3319,6 +3319,199 @@ export const catalogIdentifiersRelations = relations(catalog_identifiers, ({ one
 
 export const catalogCreditsRelations = relations(catalog_credits, ({ one }) => ({
   song: one(songs, { fields: [catalog_credits.song_id], references: [songs.id] }),
+}));
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Distribution Engine (migration 0052)
+// Canonical owner of DSP delivery, store/territory availability, takedowns,
+// re-delivery, distribution health, and delivery logs. Also the single
+// source of truth for ISRC/UPC/ISWC going forward — `catalog_identifiers`
+// and the isrc/upc/primary_isrc columns on `releases` are NOT migrated by
+// this phase (Phase 1 is additive-only); that consolidation is Phase 7 of
+// the roadmap and requires a verified backfill before anything is dropped.
+// Songs/Releases/Royalties/Mission Control read this domain read-only.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const distributionDspEnum = pgEnum('distribution_dsp', [
+  'spotify', 'apple_music', 'youtube_music', 'amazon_music', 'tidal', 'deezer', 'other',
+]);
+
+export const distributionDeliveryStatusEnum = pgEnum('distribution_delivery_status', [
+  'pending', 'delivered', 'failed', 'taken_down', 'redelivering',
+]);
+
+export const distributionTerritoryStatusEnum = pgEnum('distribution_territory_status', [
+  'available', 'unavailable', 'pending',
+]);
+
+export const distributionTakedownStatusEnum = pgEnum('distribution_takedown_status', [
+  'requested', 'in_progress', 'completed', 'failed',
+]);
+
+export const distributionHealthStatusEnum = pgEnum('distribution_health_status', [
+  'healthy', 'degraded', 'failing',
+]);
+
+// ── distribution_identifiers ──────────────────────────────────────────────────
+
+export const distribution_identifiers = pgTable(
+  'distribution_identifiers',
+  {
+    id:              uuid('id').primaryKey().defaultRandom(),
+    song_id:         uuid('song_id').references(() => songs.id, { onDelete: 'set null' }),
+    release_id:      uuid('release_id').references(() => releases.id, { onDelete: 'set null' }),
+    identifier_type: catalogIdentifierTypeEnum('identifier_type').notNull(),
+    value:           text('value').notNull(),
+    assigned_by:     text('assigned_by'),
+    assigned_at:     timestamp('assigned_at', { withTimezone: true }),
+    created_at:      timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updated_at:      timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    songIdx:    index('distribution_identifiers_song_id_idx').on(t.song_id),
+    releaseIdx: index('distribution_identifiers_release_id_idx').on(t.release_id),
+    typeIdx:    index('distribution_identifiers_type_idx').on(t.identifier_type),
+    valueIdx:   index('distribution_identifiers_value_idx').on(t.value),
+  }),
+);
+
+export type DistributionIdentifier    = typeof distribution_identifiers.$inferSelect;
+export type NewDistributionIdentifier = typeof distribution_identifiers.$inferInsert;
+
+// ── distribution_deliveries ───────────────────────────────────────────────────
+
+export const distribution_deliveries = pgTable(
+  'distribution_deliveries',
+  {
+    id:          uuid('id').primaryKey().defaultRandom(),
+    release_id:  uuid('release_id').notNull().references(() => releases.id, { onDelete: 'cascade' }),
+    song_id:     uuid('song_id').references(() => songs.id, { onDelete: 'set null' }),
+    dsp:         distributionDspEnum('dsp').notNull(),
+    status:      distributionDeliveryStatusEnum('status').notNull().default('pending'),
+    format:      text('format'),
+    external_id: text('external_id'),
+    delivered_at: timestamp('delivered_at', { withTimezone: true }),
+    created_at:  timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updated_at:  timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    releaseIdx: index('distribution_deliveries_release_id_idx').on(t.release_id),
+    dspIdx:     index('distribution_deliveries_dsp_idx').on(t.dsp),
+    statusIdx:  index('distribution_deliveries_status_idx').on(t.status),
+  }),
+);
+
+export type DistributionDelivery    = typeof distribution_deliveries.$inferSelect;
+export type NewDistributionDelivery = typeof distribution_deliveries.$inferInsert;
+
+// ── distribution_territories ──────────────────────────────────────────────────
+
+export const distribution_territories = pgTable(
+  'distribution_territories',
+  {
+    id:            uuid('id').primaryKey().defaultRandom(),
+    delivery_id:   uuid('delivery_id').notNull().references(() => distribution_deliveries.id, { onDelete: 'cascade' }),
+    territory_code: text('territory_code').notNull(),
+    status:        distributionTerritoryStatusEnum('status').notNull().default('pending'),
+    effective_at:  timestamp('effective_at', { withTimezone: true }),
+    created_at:    timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    deliveryIdx: index('distribution_territories_delivery_id_idx').on(t.delivery_id),
+    codeIdx:     index('distribution_territories_code_idx').on(t.territory_code),
+  }),
+);
+
+export type DistributionTerritory    = typeof distribution_territories.$inferSelect;
+export type NewDistributionTerritory = typeof distribution_territories.$inferInsert;
+
+// ── distribution_takedowns ────────────────────────────────────────────────────
+
+export const distribution_takedowns = pgTable(
+  'distribution_takedowns',
+  {
+    id:            uuid('id').primaryKey().defaultRandom(),
+    delivery_id:   uuid('delivery_id').notNull().references(() => distribution_deliveries.id, { onDelete: 'cascade' }),
+    reason:        text('reason'),
+    status:        distributionTakedownStatusEnum('status').notNull().default('requested'),
+    requested_by:  uuid('requested_by').references(() => users.id, { onDelete: 'set null' }),
+    requested_at:  timestamp('requested_at', { withTimezone: true }).defaultNow().notNull(),
+    completed_at:  timestamp('completed_at', { withTimezone: true }),
+  },
+  (t) => ({
+    deliveryIdx: index('distribution_takedowns_delivery_id_idx').on(t.delivery_id),
+    statusIdx:   index('distribution_takedowns_status_idx').on(t.status),
+  }),
+);
+
+export type DistributionTakedown    = typeof distribution_takedowns.$inferSelect;
+export type NewDistributionTakedown = typeof distribution_takedowns.$inferInsert;
+
+// ── distribution_health ───────────────────────────────────────────────────────
+
+export const distribution_health = pgTable(
+  'distribution_health',
+  {
+    id:              uuid('id').primaryKey().defaultRandom(),
+    release_id:      uuid('release_id').notNull().references(() => releases.id, { onDelete: 'cascade' }),
+    overall_status:  distributionHealthStatusEnum('overall_status').notNull().default('healthy'),
+    details:         jsonb('details').notNull().default('{}'),
+    last_checked_at: timestamp('last_checked_at', { withTimezone: true }).defaultNow().notNull(),
+    created_at:      timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updated_at:      timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    releaseIdx: uniqueIndex('distribution_health_release_id_idx').on(t.release_id),
+    statusIdx:  index('distribution_health_status_idx').on(t.overall_status),
+  }),
+);
+
+export type DistributionHealth    = typeof distribution_health.$inferSelect;
+export type NewDistributionHealth = typeof distribution_health.$inferInsert;
+
+// ── delivery_logs ──────────────────────────────────────────────────────────────
+
+export const delivery_logs = pgTable(
+  'delivery_logs',
+  {
+    id:          uuid('id').primaryKey().defaultRandom(),
+    delivery_id: uuid('delivery_id').notNull().references(() => distribution_deliveries.id, { onDelete: 'cascade' }),
+    event_type:  text('event_type').notNull(),
+    message:     text('message'),
+    payload:     jsonb('payload').notNull().default('{}'),
+    occurred_at: timestamp('occurred_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    deliveryIdx: index('delivery_logs_delivery_id_idx').on(t.delivery_id),
+    eventIdx:    index('delivery_logs_event_type_idx').on(t.event_type),
+  }),
+);
+
+export type DeliveryLog    = typeof delivery_logs.$inferSelect;
+export type NewDeliveryLog = typeof delivery_logs.$inferInsert;
+
+export const distributionDeliveriesRelations = relations(distribution_deliveries, ({ one, many }) => ({
+  release:     one(releases, { fields: [distribution_deliveries.release_id], references: [releases.id] }),
+  song:        one(songs,    { fields: [distribution_deliveries.song_id],    references: [songs.id] }),
+  territories: many(distribution_territories),
+  takedowns:   many(distribution_takedowns),
+  logs:        many(delivery_logs),
+}));
+
+export const distributionTerritoriesRelations = relations(distribution_territories, ({ one }) => ({
+  delivery: one(distribution_deliveries, { fields: [distribution_territories.delivery_id], references: [distribution_deliveries.id] }),
+}));
+
+export const distributionTakedownsRelations = relations(distribution_takedowns, ({ one }) => ({
+  delivery: one(distribution_deliveries, { fields: [distribution_takedowns.delivery_id], references: [distribution_deliveries.id] }),
+}));
+
+export const distributionHealthRelations = relations(distribution_health, ({ one }) => ({
+  release: one(releases, { fields: [distribution_health.release_id], references: [releases.id] }),
+}));
+
+export const deliveryLogsRelations = relations(delivery_logs, ({ one }) => ({
+  delivery: one(distribution_deliveries, { fields: [delivery_logs.delivery_id], references: [distribution_deliveries.id] }),
 }));
 
 // ─────────────────────────────────────────────────────────────────────────────

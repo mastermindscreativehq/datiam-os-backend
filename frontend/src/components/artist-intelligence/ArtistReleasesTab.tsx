@@ -12,7 +12,7 @@ export default function ArtistReleasesTab({ releases }: Props) {
       <EmptyState
         icon="◈"
         title="No releases linked to this artist yet"
-        message="Releases created for this artist in the Catalog Engine or Release Intelligence will appear here automatically."
+        message="Releases created for this artist in the Catalog Engine or Release Operations will appear here automatically."
         color="fuchsia"
       />
     )

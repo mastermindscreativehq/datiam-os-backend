@@ -15,6 +15,7 @@ import artistsRouter from './modules/artists/artists.routes';
 import catalogRouter from './modules/catalog/catalog.routes';
 import { releasesRouter, releaseTasksRouter } from './modules/releases/releases.routes';
 import royaltiesRouter from './modules/royalties/royalties.routes';
+import distributionRouter from './modules/distribution/distribution.routes';
 import syncRouter from './modules/sync/sync.routes';
 import fansRouter from './modules/fans/fans.routes';
 import contentRouter from './modules/content/content.routes';
@@ -70,6 +71,7 @@ import growthCRMRouter from './modules/crm/growth-crm.routes';
 import fanIntelligenceExtRouter from './modules/fan-intelligence/fan-intelligence-extension.routes';
 import growthAIRouter from './modules/ai/growth-ai.routes';
 import notificationsRouter from './modules/notifications/notifications.routes';
+import playlistsRouter from './modules/playlists/playlists.routes';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -146,6 +148,7 @@ app.use('/api/songs', catalogRouter);
 app.use('/api/releases', releasesRouter);
 app.use('/api/release-tasks', releaseTasksRouter);
 app.use('/api/royalties', royaltiesRouter);
+app.use('/api/distribution', distributionRouter);
 app.use('/api/sync/pitches', syncRouter);
 app.use('/api/fans', fansRouter);
 app.use('/api/content/ideas', contentRouter);
@@ -214,6 +217,7 @@ app.use('/api/growth/crm',           growthCRMRouter);
 app.use('/api/growth/fans',          fanIntelligenceExtRouter);
 app.use('/api/growth/ai',            growthAIRouter);
 app.use('/api/growth/notifications', notificationsRouter);
+app.use('/api/playlists', playlistsRouter);
 
 // ---- System Routes ----
 app.use('/api/system/migrations', migrationsRouter);

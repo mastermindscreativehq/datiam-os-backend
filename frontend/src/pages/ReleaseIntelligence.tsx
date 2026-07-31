@@ -39,7 +39,7 @@ function ReleaseDetailView({ releaseId }: { releaseId: string }) {
             to="/release-intelligence"
             className="text-[10px] font-mono text-gray-600 hover:text-[#00d4ff] mb-2 inline-block"
           >
-            ← Back to Release Intel
+            ← Back to Release Operations
           </Link>
           <div className="flex items-center gap-3">
             {data.cover_art_url && (
@@ -174,7 +174,7 @@ export default function ReleaseIntelligence() {
       {/* Page header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white font-mono">RELEASE INTELLIGENCE</h1>
+          <h1 className="text-2xl font-bold text-white font-mono">RELEASE OPERATIONS</h1>
           <p className="text-xs text-gray-500 mt-1 font-mono tracking-wider">
             Complete lifecycle management for every music release
           </p>

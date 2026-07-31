@@ -2,6 +2,7 @@ import { eq, desc, and, sql, sum, count } from 'drizzle-orm';
 import { db } from '../../db';
 import { fan_profiles, fan_events } from '../../db/schema';
 import { AppError } from '../../middleware/errorHandler';
+import { updateFanScores, incrementFanReferralCount } from '../fans/fans.service';
 
 const AMBASSADOR_WEIGHTS = {
   streamed: 1,
@@ -46,11 +47,7 @@ export class FanIntelligenceExtensionService {
     }
 
     const ambassadorScore = Math.min(100, score);
-    const [row] = await db
-      .update(fan_profiles)
-      .set({ ambassador_score: ambassadorScore.toString() } as any)
-      .where(eq(fan_profiles.id, fanId))
-      .returning();
+    const row = await updateFanScores(fanId, { ambassador_score: ambassadorScore });
     return row;
   }
 
@@ -62,8 +59,15 @@ export class FanIntelligenceExtensionService {
 
     const updated = [];
     for (const fan of fans) {
-      const row = await this.recalculateAmbassadorScore(fan.id);
-      if (row) updated.push(row);
+      try {
+        const row = await this.recalculateAmbassadorScore(fan.id);
+        if (row) updated.push(row);
+      } catch (err) {
+        // Fan disappeared mid-batch (e.g. deleted concurrently) — skip it,
+        // matching this batch job's original tolerant behavior, rather than
+        // aborting the whole run over one row.
+        if (!(err instanceof AppError && err.statusCode === 404)) throw err;
+      }
     }
     return { updated: updated.length };
   }
@@ -100,13 +104,7 @@ export class FanIntelligenceExtensionService {
   }
 
   async updateDspListenerCount(fanId: string, count: number) {
-    const [row] = await db
-      .update(fan_profiles)
-      .set({ dsp_listener_count: count } as any)
-      .where(eq(fan_profiles.id, fanId))
-      .returning();
-    if (!row) throw new AppError('Fan profile not found', 404);
-    return row;
+    return updateFanScores(fanId, { dsp_listener_count: count });
   }
 
   async updateCommunityScore(fanId: string) {
@@ -121,12 +119,7 @@ export class FanIntelligenceExtensionService {
       );
 
     const communityScore = Math.min(100, (result?.total ?? 0) * 3);
-    const [row] = await db
-      .update(fan_profiles)
-      .set({ community_score: communityScore.toString() } as any)
-      .where(eq(fan_profiles.id, fanId))
-      .returning();
-    return row;
+    return updateFanScores(fanId, { community_score: communityScore });
   }
 
   async getCommunityMetrics() {
@@ -142,14 +135,7 @@ export class FanIntelligenceExtensionService {
   }
 
   async incrementReferralCount(fanId: string) {
-    const [row] = await db
-      .update(fan_profiles)
-      .set({
-        referral_count: sql`${(fan_profiles as any).referral_count} + 1`,
-      } as any)
-      .where(eq(fan_profiles.id, fanId))
-      .returning();
-    return row;
+    return incrementFanReferralCount(fanId);
   }
 }
 

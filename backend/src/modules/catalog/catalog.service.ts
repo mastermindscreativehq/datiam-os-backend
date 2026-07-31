@@ -1,16 +1,19 @@
-import { eq, desc, and, type SQL } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { db } from '../../db';
 import { songs, song_assets, contributors } from '../../db/schema';
-import { AppError } from '../../middleware/errorHandler';
+import {
+  createSongCore,
+  updateSongCore,
+  deleteSongCore,
+  getSongs as getCatalogSongs,
+  getSongById as getCatalogSongById,
+} from '../catalog-engine/songs.service';
 import type {
   CreateSongInput,
   UpdateSongInput,
   CreateAssetInput,
   CreateContributorInput,
 } from './catalog.schema';
-
-const slugify = (str: string) =>
-  str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
 // Maps DB row → Music Core v1 API shape
 function mapSong(s: typeof songs.$inferSelect) {
@@ -24,11 +27,17 @@ function mapSong(s: typeof songs.$inferSelect) {
 
 export type MappedSong = ReturnType<typeof mapSong>;
 
+// Legacy `/api/songs` writes now delegate to catalog-engine's shared write
+// core (see songs.service.ts) instead of running an independent INSERT/UPDATE
+// against `songs` — this was the source of divergent writes between the
+// legacy and v2 catalog APIs (legacy never set writers/producers/tags; v2
+// never set release_id or the AI intelligence scores). Only the field
+// mapping (`status` <-> `release_status`, numeric scores <-> decimal
+// strings) and response shape stay specific to this legacy surface.
+
 export const createSong = async (input: CreateSongInput): Promise<MappedSong> => {
   const {
     status,
-    musical_key,
-    slug,
     energy_score,
     emotion_score,
     viral_score,
@@ -37,22 +46,17 @@ export const createSong = async (input: CreateSongInput): Promise<MappedSong> =>
     ...rest
   } = input;
 
-  const [song] = await db
-    .insert(songs)
-    .values({
-      ...rest,
-      release_status: status ?? 'draft',
-      musical_key,
-      slug: slug ?? slugify(input.title),
-      energy_score: energy_score != null ? String(energy_score) : undefined,
-      emotion_score: emotion_score != null ? String(emotion_score) : undefined,
-      viral_score: viral_score != null ? String(viral_score) : undefined,
-      commercial_score: commercial_score != null ? String(commercial_score) : undefined,
-      spiritual_score: spiritual_score != null ? String(spiritual_score) : undefined,
-    })
-    .returning();
+  const song = await createSongCore({
+    ...rest,
+    release_status: status ?? 'draft',
+    energy_score: energy_score != null ? String(energy_score) : undefined,
+    emotion_score: emotion_score != null ? String(emotion_score) : undefined,
+    viral_score: viral_score != null ? String(viral_score) : undefined,
+    commercial_score: commercial_score != null ? String(commercial_score) : undefined,
+    spiritual_score: spiritual_score != null ? String(spiritual_score) : undefined,
+  });
 
-  return mapSong(song);
+  return mapSong(song as typeof songs.$inferSelect);
 };
 
 export interface SongFilters {
@@ -63,41 +67,51 @@ export interface SongFilters {
   explicit?: boolean;
 }
 
+// Both read functions now delegate to catalog-engine's canonical query
+// implementation instead of running a second, independent `songs` query —
+// this module previously had its own drizzle select here that had silently
+// drifted from catalog-engine's (missing writers/producers/tags/artist_name,
+// credits/identifiers/assets). `release_id`/`explicit` aren't supported by
+// catalog-engine's query params, so they're applied as a post-filter here;
+// pagination is walked to completion since this legacy endpoint's contract
+// returns every matching row, not a page.
+
 export const getSongs = async (filters: SongFilters = {}): Promise<MappedSong[]> => {
-  const conditions: SQL<unknown>[] = [];
-  if (filters.artist_id) conditions.push(eq(songs.artist_id, filters.artist_id));
-  if (filters.release_id) conditions.push(eq(songs.release_id, filters.release_id));
-  if (filters.genre) conditions.push(eq(songs.genre, filters.genre));
-  if (filters.explicit !== undefined) conditions.push(eq(songs.explicit, filters.explicit));
-  if (filters.status) {
-    conditions.push(
-      eq(
-        songs.release_status,
-        filters.status as 'draft' | 'registered' | 'distributed' | 'released' | 'archived',
-      ),
-    );
+  const rows: Record<string, unknown>[] = [];
+  let page = 1;
+  const limit = 100;
+
+  while (true) {
+    const { data, pagination } = await getCatalogSongs({
+      page,
+      limit,
+      sort: 'created_at',
+      order: 'desc',
+      artist_id: filters.artist_id,
+      status: filters.status,
+      genre: filters.genre,
+    });
+    rows.push(...(data as Record<string, unknown>[]));
+    if (data.length < limit || page >= pagination.pages) break;
+    page++;
   }
 
-  const rows = await db
-    .select()
-    .from(songs)
-    .where(conditions.length ? and(...conditions) : undefined)
-    .orderBy(desc(songs.created_at));
+  const filtered = rows.filter((r) =>
+    (filters.release_id === undefined || r.release_id === filters.release_id) &&
+    (filters.explicit === undefined || r.explicit === filters.explicit),
+  );
 
-  return rows.map(mapSong);
+  return filtered.map((r) => mapSong(r as typeof songs.$inferSelect));
 };
 
 export const getSongById = async (id: string): Promise<MappedSong> => {
-  const [song] = await db.select().from(songs).where(eq(songs.id, id)).limit(1);
-  if (!song) throw new AppError('Song not found', 404);
-  return mapSong(song);
+  const song = await getCatalogSongById(id);
+  return mapSong(song as unknown as typeof songs.$inferSelect);
 };
 
 export const updateSong = async (id: string, input: UpdateSongInput): Promise<MappedSong> => {
   const {
     status,
-    musical_key,
-    slug,
     energy_score,
     emotion_score,
     viral_score,
@@ -106,30 +120,21 @@ export const updateSong = async (id: string, input: UpdateSongInput): Promise<Ma
     ...rest
   } = input;
 
-  const patch: Record<string, unknown> = { ...rest, updated_at: new Date() };
+  const patch: Record<string, unknown> = { ...rest };
   if (status !== undefined) patch.release_status = status;
-  if (musical_key !== undefined) patch.musical_key = musical_key;
-  if (slug !== undefined) patch.slug = slug;
-  else if (input.title !== undefined) patch.slug = slugify(input.title);
   if (energy_score !== undefined) patch.energy_score = String(energy_score);
   if (emotion_score !== undefined) patch.emotion_score = String(emotion_score);
   if (viral_score !== undefined) patch.viral_score = String(viral_score);
   if (commercial_score !== undefined) patch.commercial_score = String(commercial_score);
   if (spiritual_score !== undefined) patch.spiritual_score = String(spiritual_score);
 
-  const [updated] = await db
-    .update(songs)
-    .set(patch)
-    .where(eq(songs.id, id))
-    .returning();
-  if (!updated) throw new AppError('Song not found', 404);
-  return mapSong(updated);
+  const updated = await updateSongCore(id, patch);
+  return mapSong(updated as typeof songs.$inferSelect);
 };
 
 export const deleteSong = async (id: string): Promise<{ deleted: boolean; id: string }> => {
-  const [deleted] = await db.delete(songs).where(eq(songs.id, id)).returning();
-  if (!deleted) throw new AppError('Song not found', 404);
-  return { deleted: true, id };
+  const result = await deleteSongCore(id);
+  return { deleted: result.deleted, id: result.id };
 };
 
 export const createAsset = async (songId: string, input: CreateAssetInput) => {

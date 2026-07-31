@@ -22,6 +22,8 @@ import {
   releases,
   content_ideas,
   crm_contacts,
+  licensing_contacts,
+  outreach_message,
 } from './schema';
 
 // ── Enums ────────────────────────────────────────────────────────────────────
@@ -715,3 +717,176 @@ export const general_tasks = pgTable(
     dueDateIdx: index('general_tasks_due_date_idx').on(t.due_date),
   }),
 );
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Playlists Engine (migration 0053)
+// Canonical owner of every playlist type (editorial/user/dsp/curator), playlist
+// pitching, playlist-linked campaigns, playlist analytics, and outreach history.
+// Other modules (outreach, campaign-manager, release-intel/release-intelligence,
+// analytics-hub, catalog-engine, ai) read this domain but never write to it —
+// they call this module's service functions instead.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const playlistTypeEnum = pgEnum('playlist_type', ['editorial', 'user', 'dsp', 'curator']);
+
+export const playlistDspEnum = pgEnum('playlist_dsp', [
+  'spotify', 'apple_music', 'youtube_music', 'amazon_music', 'tidal', 'deezer', 'other',
+]);
+
+export const playlistPitchStatusEnum = pgEnum('playlist_pitch_status', [
+  'draft', 'submitted', 'under_review', 'accepted', 'rejected', 'added', 'removed',
+]);
+
+export const playlistPlacementSourceEnum = pgEnum('playlist_placement_source', [
+  'pitch', 'algorithmic', 'organic', 'paid', 'unknown',
+]);
+
+// ── playlists ─────────────────────────────────────────────────────────────────
+
+export const playlists = pgTable(
+  'playlists',
+  {
+    id:                uuid('id').primaryKey().defaultRandom(),
+    name:              text('name').notNull(),
+    type:              playlistTypeEnum('type').notNull(),
+    dsp:               playlistDspEnum('dsp'),
+    curator_contact_id: uuid('curator_contact_id').references(() => licensing_contacts.id, { onDelete: 'set null' }),
+    owner_user_id:     uuid('owner_user_id').references(() => users.id, { onDelete: 'set null' }),
+    external_url:      text('external_url'),
+    genre_tags:        jsonb('genre_tags').notNull().default('[]'),
+    follower_count:    integer('follower_count'),
+    notes:             text('notes'),
+    metadata:          jsonb('metadata').notNull().default('{}'),
+    created_at:        timestamp('created_at').defaultNow().notNull(),
+    updated_at:        timestamp('updated_at').defaultNow().notNull(),
+  },
+  (t) => ({
+    typeIdx:   index('playlists_type_idx').on(t.type),
+    dspIdx:    index('playlists_dsp_idx').on(t.dsp),
+    curatorIdx: index('playlists_curator_contact_id_idx').on(t.curator_contact_id),
+  }),
+);
+
+export type Playlist    = typeof playlists.$inferSelect;
+export type NewPlaylist = typeof playlists.$inferInsert;
+
+// ── playlist_pitches ──────────────────────────────────────────────────────────
+
+export const playlist_pitches = pgTable(
+  'playlist_pitches',
+  {
+    id:                 uuid('id').primaryKey().defaultRandom(),
+    playlist_id:        uuid('playlist_id').notNull().references(() => playlists.id, { onDelete: 'cascade' }),
+    song_id:            uuid('song_id').notNull().references(() => songs.id, { onDelete: 'cascade' }),
+    release_id:         uuid('release_id').references(() => releases.id, { onDelete: 'set null' }),
+    outreach_message_id: uuid('outreach_message_id').references(() => outreach_message.id, { onDelete: 'set null' }),
+    status:             playlistPitchStatusEnum('status').notNull().default('draft'),
+    pitch_note:         text('pitch_note'),
+    decision_note:      text('decision_note'),
+    submitted_at:       timestamp('submitted_at'),
+    decided_at:         timestamp('decided_at'),
+    created_at:         timestamp('created_at').defaultNow().notNull(),
+    updated_at:         timestamp('updated_at').defaultNow().notNull(),
+  },
+  (t) => ({
+    playlistIdx: index('playlist_pitches_playlist_id_idx').on(t.playlist_id),
+    songIdx:     index('playlist_pitches_song_id_idx').on(t.song_id),
+    statusIdx:   index('playlist_pitches_status_idx').on(t.status),
+  }),
+);
+
+export type PlaylistPitch    = typeof playlist_pitches.$inferSelect;
+export type NewPlaylistPitch = typeof playlist_pitches.$inferInsert;
+
+// ── playlist_placements ───────────────────────────────────────────────────────
+// A confirmed appearance of a song on a playlist — the source of truth for
+// "is this song currently on this playlist," independent of whether it got
+// there via a pitch (see pitch_id) or was discovered by other means.
+
+export const playlist_placements = pgTable(
+  'playlist_placements',
+  {
+    id:          uuid('id').primaryKey().defaultRandom(),
+    playlist_id: uuid('playlist_id').notNull().references(() => playlists.id, { onDelete: 'cascade' }),
+    song_id:     uuid('song_id').notNull().references(() => songs.id, { onDelete: 'cascade' }),
+    pitch_id:    uuid('pitch_id').references(() => playlist_pitches.id, { onDelete: 'set null' }),
+    source:      playlistPlacementSourceEnum('source').notNull().default('unknown'),
+    position:    integer('position'),
+    added_at:    timestamp('added_at').notNull(),
+    removed_at:  timestamp('removed_at'),
+    created_at:  timestamp('created_at').defaultNow().notNull(),
+  },
+  (t) => ({
+    playlistIdx: index('playlist_placements_playlist_id_idx').on(t.playlist_id),
+    songIdx:     index('playlist_placements_song_id_idx').on(t.song_id),
+    addedAtIdx:  index('playlist_placements_added_at_idx').on(t.added_at),
+  }),
+);
+
+export type PlaylistPlacement    = typeof playlist_placements.$inferSelect;
+export type NewPlaylistPlacement = typeof playlist_placements.$inferInsert;
+
+// ── playlist_campaigns ────────────────────────────────────────────────────────
+// Junction to campaign-manager's campaigns, mirroring the campaign_content
+// pattern — Playlists never writes into `campaigns`, campaign-manager never
+// writes into playlist tables; this junction is the only shared surface.
+
+export const playlist_campaigns = pgTable(
+  'playlist_campaigns',
+  {
+    campaign_id: uuid('campaign_id').notNull().references(() => campaigns.id, { onDelete: 'cascade' }),
+    playlist_id: uuid('playlist_id').notNull().references(() => playlists.id, { onDelete: 'cascade' }),
+    goal_adds:   integer('goal_adds'),
+    added_at:    timestamp('added_at').defaultNow().notNull(),
+  },
+  (t) => ({
+    pk:          primaryKey({ columns: [t.campaign_id, t.playlist_id] }),
+    playlistIdx: index('playlist_campaigns_playlist_id_idx').on(t.playlist_id),
+  }),
+);
+
+// ── playlist_analytics ────────────────────────────────────────────────────────
+
+export const playlist_analytics = pgTable(
+  'playlist_analytics',
+  {
+    id:            uuid('id').primaryKey().defaultRandom(),
+    placement_id:  uuid('placement_id').notNull().references(() => playlist_placements.id, { onDelete: 'cascade' }),
+    snapshot_date: date('snapshot_date').notNull(),
+    streams:       bigint('streams', { mode: 'number' }),
+    saves:         bigint('saves', { mode: 'number' }),
+    skip_rate:     numeric('skip_rate', { precision: 5, scale: 2 }),
+    created_at:    timestamp('created_at').defaultNow().notNull(),
+  },
+  (t) => ({
+    placementIdx: index('playlist_analytics_placement_id_idx').on(t.placement_id),
+    dateIdx:      index('playlist_analytics_snapshot_date_idx').on(t.snapshot_date),
+  }),
+);
+
+export type PlaylistAnalytics    = typeof playlist_analytics.$inferSelect;
+export type NewPlaylistAnalytics = typeof playlist_analytics.$inferInsert;
+
+// ── playlist_outreach_history ─────────────────────────────────────────────────
+// Append-only log of every outreach touch tied to a playlist, sourced from
+// outreach module events — outreach never writes here directly at the DB
+// level in the sense of owning this table, but this module records the
+// touch when notified, keeping the append-only history under one owner.
+
+export const playlist_outreach_history = pgTable(
+  'playlist_outreach_history',
+  {
+    id:                  uuid('id').primaryKey().defaultRandom(),
+    playlist_id:         uuid('playlist_id').notNull().references(() => playlists.id, { onDelete: 'cascade' }),
+    outreach_message_id: uuid('outreach_message_id').references(() => outreach_message.id, { onDelete: 'set null' }),
+    event_type:          text('event_type').notNull(),
+    note:                text('note'),
+    occurred_at:         timestamp('occurred_at').defaultNow().notNull(),
+  },
+  (t) => ({
+    playlistIdx: index('playlist_outreach_history_playlist_id_idx').on(t.playlist_id),
+  }),
+);
+
+export type PlaylistOutreachHistory    = typeof playlist_outreach_history.$inferSelect;
+export type NewPlaylistOutreachHistory = typeof playlist_outreach_history.$inferInsert;

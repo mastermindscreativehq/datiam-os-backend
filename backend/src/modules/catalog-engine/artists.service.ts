@@ -9,7 +9,7 @@ import {
   catalog_credits,
 } from '../../db/schema';
 import { AppError } from '../../middleware/errorHandler';
-import { dispatchEvent } from '../automation/automation.service';
+import { createArtistCore, updateArtistCore, deleteArtistCore } from '../artists/artists.service';
 import type { CreateArtistInput, UpdateArtistInput, CatalogQuery } from './catalog-engine.schema';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -26,34 +26,15 @@ function buildOrder(sort: string, order: 'asc' | 'desc') {
 // ── createArtist ──────────────────────────────────────────────────────────────
 
 export const createArtist = async (input: CreateArtistInput) => {
-  const { biography, genres, countries, catalog_status, social_links, ...rest } = input;
+  const { biography, social_links, ...rest } = input;
 
-  const [artist] = await db
-    .insert(artist_profiles)
-    .values({
-      ...rest,
-      bio: biography,
-      social_links: social_links ?? null,
-    })
-    .returning();
+  const artist = await createArtistCore({
+    ...rest,
+    bio: biography,
+    social_links: social_links ?? null,
+  });
 
-  // Set migration-added columns via raw SQL
-  if (genres?.length || countries?.length || catalog_status) {
-    await db.execute(sql`
-      UPDATE artist_profiles
-      SET
-        genres         = ${JSON.stringify(genres ?? [])}::text[],
-        countries      = ${JSON.stringify(countries ?? [])}::text[],
-        catalog_status = ${catalog_status ?? 'active'}
-      WHERE id = ${artist.id}
-    `);
-  }
-
-  const full = await getArtistById(artist.id);
-
-  dispatchEvent('artist.created', { artist_id: artist.id, stage_name: artist.stage_name }).catch(() => {});
-
-  return full;
+  return getArtistById(artist.id);
 };
 
 // ── getArtists ────────────────────────────────────────────────────────────────
@@ -133,55 +114,20 @@ export const getArtistById = async (id: string) => {
 // ── updateArtist ──────────────────────────────────────────────────────────────
 
 export const updateArtist = async (id: string, input: UpdateArtistInput) => {
-  const existing = await db
-    .select({ id: artist_profiles.id })
-    .from(artist_profiles)
-    .where(eq(artist_profiles.id, id))
-    .limit(1);
+  const { biography, social_links, ...rest } = input;
 
-  if (!existing.length) throw new AppError('Artist not found', 404);
+  const patch: Record<string, unknown> = { ...rest };
+  if (biography !== undefined) patch.bio = biography;
+  if (social_links !== undefined) patch.social_links = social_links;
 
-  const { biography, genres, countries, catalog_status, social_links, is_active, ...rest } = input;
-
-  const coreUpdate: Record<string, unknown> = {
-    ...rest,
-    updated_at: new Date(),
-  };
-  if (biography !== undefined) coreUpdate.bio = biography;
-  if (social_links !== undefined) coreUpdate.social_links = social_links;
-  if (is_active !== undefined) coreUpdate.is_active = is_active;
-
-  if (Object.keys(coreUpdate).length > 1) {
-    await db.update(artist_profiles).set(coreUpdate).where(eq(artist_profiles.id, id));
-  }
-
-  // Update migration-added columns via conditional CASE to avoid overwriting with NULL
-  const hasMigrationCols = genres !== undefined || countries !== undefined || catalog_status !== undefined;
-  if (hasMigrationCols) {
-    await db.execute(sql`
-      UPDATE artist_profiles
-      SET
-        genres         = CASE WHEN ${genres !== undefined} THEN ${JSON.stringify(genres ?? [])}::text[] ELSE genres END,
-        countries      = CASE WHEN ${countries !== undefined} THEN ${JSON.stringify(countries ?? [])}::text[] ELSE countries END,
-        catalog_status = CASE WHEN ${catalog_status !== undefined} THEN ${catalog_status ?? 'active'} ELSE catalog_status END
-      WHERE id = ${id}
-    `);
-  }
-
-  dispatchEvent('artist.updated', { artist_id: id }).catch(() => {});
-
+  await updateArtistCore(id, patch);
   return getArtistById(id);
 };
 
 // ── deleteArtist ──────────────────────────────────────────────────────────────
 
 export const deleteArtist = async (id: string) => {
-  const [deleted] = await db
-    .delete(artist_profiles)
-    .where(eq(artist_profiles.id, id))
-    .returning({ id: artist_profiles.id });
-
-  if (!deleted) throw new AppError('Artist not found', 404);
+  const deleted = await deleteArtistCore(id);
   return { id: deleted.id, deleted: true };
 };
 

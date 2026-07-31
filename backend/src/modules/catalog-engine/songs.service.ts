@@ -31,28 +31,128 @@ function buildOrder(sort: string, order: 'asc' | 'desc') {
   }
 }
 
-// ── createSong ────────────────────────────────────────────────────────────────
+const slugify = (str: string) =>
+  str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
-export const createSong = async (input: CreateSongInputV2) => {
+// ── Shared song write core ──────────────────────────────────────────────────
+//
+// This is the ONE place that INSERTs/UPDATEs/DELETEs the `songs` table.
+// Both the legacy `/api/songs` router (catalog module) and this v2
+// `/api/catalog/songs` router used to run independent write logic against
+// the same table, which let the two APIs silently diverge (legacy never set
+// writers/producers/tags; v2 never set release_id or the AI intelligence
+// scores). Each router still owns its own request-schema validation and
+// response shaping — they just delegate the actual row write here.
+//
+// `writers`/`producers`/`tags` are text[] columns added by migration 0037
+// via raw ALTER TABLE and are intentionally not redeclared on the Drizzle
+// `songs` model (see schema.ts note above catalog_tracks) — they must stay
+// on raw sql`` writes for that reason, not because of this consolidation.
+
+export interface SongCoreWriteInput {
+  artist_id?: string;
+  release_id?: string | null;
+  title?: string;
+  slug?: string;
+  genre?: string;
+  bpm?: number;
+  musical_key?: string;
+  duration_seconds?: number;
+  lyrics?: string;
+  audio_url?: string | null;
+  waveform_url?: string | null;
+  cover_art_url?: string | null;
+  mood?: string;
+  language?: string;
+  explicit?: boolean;
+  track_number?: number;
+  disk_number?: number;
+  isrc?: string;
+  release_status?: 'draft' | 'registered' | 'distributed' | 'released' | 'archived';
+  energy_score?: string;
+  emotion_score?: string;
+  viral_score?: string;
+  commercial_score?: string;
+  spiritual_score?: string;
+  alternate_title?: string;
+  version?: string;
+  energy_level?: number;
+  master_owner?: string;
+  publishing_owner?: string;
+  sync_ready?: boolean;
+  writers?: string[];
+  producers?: string[];
+  tags?: string[];
+}
+
+export const createSongCore = async (input: SongCoreWriteInput) => {
   const { writers, producers, tags, ...rest } = input;
 
   const [song] = await db
     .insert(songs)
-    .values(rest)
+    .values({
+      ...rest,
+      slug: rest.slug ?? (rest.title ? slugify(rest.title) : undefined),
+    } as typeof songs.$inferInsert)
     .returning();
 
-  // Set migration-added array columns
-  await db.execute(sql`
-    UPDATE songs
-    SET
-      writers   = ${JSON.stringify(writers ?? [])}::text[],
-      producers = ${JSON.stringify(producers ?? [])}::text[],
-      tags      = ${JSON.stringify(tags ?? [])}::text[]
-    WHERE id = ${song.id}
-  `);
+  if (writers !== undefined || producers !== undefined || tags !== undefined) {
+    await db.execute(sql`
+      UPDATE songs
+      SET
+        writers   = ${JSON.stringify(writers ?? [])}::text[],
+        producers = ${JSON.stringify(producers ?? [])}::text[],
+        tags      = ${JSON.stringify(tags ?? [])}::text[]
+      WHERE id = ${song.id}
+    `);
+  }
 
   dispatchEvent('song.created', { song_id: song.id, title: song.title, artist_id: song.artist_id }).catch(() => {});
 
+  return song;
+};
+
+export const updateSongCore = async (id: string, input: SongCoreWriteInput) => {
+  const existing = await db.select({ id: songs.id }).from(songs).where(eq(songs.id, id)).limit(1);
+  if (!existing.length) throw new AppError('Song not found', 404);
+
+  const { writers, producers, tags, slug, title, ...rest } = input;
+  const patch: Record<string, unknown> = { ...rest, updated_at: new Date() };
+  if (title !== undefined) patch.title = title;
+  if (slug !== undefined) patch.slug = slug;
+  else if (title !== undefined) patch.slug = slugify(title);
+
+  if (Object.keys(patch).length > 1) {
+    await db.update(songs).set(patch).where(eq(songs.id, id));
+  }
+
+  if (writers !== undefined || producers !== undefined || tags !== undefined) {
+    await db.execute(sql`
+      UPDATE songs
+      SET
+        writers   = CASE WHEN ${writers !== undefined}   THEN ${JSON.stringify(writers ?? [])}::text[]   ELSE writers   END,
+        producers = CASE WHEN ${producers !== undefined} THEN ${JSON.stringify(producers ?? [])}::text[] ELSE producers END,
+        tags      = CASE WHEN ${tags !== undefined}      THEN ${JSON.stringify(tags ?? [])}::text[]      ELSE tags      END
+      WHERE id = ${id}
+    `);
+  }
+
+  dispatchEvent('song.updated', { song_id: id }).catch(() => {});
+
+  const [row] = await db.select().from(songs).where(eq(songs.id, id)).limit(1);
+  return row;
+};
+
+export const deleteSongCore = async (id: string) => {
+  const [deleted] = await db.delete(songs).where(eq(songs.id, id)).returning({ id: songs.id });
+  if (!deleted) throw new AppError('Song not found', 404);
+  return { id: deleted.id, deleted: true };
+};
+
+// ── createSong (v2 API — validates via createSongSchemaV2, returns enriched read) ──
+
+export const createSong = async (input: CreateSongInputV2) => {
+  const song = await createSongCore(input);
   return getSongById(song.id);
 };
 
@@ -124,46 +224,18 @@ export const getSongById = async (id: string) => {
   return { ...song, credits, identifiers, assets };
 };
 
-// ── updateSong ────────────────────────────────────────────────────────────────
+// ── updateSong (v2 API — validates via updateSongSchemaV2, returns enriched read) ──
 
 export const updateSong = async (id: string, input: UpdateSongInputV2) => {
-  const existing = await db.select({ id: songs.id }).from(songs).where(eq(songs.id, id)).limit(1);
-  if (!existing.length) throw new AppError('Song not found', 404);
-
-  const { writers, producers, tags, ...rest } = input;
-
-  const coreUpdate: Record<string, unknown> = { ...rest, updated_at: new Date() };
-  if (Object.keys(coreUpdate).length > 1) {
-    await db.update(songs).set(coreUpdate).where(eq(songs.id, id));
-  }
-
-  const hasArrayCols = writers !== undefined || producers !== undefined || tags !== undefined;
-  if (hasArrayCols) {
-    await db.execute(sql`
-      UPDATE songs
-      SET
-        writers   = CASE WHEN ${writers !== undefined}   THEN ${JSON.stringify(writers ?? [])}::text[]   ELSE writers   END,
-        producers = CASE WHEN ${producers !== undefined} THEN ${JSON.stringify(producers ?? [])}::text[] ELSE producers END,
-        tags      = CASE WHEN ${tags !== undefined}      THEN ${JSON.stringify(tags ?? [])}::text[]      ELSE tags      END
-      WHERE id = ${id}
-    `);
-  }
-
-  dispatchEvent('song.updated', { song_id: id }).catch(() => {});
-
+  await updateSongCore(id, input);
   return getSongById(id);
 };
 
 // ── deleteSong ────────────────────────────────────────────────────────────────
 
 export const deleteSong = async (id: string) => {
-  const [deleted] = await db
-    .delete(songs)
-    .where(eq(songs.id, id))
-    .returning({ id: songs.id });
-
-  if (!deleted) throw new AppError('Song not found', 404);
-  return { id: deleted.id, deleted: true };
+  const result = await deleteSongCore(id);
+  return { id: result.id, deleted: result.deleted };
 };
 
 // ── Song Assets ───────────────────────────────────────────────────────────────

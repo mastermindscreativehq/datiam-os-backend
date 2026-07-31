@@ -137,7 +137,7 @@ export default function ReleaseIntel() {
     } catch (err: any) {
       // A failed background poll shouldn't blank out already-loaded data.
       if (isInitialLoad) {
-        setSnapshotError(err.response?.data?.message ?? 'Failed to load Release Intel snapshot')
+        setSnapshotError(err.response?.data?.message ?? 'Failed to load Release Orchestrator snapshot')
         setSnapshot(null)
       }
     } finally {
@@ -310,7 +310,7 @@ export default function ReleaseIntel() {
         <EmptyState
           icon="◎"
           title="No releases have been analyzed yet"
-          message="Create a release to start generating Release Intel — analysis, executive briefs, and missions run automatically."
+          message="Create a release to start Release Orchestrator analysis — executive briefs and missions run automatically."
           hint="Use CREATE RELEASE on the Releases page, then come back here."
           color="green"
         />
@@ -332,7 +332,7 @@ export default function ReleaseIntel() {
         canWrite={canWrite}
       />
 
-      {snapshotLoading && <div className="flex justify-center py-16"><LoadingSpinner text="LOADING RELEASE INTEL..." /></div>}
+      {snapshotLoading && <div className="flex justify-center py-16"><LoadingSpinner text="LOADING RELEASE ORCHESTRATOR..." /></div>}
       {!snapshotLoading && snapshotError && <ErrorMessage message={snapshotError} onRetry={() => loadSnapshot(selectedId)} />}
 
       {!snapshotLoading && !snapshotError && snapshot && (

@@ -752,7 +752,7 @@ export default function AutomationDashboard() {
         <div className="space-y-6">
           <div className="border border-[#00ff41]/10 rounded p-4 space-y-4">
             <EventBadgeRow events={ALL_CATALOG_EVENTS} label="CATALOG & ARTIST EVENTS" />
-            <EventBadgeRow events={ALL_RELEASE_EVENTS} label="RELEASE INTELLIGENCE EVENTS" />
+            <EventBadgeRow events={ALL_RELEASE_EVENTS} label="RELEASE OPERATIONS EVENTS" />
             <p className="text-[10px] font-mono text-gray-600">
               {ALL_EVENTS.length} events registered. Events fire automatically via dispatchEvent() in catalog-engine, artists, releases, and release-intelligence modules.
             </p>
@@ -871,7 +871,7 @@ export default function AutomationDashboard() {
               <optgroup label="Catalog & Artist">
                 {ALL_CATALOG_EVENTS.map(ev => <option key={ev} value={ev}>{ev}</option>)}
               </optgroup>
-              <optgroup label="Release Intelligence">
+              <optgroup label="Release Operations">
                 {ALL_RELEASE_EVENTS.map(ev => <option key={ev} value={ev}>{ev}</option>)}
               </optgroup>
             </select>

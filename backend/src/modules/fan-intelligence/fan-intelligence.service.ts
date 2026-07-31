@@ -2,6 +2,7 @@ import { eq, desc, count, avg, sql, gte, and } from 'drizzle-orm';
 import { db } from '../../db';
 import { fan_profiles, fan_events } from '../../db/schema';
 import { AppError } from '../../middleware/errorHandler';
+import { updateFanScores } from '../fans/fans.service';
 
 const QUERY_TIMEOUT_MS = 2500;
 
@@ -174,25 +175,12 @@ export const recalculateFanScore = async (fanId: string): Promise<number> => {
   const raw = events.reduce((acc, e) => acc + (EVENT_WEIGHTS[e.event_type] ?? 1), 0);
   const score = Math.min(raw, 100);
 
-  const [updated] = await db
-    .update(fan_profiles)
-    .set({ superfan_score: score, updated_at: new Date() })
-    .where(eq(fan_profiles.id, fanId))
-    .returning();
-
-  if (!updated) throw new AppError('Fan not found', 404);
+  await updateFanScores(fanId, { superfan_score: score });
   return score;
 };
 
 export const updateFanScore = async (fanId: string, score: number) => {
-  const [updated] = await db
-    .update(fan_profiles)
-    .set({ superfan_score: score, updated_at: new Date() })
-    .where(eq(fan_profiles.id, fanId))
-    .returning();
-
-  if (!updated) throw new AppError('Fan not found', 404);
-  return updated;
+  return updateFanScores(fanId, { superfan_score: score });
 };
 
 export const getIntelligenceSummary = async () => {
