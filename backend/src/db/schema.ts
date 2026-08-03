@@ -14,7 +14,7 @@ import {
   uniqueIndex,
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
-import { relations } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
 
 // ---- Enums ----
 
@@ -3322,13 +3322,17 @@ export const catalogCreditsRelations = relations(catalog_credits, ({ one }) => (
 }));
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Distribution Engine (migration 0052)
+// Distribution Engine (migration 0052; identifiers consolidated in Phase 7,
+// migrations 0057/0058)
 // Canonical owner of DSP delivery, store/territory availability, takedowns,
-// re-delivery, distribution health, and delivery logs. Also the single
-// source of truth for ISRC/UPC/ISWC going forward — `catalog_identifiers`
-// and the isrc/upc/primary_isrc columns on `releases` are NOT migrated by
-// this phase (Phase 1 is additive-only); that consolidation is Phase 7 of
-// the roadmap and requires a verified backfill before anything is dropped.
+// re-delivery, distribution health, and delivery logs. Also the SOLE source
+// of truth for ISRC/UPC/ISWC/catalog-number going forward — `catalog_identifiers`
+// and the isrc/upc/primary_isrc columns on `releases`/`songs` are being
+// retired per Phase 7 (backfill -> dual-write -> read cutover -> retirement)
+// and kept only as a deprecated rollback reference during the transition.
+// A release's "lead ISRC" is not a duplicated value — it's the `is_lead`
+// flag on that song's own canonical identifier row, so there is never a
+// second copy of an ISRC to keep in sync.
 // Songs/Releases/Royalties/Mission Control read this domain read-only.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -3362,6 +3366,11 @@ export const distribution_identifiers = pgTable(
     release_id:      uuid('release_id').references(() => releases.id, { onDelete: 'set null' }),
     identifier_type: catalogIdentifierTypeEnum('identifier_type').notNull(),
     value:           text('value').notNull(),
+    // Marks this row as the release's canonical "lead recording" identifier
+    // (only meaningful for identifier_type='isrc'). Not a duplicated value —
+    // it's a flag on the song's own canonical ISRC row, scoped to a release
+    // via the (already-present) release_id column on the same row.
+    is_lead:         boolean('is_lead').notNull().default(false),
     assigned_by:     text('assigned_by'),
     assigned_at:     timestamp('assigned_at', { withTimezone: true }),
     created_at:      timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
@@ -3372,6 +3381,17 @@ export const distribution_identifiers = pgTable(
     releaseIdx: index('distribution_identifiers_release_id_idx').on(t.release_id),
     typeIdx:    index('distribution_identifiers_type_idx').on(t.identifier_type),
     valueIdx:   index('distribution_identifiers_value_idx').on(t.value),
+    // Distribution is the single source of truth: at most one UPC per
+    // release, one lead ISRC per release, and one canonical ISRC per song.
+    releaseUpcUnique: uniqueIndex('distribution_identifiers_release_upc_unique')
+      .on(t.release_id)
+      .where(sql`${t.identifier_type} = 'upc' AND ${t.release_id} IS NOT NULL`),
+    releaseLeadIsrcUnique: uniqueIndex('distribution_identifiers_release_lead_isrc_unique')
+      .on(t.release_id)
+      .where(sql`${t.identifier_type} = 'isrc' AND ${t.is_lead} = true AND ${t.release_id} IS NOT NULL`),
+    songIsrcUnique: uniqueIndex('distribution_identifiers_song_isrc_unique')
+      .on(t.song_id)
+      .where(sql`${t.identifier_type} = 'isrc' AND ${t.song_id} IS NOT NULL`),
   }),
 );
 
