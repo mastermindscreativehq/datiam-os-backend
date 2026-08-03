@@ -11,7 +11,7 @@ import {
 } from '../../db/schema';
 import { AppError } from '../../middleware/errorHandler';
 import { dispatchEvent } from '../automation/automation.service';
-import { triggerReleaseIntelAnalysis } from '../release-intel/release-intel.worker';
+import { createReleaseCore, updateReleaseCore, deleteReleaseCore, type ReleaseCoreWriteInput } from '../releases/releases.service';
 import type {
   CreateReleaseInputV2,
   UpdateReleaseInputV2,
@@ -26,26 +26,17 @@ import type {
 export const createRelease = async (input: CreateReleaseInputV2) => {
   const { title, catalog_release_type, preorder_date, ...rest } = input;
 
-  const [release] = await db
-    .insert(releases)
-    .values({
-      ...rest,
-      release_title: title,
-      release_type:  'single', // required enum field; catalog_release_type is text column
-    })
-    .returning();
+  const coreInput: ReleaseCoreWriteInput = {
+    ...rest,
+    release_title: title,
+    release_type: 'single', // required enum field; catalog_release_type is the real text-column type indicator
+    catalog_release_type: catalog_release_type ?? 'single',
+  };
+  if (preorder_date !== undefined) coreInput.preorder_date = preorder_date;
 
-  // Set migration-added text columns
-  await db.execute(sql`
-    UPDATE releases
-    SET
-      catalog_release_type = ${catalog_release_type ?? 'single'},
-      preorder_date        = ${preorder_date ?? null}::date
-    WHERE id = ${release.id}
-  `);
+  const release = await createReleaseCore(coreInput);
 
   dispatchEvent('catalog.release.created', { release_id: release.id, title }).catch(() => {});
-  triggerReleaseIntelAnalysis(release.id);
 
   return getReleaseById(release.id);
 };
@@ -122,34 +113,15 @@ export const getReleaseById = async (id: string) => {
 // ── updateRelease ─────────────────────────────────────────────────────────────
 
 export const updateRelease = async (id: string, input: UpdateReleaseInputV2) => {
-  const [existing] = await db
-    .select({ id: releases.id })
-    .from(releases)
-    .where(eq(releases.id, id))
-    .limit(1);
-
-  if (!existing) throw new AppError('Release not found', 404);
-
   const { title, catalog_release_type, preorder_date, status, ...rest } = input;
 
-  const coreUpdate: Record<string, unknown> = { ...rest, updated_at: new Date() };
-  if (title !== undefined)  coreUpdate.release_title = title;
-  if (status !== undefined) coreUpdate.status = status;
+  const coreInput: ReleaseCoreWriteInput = { ...rest };
+  if (title !== undefined) coreInput.release_title = title;
+  if (status !== undefined) coreInput.status = status;
+  if (catalog_release_type !== undefined) coreInput.catalog_release_type = catalog_release_type;
+  if (preorder_date !== undefined) coreInput.preorder_date = preorder_date;
 
-  if (Object.keys(coreUpdate).length > 1) {
-    await db.update(releases).set(coreUpdate).where(eq(releases.id, id));
-  }
-
-  const hasMigrationCols = catalog_release_type !== undefined || preorder_date !== undefined;
-  if (hasMigrationCols) {
-    await db.execute(sql`
-      UPDATE releases
-      SET
-        catalog_release_type = CASE WHEN ${catalog_release_type !== undefined} THEN ${catalog_release_type ?? 'single'}   ELSE catalog_release_type END,
-        preorder_date        = CASE WHEN ${preorder_date !== undefined}         THEN ${preorder_date ?? null}::date         ELSE preorder_date        END
-      WHERE id = ${id}
-    `);
-  }
+  await updateReleaseCore(id, coreInput);
 
   dispatchEvent('catalog.release.updated', { release_id: id }).catch(() => {});
 
@@ -159,13 +131,7 @@ export const updateRelease = async (id: string, input: UpdateReleaseInputV2) => 
 // ── deleteRelease ─────────────────────────────────────────────────────────────
 
 export const deleteRelease = async (id: string) => {
-  const [deleted] = await db
-    .delete(releases)
-    .where(eq(releases.id, id))
-    .returning({ id: releases.id });
-
-  if (!deleted) throw new AppError('Release not found', 404);
-  return { id: deleted.id, deleted: true };
+  return deleteReleaseCore(id);
 };
 
 // ── Release Tracks ────────────────────────────────────────────────────────────

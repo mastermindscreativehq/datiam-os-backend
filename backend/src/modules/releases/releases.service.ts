@@ -66,19 +66,132 @@ async function syncReleaseState(releaseId: string): Promise<StateChange | null> 
   return { prev, next };
 }
 
-export const createRelease = async (input: CreateReleaseInput): Promise<MappedRelease> => {
-  const { title, type, status, slug, ...rest } = input;
+// ── Shared release write core ─────────────────────────────────────────────────
+//
+// This is the ONE place that INSERTs/UPDATEs/DELETEs `releases`. Three
+// modules used to write this table independently: this one (releases/,
+// music-readiness fields + gate enforcement via releaseStateEngine),
+// catalog-engine/releases.service.ts (its own `status`/catalog_release_type/
+// preorder_date fields), and release-intelligence/release-intelligence.
+// service.ts (an arbitrary-field patch that — critically — could set
+// `music_status` straight to 'scheduled'/'released' with NO gate check,
+// bypassing enforceReleaseState entirely; found via Phase 4b analysis).
+// Each module still owns its own request-schema validation, response
+// shaping, and event/webhook dispatch — they delegate the actual row
+// write, gate enforcement, and release_state sync here.
+
+export interface ReleaseCoreWriteInput {
+  artist_id?: string;
+  song_id?: string | null;
+  release_title?: string;
+  release_type?: 'single' | 'ep' | 'album';
+  slug?: string;
+  music_status?: 'draft' | 'scheduled' | 'released';
+  status?: 'planning' | 'submitted' | 'approved' | 'live';
+  genre?: string;
+  release_date?: string;
+  cover_art_url?: string | null;
+  description?: string;
+  upc?: string;
+  total_tracks?: number;
+  distributor?: string;
+  pre_save_url?: string | null;
+  smart_link?: string | null;
+  spotify_url?: string | null;
+  apple_music_url?: string | null;
+  audiomack_url?: string | null;
+  boomplay_url?: string | null;
+  youtube_url?: string | null;
+  deezer_url?: string | null;
+  tidal_url?: string | null;
+  amazon_music_url?: string | null;
+  youtube_music_url?: string | null;
+  soundcloud_url?: string | null;
+  preorder_date?: string | null;
+  catalog_release_type?: string;
+  territories?: string[];
+  primary_isrc?: string;
+}
+
+export const createReleaseCore = async (input: ReleaseCoreWriteInput) => {
+  const { release_title, slug, ...rest } = input;
   const [release] = await db
     .insert(releases)
     .values({
       ...rest,
-      release_title: title,
-      release_type: type,
-      music_status: status ?? 'draft',
-      slug: slug ?? slugify(title),
-    })
+      release_title,
+      slug: slug ?? (release_title ? slugify(release_title) : undefined),
+    } as typeof releases.$inferInsert)
     .returning();
   triggerReleaseIntelAnalysis(release.id);
+  return release;
+};
+
+// Gate enforcement + release_state sync apply here regardless of which
+// module's wrapper called this — closing the release-intelligence bypass
+// where `music_status` could be set to 'scheduled'/'released' with no check.
+export const updateReleaseCore = async (
+  id: string,
+  input: ReleaseCoreWriteInput,
+): Promise<{ release: typeof releases.$inferSelect; stateChange: StateChange | null }> => {
+  const { release_title, music_status, ...rest } = input;
+  const patch: Record<string, unknown> = { ...rest, updated_at: new Date() };
+  if (release_title !== undefined) {
+    patch.release_title = release_title;
+    if (input.slug === undefined) patch.slug = slugify(release_title);
+  }
+
+  if (music_status !== undefined) {
+    if (music_status === 'scheduled' || music_status === 'released') {
+      const [checklist] = await db
+        .select()
+        .from(release_checklists)
+        .where(eq(release_checklists.release_id, id))
+        .limit(1);
+
+      const [existing] = await db
+        .select({ release_date: releases.release_date })
+        .from(releases)
+        .where(eq(releases.id, id))
+        .limit(1);
+
+      const releaseSnap = {
+        release_date: input.release_date ?? existing?.release_date ?? null,
+      };
+
+      enforceReleaseState(music_status, releaseSnap, checklist ?? null);
+    }
+    patch.music_status = music_status;
+  }
+
+  const [updated] = await db
+    .update(releases)
+    .set(patch)
+    .where(eq(releases.id, id))
+    .returning();
+  if (!updated) throw new AppError('Release not found', 404);
+
+  const stateChange = await syncReleaseState(id);
+  return { release: updated, stateChange };
+};
+
+export const deleteReleaseCore = async (id: string) => {
+  const [deleted] = await db.delete(releases).where(eq(releases.id, id)).returning();
+  if (!deleted) throw new AppError('Release not found', 404);
+  return { deleted: true, id };
+};
+
+// ── Legacy Music-Core-v1 surface — validates via releases.schema, delegates
+// the actual write to the core above ──────────────────────────────────────────
+
+export const createRelease = async (input: CreateReleaseInput): Promise<MappedRelease> => {
+  const { title, type, status, ...rest } = input;
+  const release = await createReleaseCore({
+    ...rest,
+    release_title: title,
+    release_type: type,
+    music_status: status ?? 'draft',
+  });
   return mapRelease(release);
 };
 
@@ -144,53 +257,21 @@ export const updateRelease = async (
   id: string,
   input: UpdateReleaseInput,
 ): Promise<{ release: MappedRelease; stateChange: StateChange | null }> => {
-  const { title, type, status, slug, ...rest } = input;
-  const patch: Record<string, unknown> = { ...rest, updated_at: new Date() };
-  if (title !== undefined) {
-    patch.release_title = title;
-    if (slug === undefined) patch.slug = slugify(title);
-  }
-  if (slug !== undefined) patch.slug = slug;
-  if (type !== undefined) patch.release_type = type;
+  const { title, type, status, ...rest } = input;
+  // Only include keys the caller actually provided — drizzle's .set() writes
+  // an explicit `undefined`-valued key as SQL NULL rather than skipping it,
+  // so title/type/status must be added conditionally, not spread blind.
+  const coreInput: ReleaseCoreWriteInput = { ...rest };
+  if (title !== undefined) coreInput.release_title = title;
+  if (type !== undefined) coreInput.release_type = type;
+  if (status !== undefined) coreInput.music_status = status;
 
-  if (status !== undefined) {
-    if (status === 'scheduled' || status === 'released') {
-      const [checklist] = await db
-        .select()
-        .from(release_checklists)
-        .where(eq(release_checklists.release_id, id))
-        .limit(1);
-
-      const [existing] = await db
-        .select({ release_date: releases.release_date })
-        .from(releases)
-        .where(eq(releases.id, id))
-        .limit(1);
-
-      const releaseSnap = {
-        release_date: (rest as { release_date?: string }).release_date ?? existing?.release_date ?? null,
-      };
-
-      enforceReleaseState(status, releaseSnap, checklist ?? null);
-    }
-    patch.music_status = status;
-  }
-
-  const [updated] = await db
-    .update(releases)
-    .set(patch)
-    .where(eq(releases.id, id))
-    .returning();
-  if (!updated) throw new AppError('Release not found', 404);
-
-  const stateChange = await syncReleaseState(id);
-  return { release: mapRelease(updated), stateChange };
+  const { release, stateChange } = await updateReleaseCore(id, coreInput);
+  return { release: mapRelease(release), stateChange };
 };
 
 export const deleteRelease = async (id: string): Promise<{ deleted: boolean; id: string }> => {
-  const [deleted] = await db.delete(releases).where(eq(releases.id, id)).returning();
-  if (!deleted) throw new AppError('Release not found', 404);
-  return { deleted: true, id };
+  return deleteReleaseCore(id);
 };
 
 export const createReleaseTask = async (releaseId: string, input: CreateReleaseTaskInput) => {

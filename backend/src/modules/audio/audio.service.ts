@@ -13,8 +13,18 @@ import { AppError } from '../../middleware/errorHandler';
 import { uploadAudioFile, getSignedUrl } from './audio.storage';
 import { logActivity } from '../../lib/activityLogger';
 import { ALLOWED_AUDIO_MIME_TYPES, MAX_AUDIO_FILE_SIZE } from './audio.schema';
+import { createSongCore } from '../catalog-engine/songs.service';
 import type { FFmpegAnalysisResult } from './audio.processor';
 import type { AudioAIProfile } from './audio.ai';
+
+// An uploaded file is always the audio for some Song — every downstream AI
+// pipeline (audio_analysis, audio_dna, energy_analysis, sync_intelligence)
+// is keyed off audio_uploads.song_id, so a NULL song_id here leaves that
+// upload's analysis unreachable from the song it belongs to. If the caller
+// doesn't pass an existing songId, create a minimal draft Song from the
+// filename so the link always exists; the artist can rename/complete it later.
+const titleFromFileName = (fileName: string) =>
+  fileName.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim() || 'Untitled Upload';
 
 export function validateAudioFile(
   size: number,
@@ -59,6 +69,26 @@ export async function initiateUpload(
   validateAudioFile(file.size, file.mimetype);
   console.log('[Upload] file validation passed');
 
+  let resolvedSongId = songId ?? null;
+  if (!resolvedSongId) {
+    try {
+      const song = await createSongCore({
+        artist_id: artistId,
+        title: titleFromFileName(file.originalname),
+        release_status: 'draft',
+      });
+      resolvedSongId = song.id;
+      console.log('[Upload] auto-created draft song', { songId: song.id });
+    } catch (err) {
+      const e = err as Error;
+      console.error('[Upload] auto-create song FAILED (upload proceeds unlinked):', {
+        message: e.message,
+        artistId,
+        fileName: file.originalname,
+      });
+    }
+  }
+
   const sessionId = uuidv4();
   const safeName = file.originalname.replace(/[^a-zA-Z0-9._\-]/g, '_');
   const storagePath = `${artistId}/${sessionId}/${safeName}`;
@@ -87,7 +117,7 @@ export async function initiateUpload(
       .values({
         session_id: sessionId,
         artist_id: artistId,
-        song_id: songId ?? null,
+        song_id: resolvedSongId,
         file_name: file.originalname,
         file_size: file.size,
         mime_type: file.mimetype,

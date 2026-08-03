@@ -1,19 +1,20 @@
-import { eq, desc, and, asc, gte, lte } from 'drizzle-orm';
+import { eq, desc, and, asc, gte, lte, isNotNull } from 'drizzle-orm';
 import { db } from '../../db';
 import {
   releases,
   release_checklists,
   release_tasks,
-  release_campaigns,
   release_dsp_status,
   release_alerts,
   release_ai_recs,
   artist_profiles,
   songs,
 } from '../../db/schema';
+import { campaigns } from '../../db/growth-schema';
 import { AppError } from '../../middleware/errorHandler';
 import { logActivity } from '../../lib/activityLogger';
 import { dispatchEvent } from '../automation/automation.service';
+import { updateReleaseCore, type ReleaseCoreWriteInput } from '../releases/releases.service';
 import { AUTOMATION_CATEGORY_EVENTS, type AutomationCategory } from '../automation/automation-categories';
 import {
   onCampaignStarted,
@@ -26,6 +27,78 @@ import type {
   UpdateDspStatusInput,
   UpdateReleaseFieldsInput,
 } from './release-intelligence.schema';
+
+// ── Phase 3b: release_campaigns consolidated into the canonical `campaigns`
+// table (campaign-manager/growth-schema.ts) ───────────────────────────────────
+//
+// This module no longer reads or writes `release_campaigns` directly — it's
+// the campaign-manager's `campaigns` table now, scoped by `release_id`
+// (already a nullable FK on that table). The release-specific 5-category
+// type system (marketing/playlist/blog/press/pre_save) doesn't map 1:1 onto
+// the canonical growth_campaign_type enum (awareness/release/playlist_push/
+// press/social/advertising/sync/custom), so the mapped value is stored in
+// `campaign_type` for genuine cross-module consistency, while the original
+// category is preserved in `metadata.legacy_campaign_type` — both for full
+// history fidelity and so every existing consumer of this module's API
+// (generateAlertSpecs, generateRecSpecs, computeReadinessScore, buildTimeline,
+// the campaign CRUD endpoints themselves) keeps working against the exact
+// same shape it always has, unchanged.
+
+const LEGACY_TO_GROWTH_TYPE: Record<string, typeof campaigns.$inferInsert.campaign_type> = {
+  marketing: 'awareness',
+  playlist: 'playlist_push',
+  blog: 'press',
+  press: 'press',
+  pre_save: 'release',
+};
+
+const LEGACY_TO_GROWTH_STATUS: Record<string, typeof campaigns.$inferInsert.status> = {
+  planned: 'draft',
+  active: 'active',
+  paused: 'paused',
+  completed: 'completed',
+  cancelled: 'cancelled',
+};
+
+const GROWTH_TO_LEGACY_STATUS: Record<string, string> = {
+  draft: 'planned',
+  active: 'active',
+  paused: 'paused',
+  completed: 'completed',
+  cancelled: 'cancelled',
+};
+
+// Reconstructs the pre-Phase-3b `release_campaigns` row shape from a
+// canonical `campaigns` row, so every existing caller in this file (and
+// every existing frontend consumer of this module's campaign endpoints)
+// keeps working unchanged.
+function toLegacyCampaignShape(row: typeof campaigns.$inferSelect) {
+  const meta = (row.metadata ?? {}) as Record<string, unknown>;
+  return {
+    id: row.id,
+    release_id: row.release_id,
+    artist_id: row.artist_id,
+    campaign_type: (meta.legacy_campaign_type as string | undefined) ?? row.campaign_type,
+    title: row.name,
+    status: GROWTH_TO_LEGACY_STATUS[row.status] ?? row.status,
+    target_date: row.start_date,
+    budget: row.budget,
+    currency: (meta.legacy_currency as string | undefined) ?? 'USD',
+    notes: row.description,
+    metadata: meta,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
+
+type LegacyCampaign = ReturnType<typeof toLegacyCampaignShape>;
+
+async function getLegacyCampaignsByRelease(releaseId: string): Promise<LegacyCampaign[]> {
+  const rows = await db.select().from(campaigns)
+    .where(eq(campaigns.release_id, releaseId))
+    .orderBy(asc(campaigns.campaign_type));
+  return rows.map(toLegacyCampaignShape);
+}
 
 const ENGINE_VERSION = 'release-intelligence-v1';
 
@@ -94,7 +167,7 @@ function generateAlertSpecs(
   release:    typeof releases.$inferSelect,
   checklist:  Record<string, unknown> | null,
   dspStatuses: Array<typeof release_dsp_status.$inferSelect>,
-  campaigns:  Array<typeof release_campaigns.$inferSelect>,
+  campaigns:  LegacyCampaign[],
 ): AlertSpec[] {
   const alerts: AlertSpec[] = [];
   const now = new Date();
@@ -175,7 +248,7 @@ function generateRecSpecs(
   release:    typeof releases.$inferSelect,
   checklist:  Record<string, unknown> | null,
   dspStatuses: Array<typeof release_dsp_status.$inferSelect>,
-  campaigns:  Array<typeof release_campaigns.$inferSelect>,
+  campaigns:  LegacyCampaign[],
   songCount:  number,
 ): Array<{ rec_type: string; title: string; description: string; priority: number }> {
   const recs: Array<{ rec_type: string; title: string; description: string; priority: number }> = [];
@@ -282,7 +355,7 @@ export const getDashboard = async (artistId?: string) => {
 
   const [checklistRows, campaignRows, dspRows, alertRows, artistRows] = await Promise.all([
     db.select().from(release_checklists),
-    db.select().from(release_campaigns).orderBy(desc(release_campaigns.created_at)),
+    db.select().from(campaigns).where(isNotNull(campaigns.release_id)).orderBy(desc(campaigns.created_at)),
     db.select().from(release_dsp_status),
     db.select().from(release_alerts).where(eq(release_alerts.is_resolved, false)),
     artistIds.length
@@ -291,10 +364,11 @@ export const getDashboard = async (artistId?: string) => {
   ]);
 
   const checklistMap = new Map(checklistRows.map(c => [c.release_id, c]));
-  const campaignMap  = new Map<string, typeof release_campaigns.$inferSelect[]>();
-  for (const c of campaignRows) {
-    if (!campaignMap.has(c.release_id)) campaignMap.set(c.release_id, []);
-    campaignMap.get(c.release_id)!.push(c);
+  const campaignMap  = new Map<string, LegacyCampaign[]>();
+  for (const raw of campaignRows) {
+    const c = toLegacyCampaignShape(raw);
+    if (!campaignMap.has(c.release_id!)) campaignMap.set(c.release_id!, []);
+    campaignMap.get(c.release_id!)!.push(c);
   }
   const dspMap = new Map<string, typeof release_dsp_status.$inferSelect[]>();
   for (const d of dspRows) {
@@ -383,11 +457,10 @@ export const getReleaseDetail = async (releaseId: string) => {
   const [release] = await db.select().from(releases).where(eq(releases.id, releaseId)).limit(1);
   if (!release) throw new AppError('Release not found', 404);
 
-  const [checklist, campaigns, dsps, alerts, recs, tasks, songRows, artistRow] = await Promise.all([
+  const [checklist, releaseCampaigns, dsps, alerts, recs, tasks, songRows, artistRow] = await Promise.all([
     db.select().from(release_checklists)
       .where(eq(release_checklists.release_id, releaseId)).limit(1).then(r => r[0] ?? null),
-    db.select().from(release_campaigns)
-      .where(eq(release_campaigns.release_id, releaseId)).orderBy(asc(release_campaigns.campaign_type)),
+    getLegacyCampaignsByRelease(releaseId),
     db.select().from(release_dsp_status)
       .where(eq(release_dsp_status.release_id, releaseId)).orderBy(asc(release_dsp_status.platform)),
     db.select().from(release_alerts)
@@ -406,20 +479,20 @@ export const getReleaseDetail = async (releaseId: string) => {
       : Promise.resolve(null),
   ]);
 
-  const readiness = computeReadinessScore(checklist, dsps, campaigns);
+  const readiness = computeReadinessScore(checklist, dsps, releaseCampaigns);
 
   return {
     release,
     artist:          artistRow,
     checklist,
-    campaigns,
+    campaigns:       releaseCampaigns,
     dsp_statuses:    dsps,
     alerts,
     recommendations: recs,
     tasks,
     songs:           songRows,
     readiness,
-    timeline:        buildTimeline(release, dsps, campaigns),
+    timeline:        buildTimeline(release, dsps, releaseCampaigns),
     engine_version:  ENGINE_VERSION,
   };
 };
@@ -427,20 +500,16 @@ export const getReleaseDetail = async (releaseId: string) => {
 // ─── Release Field Updates (migration 0051) ──────────────────────────────────
 
 export const updateRelease = async (releaseId: string, input: UpdateReleaseFieldsInput) => {
-  const [existing] = await db.select().from(releases).where(eq(releases.id, releaseId)).limit(1);
-  if (!existing) throw new AppError('Release not found', 404);
-
   const values: Record<string, unknown> = { ...input };
   for (const key of Object.keys(values)) {
     if (values[key] === '') values[key] = null;
   }
   if (values.release_date) values.release_date = String(values.release_date);
 
-  const [updated] = await db
-    .update(releases)
-    .set({ ...values, updated_at: new Date() })
-    .where(eq(releases.id, releaseId))
-    .returning();
+  // Delegates to the shared core so a `music_status` transition to
+  // 'scheduled'/'released' is gate-enforced here too — this endpoint used to
+  // write straight to `releases` with no check at all (found during Phase 4b).
+  const { release: updated } = await updateReleaseCore(releaseId, values as ReleaseCoreWriteInput);
 
   await onReleaseUpdated(
     updated as unknown as Record<string, unknown>,
@@ -477,7 +546,7 @@ export const dispatchReleaseAutomation = async (
 function buildTimeline(
   release:   typeof releases.$inferSelect,
   dsps:      Array<typeof release_dsp_status.$inferSelect>,
-  campaigns: Array<typeof release_campaigns.$inferSelect>,
+  campaigns: LegacyCampaign[],
 ): Array<{ date: string; event: string; status: string; detail: string }> {
   const events: Array<{ date: string; event: string; status: string; detail: string }> = [];
 
@@ -590,26 +659,30 @@ export const getCampaigns = async (releaseId: string) => {
     .where(eq(releases.id, releaseId)).limit(1);
   if (!release) throw new AppError('Release not found', 404);
 
-  return db.select().from(release_campaigns)
-    .where(eq(release_campaigns.release_id, releaseId)).orderBy(asc(release_campaigns.campaign_type));
+  return getLegacyCampaignsByRelease(releaseId);
 };
 
 export const createCampaign = async (releaseId: string, input: CreateCampaignInput) => {
   const [release] = await db.select().from(releases).where(eq(releases.id, releaseId)).limit(1);
   if (!release) throw new AppError('Release not found', 404);
 
-  const [campaign] = await db.insert(release_campaigns).values({
+  const [row] = await db.insert(campaigns).values({
     release_id:    releaseId,
     artist_id:     release.artist_id ?? undefined,
-    campaign_type: input.campaign_type,
-    title:         input.title,
-    status:        input.status ?? 'planned',
-    target_date:   input.target_date ?? undefined,
+    name:          input.title,
+    campaign_type: LEGACY_TO_GROWTH_TYPE[input.campaign_type] ?? 'custom',
+    status:        LEGACY_TO_GROWTH_STATUS[input.status ?? 'planned'] ?? 'draft',
+    start_date:    input.target_date ?? undefined,
     budget:        input.budget ? String(input.budget) : undefined,
-    currency:      input.currency ?? 'USD',
-    notes:         input.notes ?? undefined,
-    metadata:      input.metadata ?? undefined,
+    description:   input.notes ?? undefined,
+    metadata: {
+      legacy_campaign_type: input.campaign_type,
+      legacy_currency: input.currency ?? 'USD',
+      ...(input.metadata ?? {}),
+    },
   }).returning();
+
+  const campaign = toLegacyCampaignShape(row);
 
   if (campaign.status === 'active') {
     await onCampaignStarted(
@@ -632,26 +705,36 @@ export const createCampaign = async (releaseId: string, input: CreateCampaignInp
 };
 
 export const updateCampaign = async (campaignId: string, input: UpdateCampaignInput) => {
-  const [existing] = await db.select().from(release_campaigns)
-    .where(eq(release_campaigns.id, campaignId)).limit(1);
-  if (!existing) throw new AppError('Campaign not found', 404);
+  const [existingRow] = await db.select().from(campaigns).where(eq(campaigns.id, campaignId)).limit(1);
+  if (!existingRow) throw new AppError('Campaign not found', 404);
+  const existing = toLegacyCampaignShape(existingRow);
 
-  const [updated] = await db.update(release_campaigns)
+  const nextType = input.campaign_type ?? existing.campaign_type;
+  const nextStatus = input.status ?? existing.status;
+
+  const [updatedRow] = await db.update(campaigns)
     .set({
-      campaign_type: input.campaign_type ?? existing.campaign_type,
-      title:         input.title         ?? existing.title,
-      status:        input.status        ?? existing.status,
-      target_date:   input.target_date   ?? existing.target_date,
-      budget:        input.budget != null ? String(input.budget) : existing.budget,
-      currency:      input.currency      ?? existing.currency,
-      notes:         input.notes         ?? existing.notes,
-      metadata:      input.metadata      ?? existing.metadata,
-      updated_at:    new Date(),
+      campaign_type: LEGACY_TO_GROWTH_TYPE[nextType] ?? 'custom',
+      name:          input.title ?? existing.title,
+      status:        LEGACY_TO_GROWTH_STATUS[nextStatus] ?? 'draft',
+      start_date:    input.target_date ?? existing.target_date ?? undefined,
+      budget:        input.budget != null ? String(input.budget) : existing.budget ?? undefined,
+      description:   input.notes ?? existing.notes ?? undefined,
+      metadata: {
+        ...existing.metadata,
+        legacy_campaign_type: nextType,
+        legacy_currency: input.currency ?? existing.currency,
+        ...(input.metadata ?? {}),
+      },
+      updated_at: new Date(),
     })
-    .where(eq(release_campaigns.id, campaignId))
+    .where(eq(campaigns.id, campaignId))
     .returning();
 
-  const [release] = await db.select().from(releases).where(eq(releases.id, updated.release_id)).limit(1);
+  const updated = toLegacyCampaignShape(updatedRow);
+  const [release] = updated.release_id
+    ? await db.select().from(releases).where(eq(releases.id, updated.release_id)).limit(1)
+    : [];
 
   if (input.status === 'active' && existing.status !== 'active' && release) {
     await onCampaignStarted(
@@ -669,8 +752,8 @@ export const updateCampaign = async (campaignId: string, input: UpdateCampaignIn
 };
 
 export const deleteCampaign = async (campaignId: string) => {
-  const [deleted] = await db.delete(release_campaigns)
-    .where(eq(release_campaigns.id, campaignId)).returning();
+  const [deleted] = await db.delete(campaigns)
+    .where(eq(campaigns.id, campaignId)).returning();
   if (!deleted) throw new AppError('Campaign not found', 404);
   return { deleted: true, id: campaignId };
 };
@@ -689,14 +772,14 @@ export const generateAlerts = async (releaseId: string) => {
   const [release] = await db.select().from(releases).where(eq(releases.id, releaseId)).limit(1);
   if (!release) throw new AppError('Release not found', 404);
 
-  const [checklist, dsps, campaigns] = await Promise.all([
+  const [checklist, dsps, releaseCampaigns] = await Promise.all([
     db.select().from(release_checklists)
       .where(eq(release_checklists.release_id, releaseId)).limit(1).then(r => r[0] ?? null),
     db.select().from(release_dsp_status).where(eq(release_dsp_status.release_id, releaseId)),
-    db.select().from(release_campaigns).where(eq(release_campaigns.release_id, releaseId)),
+    getLegacyCampaignsByRelease(releaseId),
   ]);
 
-  const specs = generateAlertSpecs(release, checklist, dsps, campaigns);
+  const specs = generateAlertSpecs(release, checklist, dsps, releaseCampaigns);
 
   await db.delete(release_alerts)
     .where(and(eq(release_alerts.release_id, releaseId), eq(release_alerts.is_resolved, false)));
@@ -728,15 +811,15 @@ export const generateRecommendations = async (releaseId: string) => {
   const [release] = await db.select().from(releases).where(eq(releases.id, releaseId)).limit(1);
   if (!release) throw new AppError('Release not found', 404);
 
-  const [checklist, dsps, campaigns, songCount] = await Promise.all([
+  const [checklist, dsps, releaseCampaigns, songCount] = await Promise.all([
     db.select().from(release_checklists)
       .where(eq(release_checklists.release_id, releaseId)).limit(1).then(r => r[0] ?? null),
     db.select().from(release_dsp_status).where(eq(release_dsp_status.release_id, releaseId)),
-    db.select().from(release_campaigns).where(eq(release_campaigns.release_id, releaseId)),
+    getLegacyCampaignsByRelease(releaseId),
     db.select({ id: songs.id }).from(songs).where(eq(songs.release_id, releaseId)).then(r => r.length),
   ]);
 
-  const specs = generateRecSpecs(release, checklist, dsps, campaigns, songCount);
+  const specs = generateRecSpecs(release, checklist, dsps, releaseCampaigns, songCount);
 
   await db.delete(release_ai_recs)
     .where(and(eq(release_ai_recs.release_id, releaseId), eq(release_ai_recs.is_actioned, false)));
@@ -763,14 +846,14 @@ export const getReadiness = async (releaseId: string) => {
   const [release] = await db.select().from(releases).where(eq(releases.id, releaseId)).limit(1);
   if (!release) throw new AppError('Release not found', 404);
 
-  const [checklist, dsps, campaigns] = await Promise.all([
+  const [checklist, dsps, releaseCampaigns] = await Promise.all([
     db.select().from(release_checklists)
       .where(eq(release_checklists.release_id, releaseId)).limit(1).then(r => r[0] ?? null),
     db.select().from(release_dsp_status).where(eq(release_dsp_status.release_id, releaseId)),
-    db.select().from(release_campaigns).where(eq(release_campaigns.release_id, releaseId)),
+    getLegacyCampaignsByRelease(releaseId),
   ]);
 
-  const readiness = computeReadinessScore(checklist, dsps, campaigns);
+  const readiness = computeReadinessScore(checklist, dsps, releaseCampaigns);
 
   return {
     release_id:    releaseId,
@@ -789,13 +872,13 @@ export const getReadiness = async (releaseId: string) => {
       rejected:      dsps.filter(d => d.status === 'rejected').length,
     },
     campaign_summary: {
-      total:     campaigns.length,
-      active:    campaigns.filter(c => c.status === 'active').length,
-      completed: campaigns.filter(c => c.status === 'completed').length,
+      total:     releaseCampaigns.length,
+      active:    releaseCampaigns.filter(c => c.status === 'active').length,
+      completed: releaseCampaigns.filter(c => c.status === 'completed').length,
       by_type:   ['marketing', 'playlist', 'blog', 'press', 'pre_save'].map(t => ({
         type:   t,
-        exists: campaigns.some(c => c.campaign_type === t),
-        status: campaigns.find(c => c.campaign_type === t)?.status ?? 'none',
+        exists: releaseCampaigns.some(c => c.campaign_type === t),
+        status: releaseCampaigns.find(c => c.campaign_type === t)?.status ?? 'none',
       })),
     },
   };

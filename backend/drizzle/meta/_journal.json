@@ -358,6 +358,20 @@
       "when": 1782950416000,
       "tag": "0054_labels_company_type",
       "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1782950417000,
+      "tag": "0055_campaigns_schema_alignment",
+      "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1782950418000,
+      "tag": "0056_release_campaigns_consolidation",
+      "breakpoints": true
     }
   ]
 }
