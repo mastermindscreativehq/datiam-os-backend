@@ -184,24 +184,34 @@ export const getSongs = async (query: CatalogQuery) => {
   const where = conditions.length ? and(...conditions) : undefined;
 
   const [rows, [{ total }]] = await Promise.all([
+    // Unaliased (`FROM songs`, not `FROM songs s`) so `where` — built from
+    // `eq(songs.column, ...)`, which compiles to `"songs"."col"` — resolves
+    // correctly; same pre-existing alias-mismatch bug as catalog-engine's
+    // releases.service.ts getReleases(), found and fixed alongside it while
+    // wiring Phase 7c's read cutover into this function.
     db.execute<Record<string, unknown>>(sql`
       SELECT
-        s.*,
-        COALESCE(s.writers, '{}')   AS writers,
-        COALESCE(s.producers, '{}') AS producers,
-        COALESCE(s.tags, '{}')      AS tags,
+        songs.*,
+        COALESCE(songs.writers, '{}')   AS writers,
+        COALESCE(songs.producers, '{}') AS producers,
+        COALESCE(songs.tags, '{}')      AS tags,
         ap.stage_name               AS artist_name
-      FROM songs s
-      LEFT JOIN artist_profiles ap ON ap.id = s.artist_id
+      FROM songs
+      LEFT JOIN artist_profiles ap ON ap.id = songs.artist_id
       ${where ? sql`WHERE ${where}` : sql``}
-      ORDER BY s.${sql.raw(sort === 'title' ? 'title' : sort === 'updated_at' ? 'updated_at' : 'created_at')} ${sql.raw(order === 'asc' ? 'ASC' : 'DESC')}
+      ORDER BY songs.${sql.raw(sort === 'title' ? 'title' : sort === 'updated_at' ? 'updated_at' : 'created_at')} ${sql.raw(order === 'asc' ? 'ASC' : 'DESC')}
       LIMIT ${limit} OFFSET ${offset}
     `),
     db.select({ total: count() }).from(songs).where(where),
   ]);
 
+  // Phase 7c: isrc is served from Distribution, not the legacy scalar column.
+  const songIds = rows.map(r => r.id as string);
+  const isrcMap = await distributionService.getIsrcMapForSongs(songIds);
+  const data = rows.map(r => ({ ...r, isrc: isrcMap.get(r.id as string) ?? null }));
+
   return {
-    data: rows,
+    data,
     pagination: { page, limit, total: Number(total), pages: Math.ceil(Number(total) / limit) },
   };
 };
@@ -225,13 +235,16 @@ export const getSongById = async (id: string) => {
 
   if (!song) throw new AppError('Song not found', 404);
 
-  const [credits, identifiers, assets] = await Promise.all([
+  const [credits, identifiers, assets, distIsrc] = await Promise.all([
     getSongCredits(id),
     getSongIdentifiers(id),
     getSongAssets(id),
+    distributionService.getIsrcForSong(id),
   ]);
 
-  return { ...song, credits, identifiers, assets };
+  // Phase 7c: isrc is served from Distribution, not the legacy scalar column
+  // already present on `song` from the `s.*` select above.
+  return { ...song, isrc: distIsrc?.value ?? null, credits, identifiers, assets };
 };
 
 // ── updateSong (v2 API — validates via updateSongSchemaV2, returns enriched read) ──

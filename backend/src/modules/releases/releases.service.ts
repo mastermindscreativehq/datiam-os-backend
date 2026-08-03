@@ -220,6 +220,24 @@ export interface ReleaseFilters {
   genre?: string;
 }
 
+// Phase 7c read cutover: `upc`/`primary_isrc` are served from Distribution
+// (the canonical store as of 7a/7b), not the legacy scalar columns, even
+// though the legacy columns are still dual-written for rollback safety.
+// JSON field names are unchanged so no frontend consumer needs to change.
+async function overlayIdentifiers<T extends MappedRelease>(rows: T[]): Promise<T[]> {
+  if (!rows.length) return rows;
+  const ids = rows.map(r => r.id);
+  const [upcMap, leadIsrcMap] = await Promise.all([
+    distributionService.getUpcMapForReleases(ids),
+    distributionService.getLeadIsrcMapForReleases(ids),
+  ]);
+  return rows.map(r => ({
+    ...r,
+    upc: upcMap.get(r.id) ?? null,
+    primary_isrc: leadIsrcMap.get(r.id) ?? null,
+  }));
+}
+
 export const getReleases = async (filters: ReleaseFilters = {}): Promise<MappedRelease[]> => {
   const conditions: SQL<unknown>[] = [];
   if (filters.artist_id) conditions.push(eq(releases.artist_id, filters.artist_id));
@@ -233,7 +251,7 @@ export const getReleases = async (filters: ReleaseFilters = {}): Promise<MappedR
     .where(conditions.length ? and(...conditions) : undefined)
     .orderBy(desc(releases.created_at));
 
-  return rows.map(mapRelease);
+  return overlayIdentifiers(rows.map(mapRelease));
 };
 
 export const getReleaseById = async (id: string): Promise<MappedRelease> => {
@@ -243,7 +261,8 @@ export const getReleaseById = async (id: string): Promise<MappedRelease> => {
     .where(eq(releases.id, id))
     .limit(1);
   if (!release) throw new AppError('Release not found', 404);
-  return mapRelease(release);
+  const [withIdentifiers] = await overlayIdentifiers([mapRelease(release)]);
+  return withIdentifiers;
 };
 
 const CHECKLIST_BOOLEAN_FIELDS = [

@@ -6,6 +6,7 @@ import {
   releases,
   catalog_artwork_assets,
 } from '../../db/schema';
+import * as distributionService from '../distribution/distribution.service';
 
 // ── searchCatalog ─────────────────────────────────────────────────────────────
 
@@ -60,81 +61,87 @@ export const searchCatalog = async (query: string, limit = 20) => {
     `),
   ]);
 
+  // Phase 7c: isrc/upc served from Distribution, not the legacy scalar columns.
+  const [isrcMap, upcMap] = await Promise.all([
+    distributionService.getIsrcMapForSongs(songsResult.map(s => s.id as string)),
+    distributionService.getUpcMapForReleases(releasesResult.map(r => r.id as string)),
+  ]);
+  const songsWithIsrc = songsResult.map(s => ({ ...s, isrc: isrcMap.get(s.id as string) ?? null }));
+  const releasesWithUpc = releasesResult.map(r => ({ ...r, upc: upcMap.get(r.id as string) ?? null }));
+
   return {
     artists,
-    songs: songsResult,
-    releases: releasesResult,
-    total: artists.length + songsResult.length + releasesResult.length,
+    songs: songsWithIsrc,
+    releases: releasesWithUpc,
+    total: artists.length + songsWithIsrc.length + releasesWithUpc.length,
   };
 };
 
 // ── getCatalogStats ───────────────────────────────────────────────────────────
 
 export const getCatalogStats = async () => {
-  const [
-    totalArtists,
-    totalSongs,
-    totalReleases,
-    totalAssets,
-    missingIsrc,
-    missingArtwork,
-    missingUpc,
-    songsWithoutReleases,
-    releasesWithoutArtwork,
-    incompleteCredits,
-    upcomingReleases,
-  ] = await Promise.all([
-    db.select({ c: count() }).from(artist_profiles),
-    db.select({ c: count() }).from(songs),
-    db.select({ c: count() }).from(releases),
-    db.select({ c: count() }).from(catalog_artwork_assets),
+  // Run sequentially rather than via Promise.all — firing many concurrent
+  // new connections against Supabase's transaction-mode pooler has been
+  // observed to stall a connection indefinitely (silently dropped mid-flight,
+  // no RST — see getMissingMetadata()'s comment below, the same failure mode,
+  // just never fixed here until Phase 7c hit it while adding two more
+  // Distribution-backed queries to this same function).
+  const totalArtists = await db.select({ c: count() }).from(artist_profiles);
+  const totalSongs = await db.select({ c: count() }).from(songs);
+  const totalReleases = await db.select({ c: count() }).from(releases);
+  const totalAssets = await db.select({ c: count() }).from(catalog_artwork_assets);
 
-    db.execute<{ c: string }>(sql`
-      SELECT COUNT(*)::int AS c FROM songs
-      WHERE isrc IS NULL OR isrc = ''
-    `),
+  // Phase 7c: isrc/upc presence checked against Distribution, not the
+  // legacy scalar columns.
+  const missingIsrc = await db.execute<{ c: string }>(sql`
+    SELECT COUNT(*)::int AS c FROM songs s
+    WHERE NOT EXISTS (
+      SELECT 1 FROM distribution_identifiers di WHERE di.song_id = s.id AND di.identifier_type = 'isrc'
+    )
+  `);
 
-    db.execute<{ c: string }>(sql`
-      SELECT COUNT(*)::int AS c FROM releases r
-      WHERE NOT EXISTS (
-        SELECT 1 FROM catalog_artwork_assets caa WHERE caa.release_id = r.id
-      )
-    `),
+  const missingArtwork = await db.execute<{ c: string }>(sql`
+    SELECT COUNT(*)::int AS c FROM releases r
+    WHERE NOT EXISTS (
+      SELECT 1 FROM catalog_artwork_assets caa WHERE caa.release_id = r.id
+    )
+  `);
 
-    db.execute<{ c: string }>(sql`
-      SELECT COUNT(*)::int AS c FROM releases
-      WHERE upc IS NULL OR upc = ''
-    `),
+  const missingUpc = await db.execute<{ c: string }>(sql`
+    SELECT COUNT(*)::int AS c FROM releases r
+    WHERE NOT EXISTS (
+      SELECT 1 FROM distribution_identifiers di WHERE di.release_id = r.id AND di.identifier_type = 'upc'
+    )
+  `);
 
-    db.execute<{ c: string }>(sql`
-      SELECT COUNT(*)::int AS c FROM songs s
-      WHERE NOT EXISTS (
-        SELECT 1 FROM catalog_tracks ct WHERE ct.song_id = s.id
-      )
-    `),
+  const songsWithoutReleases = await db.execute<{ c: string }>(sql`
+    SELECT COUNT(*)::int AS c FROM songs s
+    WHERE NOT EXISTS (
+      SELECT 1 FROM catalog_tracks ct WHERE ct.song_id = s.id
+    )
+  `);
 
-    db.execute<{ c: string }>(sql`
-      SELECT COUNT(*)::int AS c FROM releases r
-      WHERE NOT EXISTS (
-        SELECT 1 FROM catalog_artwork_assets caa
-        WHERE caa.release_id = r.id AND caa.artwork_type = 'cover'
-      )
-    `),
+  const releasesWithoutArtwork = await db.execute<{ c: string }>(sql`
+    SELECT COUNT(*)::int AS c FROM releases r
+    WHERE NOT EXISTS (
+      SELECT 1 FROM catalog_artwork_assets caa
+      WHERE caa.release_id = r.id AND caa.artwork_type = 'cover'
+    )
+  `);
 
-    db.execute<{ c: string }>(sql`
-      SELECT COUNT(*)::int AS c FROM songs s
-      WHERE NOT EXISTS (
-        SELECT 1 FROM catalog_credits cc WHERE cc.song_id = s.id AND cc.role = 'writer'
-      )
-    `),
+  const incompleteCredits = await db.execute<{ c: string }>(sql`
+    SELECT COUNT(*)::int AS c FROM songs s
+    WHERE NOT EXISTS (
+      SELECT 1 FROM catalog_credits cc WHERE cc.song_id = s.id AND cc.role = 'writer'
+    )
+  `);
 
-    db.execute<{ c: string }>(sql`
-      SELECT COUNT(*)::int AS c FROM releases
-      WHERE release_date IS NOT NULL
-        AND release_date > CURRENT_DATE
-        AND release_date <= CURRENT_DATE + INTERVAL '30 days'
-    `),
-  ]);
+  const upcomingReleases = await db.execute<{ c: string }>(sql`
+    SELECT COUNT(*)::int AS c FROM releases
+    WHERE release_date IS NOT NULL
+      AND release_date > CURRENT_DATE
+      AND release_date <= CURRENT_DATE + INTERVAL '30 days'
+  `);
 
   return {
     total_artists:           Number(totalArtists[0]?.c ?? 0),
@@ -160,11 +167,15 @@ export const getMissingMetadata = async () => {
   // has been observed to stall a connection indefinitely (silently dropped
   // mid-flight, no RST — the same failure mode documented in db/index.ts).
   // Sequential execution trades a bit of latency for actually completing.
+  // Phase 7c: isrc/upc presence checked against Distribution, not the legacy
+  // scalar columns.
   const missingIsrcRows = await db.execute<{ song_id: string; title: string; artist_name: string }>(sql`
     SELECT s.id AS song_id, s.title, ap.stage_name AS artist_name
     FROM songs s
     LEFT JOIN artist_profiles ap ON ap.id = s.artist_id
-    WHERE s.isrc IS NULL OR s.isrc = ''
+    WHERE NOT EXISTS (
+      SELECT 1 FROM distribution_identifiers di WHERE di.song_id = s.id AND di.identifier_type = 'isrc'
+    )
     ORDER BY s.created_at DESC
     LIMIT 100
   `);
@@ -173,7 +184,9 @@ export const getMissingMetadata = async () => {
     SELECT r.id AS release_id, r.release_title AS title, ap.stage_name AS artist_name
     FROM releases r
     LEFT JOIN artist_profiles ap ON ap.id = r.artist_id
-    WHERE r.upc IS NULL OR r.upc = ''
+    WHERE NOT EXISTS (
+      SELECT 1 FROM distribution_identifiers di WHERE di.release_id = r.id AND di.identifier_type = 'upc'
+    )
     ORDER BY r.created_at DESC
     LIMIT 100
   `);

@@ -58,23 +58,36 @@ export const getReleases = async (query: CatalogQuery) => {
   const where = conditions.length ? and(...conditions) : undefined;
 
   const [rows, [{ total }]] = await Promise.all([
+    // Unaliased (`FROM releases`, not `FROM releases r`) so `where` — built
+    // from `eq(releases.column, ...)`, which compiles to `"releases"."col"`
+    // — resolves correctly; it's shared with the count query below, which
+    // needs the real table reference regardless. A pre-existing bug (found
+    // while wiring Phase 7c's read cutover into this function): any filtered
+    // list request here previously threw "invalid reference to FROM-clause
+    // entry for table 'releases'" as soon as an alias existed and a filter
+    // was applied.
     db.execute<Record<string, unknown>>(sql`
       SELECT
-        r.*,
-        COALESCE(r.catalog_release_type, 'single') AS catalog_release_type,
-        r.preorder_date,
+        releases.*,
+        COALESCE(releases.catalog_release_type, 'single') AS catalog_release_type,
+        releases.preorder_date,
         ap.stage_name AS artist_name
-      FROM releases r
-      LEFT JOIN artist_profiles ap ON ap.id = r.artist_id
+      FROM releases
+      LEFT JOIN artist_profiles ap ON ap.id = releases.artist_id
       ${where ? sql`WHERE ${where}` : sql``}
-      ORDER BY r.created_at ${sql.raw(order === 'asc' ? 'ASC' : 'DESC')}
+      ORDER BY releases.created_at ${sql.raw(order === 'asc' ? 'ASC' : 'DESC')}
       LIMIT ${limit} OFFSET ${offset}
     `),
     db.select({ total: count() }).from(releases).where(where),
   ]);
 
+  // Phase 7c: upc is served from Distribution, not the legacy scalar column.
+  const releaseIds = rows.map(r => r.id as string);
+  const upcMap = await distributionService.getUpcMapForReleases(releaseIds);
+  const data = rows.map(r => ({ ...r, upc: upcMap.get(r.id as string) ?? null }));
+
   return {
-    data: rows,
+    data,
     pagination: { page, limit, total: Number(total), pages: Math.ceil(Number(total) / limit) },
   };
 };
@@ -96,7 +109,7 @@ export const getReleaseById = async (id: string) => {
 
   if (!release) throw new AppError('Release not found', 404);
 
-  const [tracks, artwork, identifiers, checklist] = await Promise.all([
+  const [tracks, artwork, identifiers, checklist, distUpc, distLeadIsrc] = await Promise.all([
     getReleaseTracks(id),
     getReleaseArtwork(id),
     getReleaseIdentifiers(id),
@@ -105,9 +118,21 @@ export const getReleaseById = async (id: string) => {
       .from(release_checklists)
       .where(eq(release_checklists.release_id, id))
       .limit(1),
+    distributionService.getUpcForRelease(id),
+    distributionService.getLeadIsrcForRelease(id),
   ]);
 
-  return { ...release, tracks, artwork, identifiers, checklist: checklist[0] ?? null };
+  // Phase 7c: upc/primary_isrc are served from Distribution, not the legacy
+  // scalar columns already present on `release` from the `r.*` select above.
+  return {
+    ...release,
+    upc: distUpc?.value ?? null,
+    primary_isrc: distLeadIsrc?.value ?? null,
+    tracks,
+    artwork,
+    identifiers,
+    checklist: checklist[0] ?? null,
+  };
 };
 
 // ── updateRelease ─────────────────────────────────────────────────────────────
@@ -137,11 +162,13 @@ export const deleteRelease = async (id: string) => {
 // ── Release Tracks ────────────────────────────────────────────────────────────
 
 export const getReleaseTracks = async (releaseId: string) => {
+  // Phase 7c: isrc is served from Distribution, not the legacy songs.isrc
+  // column, via a left join so tracks with no assigned isrc still list.
   return db.execute<Record<string, unknown>>(sql`
     SELECT
       ct.*,
       s.title,
-      s.isrc,
+      di.value AS isrc,
       s.duration_seconds,
       s.release_status,
       s.audio_url,
@@ -149,6 +176,7 @@ export const getReleaseTracks = async (releaseId: string) => {
       COALESCE(s.producers, '{}') AS producers
     FROM catalog_tracks ct
     JOIN songs s ON s.id = ct.song_id
+    LEFT JOIN distribution_identifiers di ON di.song_id = s.id AND di.identifier_type = 'isrc'
     WHERE ct.release_id = ${releaseId}
     ORDER BY ct.track_number ASC
   `);

@@ -15,6 +15,7 @@ import { AppError } from '../../middleware/errorHandler';
 import { logActivity } from '../../lib/activityLogger';
 import { dispatchEvent } from '../automation/automation.service';
 import { updateReleaseCore, type ReleaseCoreWriteInput } from '../releases/releases.service';
+import * as distributionService from '../distribution/distribution.service';
 import { AUTOMATION_CATEGORY_EVENTS, type AutomationCategory } from '../automation/automation-categories';
 import {
   onCampaignStarted,
@@ -168,6 +169,7 @@ function generateAlertSpecs(
   checklist:  Record<string, unknown> | null,
   dspStatuses: Array<typeof release_dsp_status.$inferSelect>,
   campaigns:  LegacyCampaign[],
+  hasUpc:     boolean,
 ): AlertSpec[] {
   const alerts: AlertSpec[] = [];
   const now = new Date();
@@ -193,7 +195,7 @@ function generateAlertSpecs(
     }
   }
 
-  if (!release.upc) {
+  if (!hasUpc) {
     alerts.push({
       alert_type: 'missing_upc',
       severity:   'warning',
@@ -324,7 +326,7 @@ function generateRecSpecs(
 
 export const getDashboard = async (artistId?: string) => {
   const conditions = artistId ? [eq(releases.artist_id, artistId)] : [];
-  const allReleases = await db
+  const allReleasesRaw = await db
     .select({
       id:            releases.id,
       release_title: releases.release_title,
@@ -334,7 +336,6 @@ export const getDashboard = async (artistId?: string) => {
       release_date:  releases.release_date,
       artist_id:     releases.artist_id,
       cover_art_url: releases.cover_art_url,
-      upc:           releases.upc,
       distributor:   releases.distributor,
       created_at:    releases.created_at,
     })
@@ -342,7 +343,7 @@ export const getDashboard = async (artistId?: string) => {
     .where(conditions.length ? and(...conditions) : undefined)
     .orderBy(asc(releases.release_date));
 
-  if (!allReleases.length) {
+  if (!allReleasesRaw.length) {
     return {
       releases: [],
       summary: { total: 0, draft: 0, scheduled: 0, released: 0, due_in_30_days: 0, total_alerts: 0, critical_alerts: 0 },
@@ -351,17 +352,25 @@ export const getDashboard = async (artistId?: string) => {
     };
   }
 
+  // Phase 7c: upc is served from Distribution, not the legacy scalar column.
+  const upcMap = await distributionService.getUpcMapForReleases(allReleasesRaw.map(r => r.id));
+  const allReleases = allReleasesRaw.map(r => ({ ...r, upc: upcMap.get(r.id) ?? null }));
+
   const artistIds = [...new Set(allReleases.map(r => r.artist_id).filter((id): id is string => id !== null))];
 
-  const [checklistRows, campaignRows, dspRows, alertRows, artistRows] = await Promise.all([
-    db.select().from(release_checklists),
-    db.select().from(campaigns).where(isNotNull(campaigns.release_id)).orderBy(desc(campaigns.created_at)),
-    db.select().from(release_dsp_status),
-    db.select().from(release_alerts).where(eq(release_alerts.is_resolved, false)),
-    artistIds.length
-      ? db.select({ id: artist_profiles.id, stage_name: artist_profiles.stage_name }).from(artist_profiles)
-      : Promise.resolve([]),
-  ]);
+  // Run sequentially, not via Promise.all — firing 5 concurrent new
+  // connections against Supabase's transaction-mode pooler has been observed
+  // to stall a connection indefinitely (silently dropped mid-flight, no RST
+  // — same documented failure mode as catalog-search.service.ts's
+  // getMissingMetadata/getCatalogStats; found here while wiring Phase 7c's
+  // upc overlay into this function, which pushed this call over the edge).
+  const checklistRows = await db.select().from(release_checklists);
+  const campaignRows = await db.select().from(campaigns).where(isNotNull(campaigns.release_id)).orderBy(desc(campaigns.created_at));
+  const dspRows = await db.select().from(release_dsp_status);
+  const alertRows = await db.select().from(release_alerts).where(eq(release_alerts.is_resolved, false));
+  const artistRows = artistIds.length
+    ? await db.select({ id: artist_profiles.id, stage_name: artist_profiles.stage_name }).from(artist_profiles)
+    : [];
 
   const checklistMap = new Map(checklistRows.map(c => [c.release_id, c]));
   const campaignMap  = new Map<string, LegacyCampaign[]>();
@@ -457,32 +466,45 @@ export const getReleaseDetail = async (releaseId: string) => {
   const [release] = await db.select().from(releases).where(eq(releases.id, releaseId)).limit(1);
   if (!release) throw new AppError('Release not found', 404);
 
-  const [checklist, releaseCampaigns, dsps, alerts, recs, tasks, songRows, artistRow] = await Promise.all([
-    db.select().from(release_checklists)
-      .where(eq(release_checklists.release_id, releaseId)).limit(1).then(r => r[0] ?? null),
-    getLegacyCampaignsByRelease(releaseId),
-    db.select().from(release_dsp_status)
-      .where(eq(release_dsp_status.release_id, releaseId)).orderBy(asc(release_dsp_status.platform)),
-    db.select().from(release_alerts)
-      .where(and(eq(release_alerts.release_id, releaseId), eq(release_alerts.is_resolved, false)))
-      .orderBy(desc(release_alerts.created_at)),
-    db.select().from(release_ai_recs)
-      .where(eq(release_ai_recs.release_id, releaseId)).orderBy(asc(release_ai_recs.priority)),
-    db.select().from(release_tasks)
-      .where(eq(release_tasks.release_id, releaseId)).orderBy(asc(release_tasks.task_category)),
-    db.select({ id: songs.id, title: songs.title, isrc: songs.isrc, track_number: songs.track_number })
-      .from(songs).where(eq(songs.release_id, releaseId)).orderBy(asc(songs.track_number)),
-    release.artist_id
-      ? db.select({ id: artist_profiles.id, stage_name: artist_profiles.stage_name, genre: artist_profiles.genre })
-          .from(artist_profiles).where(eq(artist_profiles.id, release.artist_id)).limit(1)
-          .then(r => r[0] ?? null)
-      : Promise.resolve(null),
-  ]);
+  // Run sequentially, not via Promise.all — firing this many concurrent new
+  // connections against Supabase's transaction-mode pooler has been observed
+  // to stall a connection indefinitely (silently dropped mid-flight, no RST
+  // — same documented failure mode as catalog-search.service.ts's
+  // getMissingMetadata/getDashboard above; found here while wiring Phase 7c's
+  // upc/primary_isrc/isrc overlays into this function, which pushed this
+  // already-10-way Promise.all over the edge).
+  const checklist = await db.select().from(release_checklists)
+    .where(eq(release_checklists.release_id, releaseId)).limit(1).then(r => r[0] ?? null);
+  const releaseCampaigns = await getLegacyCampaignsByRelease(releaseId);
+  const dsps = await db.select().from(release_dsp_status)
+    .where(eq(release_dsp_status.release_id, releaseId)).orderBy(asc(release_dsp_status.platform));
+  const alerts = await db.select().from(release_alerts)
+    .where(and(eq(release_alerts.release_id, releaseId), eq(release_alerts.is_resolved, false)))
+    .orderBy(desc(release_alerts.created_at));
+  const recs = await db.select().from(release_ai_recs)
+    .where(eq(release_ai_recs.release_id, releaseId)).orderBy(asc(release_ai_recs.priority));
+  const tasks = await db.select().from(release_tasks)
+    .where(eq(release_tasks.release_id, releaseId)).orderBy(asc(release_tasks.task_category));
+  const songRowsRaw = await db.select({ id: songs.id, title: songs.title, isrc: songs.isrc, track_number: songs.track_number })
+    .from(songs).where(eq(songs.release_id, releaseId)).orderBy(asc(songs.track_number));
+  const artistRow = release.artist_id
+    ? await db.select({ id: artist_profiles.id, stage_name: artist_profiles.stage_name, genre: artist_profiles.genre })
+        .from(artist_profiles).where(eq(artist_profiles.id, release.artist_id)).limit(1)
+        .then(r => r[0] ?? null)
+    : null;
+  const distUpc = await distributionService.getUpcForRelease(releaseId);
+  const distLeadIsrc = await distributionService.getLeadIsrcForRelease(releaseId);
+
+  // Phase 7c: upc/primary_isrc (on `release`) and per-song isrc (on
+  // `songRows`) are served from Distribution, not the legacy scalar columns.
+  const isrcMap = await distributionService.getIsrcMapForSongs(songRowsRaw.map(s => s.id));
+  const songRows = songRowsRaw.map(s => ({ ...s, isrc: isrcMap.get(s.id) ?? null }));
+  const releaseWithIdentifiers = { ...release, upc: distUpc?.value ?? null, primary_isrc: distLeadIsrc?.value ?? null };
 
   const readiness = computeReadinessScore(checklist, dsps, releaseCampaigns);
 
   return {
-    release,
+    release:         releaseWithIdentifiers,
     artist:          artistRow,
     checklist,
     campaigns:       releaseCampaigns,
@@ -772,14 +794,15 @@ export const generateAlerts = async (releaseId: string) => {
   const [release] = await db.select().from(releases).where(eq(releases.id, releaseId)).limit(1);
   if (!release) throw new AppError('Release not found', 404);
 
-  const [checklist, dsps, releaseCampaigns] = await Promise.all([
+  const [checklist, dsps, releaseCampaigns, distUpc] = await Promise.all([
     db.select().from(release_checklists)
       .where(eq(release_checklists.release_id, releaseId)).limit(1).then(r => r[0] ?? null),
     db.select().from(release_dsp_status).where(eq(release_dsp_status.release_id, releaseId)),
     getLegacyCampaignsByRelease(releaseId),
+    distributionService.getUpcForRelease(releaseId),
   ]);
 
-  const specs = generateAlertSpecs(release, checklist, dsps, releaseCampaigns);
+  const specs = generateAlertSpecs(release, checklist, dsps, releaseCampaigns, !!distUpc);
 
   await db.delete(release_alerts)
     .where(and(eq(release_alerts.release_id, releaseId), eq(release_alerts.is_resolved, false)));
