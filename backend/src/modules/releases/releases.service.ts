@@ -3,6 +3,7 @@ import { db } from '../../db';
 import { releases, release_tasks, release_checklists } from '../../db/schema';
 import { AppError } from '../../middleware/errorHandler';
 import { triggerReleaseIntelAnalysis } from '../release-intel/release-intel.worker';
+import * as distributionService from '../distribution/distribution.service';
 import {
   computeReleaseState,
   enforceReleaseState,
@@ -113,6 +114,20 @@ export interface ReleaseCoreWriteInput {
   primary_isrc?: string;
 }
 
+// Phase 7b dual-write: `upc`/`primary_isrc` are written to their legacy
+// scalar columns above AND to Distribution here, so Distribution has a
+// complete record before Phase 7c switches reads over to it. `primary_isrc`
+// has no known song attribution at this call site, so it lands as a
+// release-scoped lead row (see distribution.service.ts setLeadIsrcForRelease).
+async function dualWriteIdentifiers(releaseId: string, input: ReleaseCoreWriteInput) {
+  if (input.upc) {
+    await distributionService.setUpcForRelease(releaseId, input.upc, { assignedBy: 'releases-core' });
+  }
+  if (input.primary_isrc) {
+    await distributionService.setLeadIsrcForRelease(releaseId, input.primary_isrc, { assignedBy: 'releases-core' });
+  }
+}
+
 export const createReleaseCore = async (input: ReleaseCoreWriteInput) => {
   const { release_title, slug, ...rest } = input;
   const [release] = await db
@@ -124,6 +139,7 @@ export const createReleaseCore = async (input: ReleaseCoreWriteInput) => {
     } as typeof releases.$inferInsert)
     .returning();
   triggerReleaseIntelAnalysis(release.id);
+  await dualWriteIdentifiers(release.id, input);
   return release;
 };
 
@@ -170,6 +186,8 @@ export const updateReleaseCore = async (
     .where(eq(releases.id, id))
     .returning();
   if (!updated) throw new AppError('Release not found', 404);
+
+  await dualWriteIdentifiers(id, input);
 
   const stateChange = await syncReleaseState(id);
   return { release: updated, stateChange };

@@ -6,12 +6,12 @@ import {
   songs,
   catalog_tracks,
   catalog_artwork_assets,
-  catalog_identifiers,
   release_checklists,
 } from '../../db/schema';
 import { AppError } from '../../middleware/errorHandler';
 import { dispatchEvent } from '../automation/automation.service';
 import { createReleaseCore, updateReleaseCore, deleteReleaseCore, type ReleaseCoreWriteInput } from '../releases/releases.service';
+import * as distributionService from '../distribution/distribution.service';
 import type {
   CreateReleaseInputV2,
   UpdateReleaseInputV2,
@@ -219,29 +219,22 @@ export const deleteArtwork = async (artworkId: string) => {
 };
 
 // ── Release Identifiers ───────────────────────────────────────────────────────
+// Phase 7b: identifiers are now written through Distribution (the sole
+// canonical store) rather than `catalog_identifiers` directly. Response
+// shape is unchanged for existing frontend consumers of this endpoint.
 
 export const getReleaseIdentifiers = async (releaseId: string) => {
-  return db
-    .select()
-    .from(catalog_identifiers)
-    .where(eq(catalog_identifiers.release_id, releaseId))
-    .orderBy(desc(catalog_identifiers.created_at));
+  return distributionService.getIdentifiersByRelease(releaseId);
 };
 
 export const addReleaseIdentifier = async (releaseId: string, input: CreateIdentifierInput) => {
   const [existingRelease] = await db.select({ id: releases.id }).from(releases).where(eq(releases.id, releaseId)).limit(1);
   if (!existingRelease) throw new AppError('Release not found', 404);
 
-  const [identifier] = await db
-    .insert(catalog_identifiers)
-    .values({
-      release_id:      releaseId,
-      identifier_type: input.identifier_type,
-      value:           input.value,
-      assigned_by:     input.assigned_by,
-      assigned_at:     input.assigned_at ? new Date(input.assigned_at) : undefined,
-    })
-    .returning();
-
-  return identifier;
+  return distributionService.createIdentifier({
+    release_id:      releaseId,
+    identifier_type: input.identifier_type,
+    value:           input.value,
+    assigned_by:     input.assigned_by,
+  });
 };

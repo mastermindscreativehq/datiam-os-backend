@@ -6,10 +6,10 @@ import {
   artist_profiles,
   catalog_credits,
   catalog_documents,
-  catalog_identifiers,
 } from '../../db/schema';
 import { AppError } from '../../middleware/errorHandler';
 import { dispatchEvent } from '../automation/automation.service';
+import * as distributionService from '../distribution/distribution.service';
 import type {
   CreateSongInputV2,
   UpdateSongInputV2,
@@ -107,6 +107,12 @@ export const createSongCore = async (input: SongCoreWriteInput) => {
     `);
   }
 
+  // Phase 7b dual-write: songs.isrc stays the legacy scalar column;
+  // Distribution also gets the canonical row so 7c can read from it exclusively.
+  if (input.isrc) {
+    await distributionService.setIsrcForSong(song.id, input.isrc, { assignedBy: 'songs-core' });
+  }
+
   dispatchEvent('song.created', { song_id: song.id, title: song.title, artist_id: song.artist_id }).catch(() => {});
 
   return song;
@@ -135,6 +141,10 @@ export const updateSongCore = async (id: string, input: SongCoreWriteInput) => {
         tags      = CASE WHEN ${tags !== undefined}      THEN ${JSON.stringify(tags ?? [])}::text[]      ELSE tags      END
       WHERE id = ${id}
     `);
+  }
+
+  if (input.isrc) {
+    await distributionService.setIsrcForSong(id, input.isrc, { assignedBy: 'songs-core' });
   }
 
   dispatchEvent('song.updated', { song_id: id }).catch(() => {});
@@ -351,29 +361,22 @@ export const addSongDocument = async (songId: string, input: CreateDocumentInput
 };
 
 // ── Song Identifiers ──────────────────────────────────────────────────────────
+// Phase 7b: identifiers are now written through Distribution (the sole
+// canonical store) rather than `catalog_identifiers` directly. Response
+// shape is unchanged for existing frontend consumers of this endpoint.
 
 export const getSongIdentifiers = async (id: string) => {
-  return db
-    .select()
-    .from(catalog_identifiers)
-    .where(eq(catalog_identifiers.song_id, id))
-    .orderBy(desc(catalog_identifiers.created_at));
+  return distributionService.getIdentifiersBySong(id);
 };
 
 export const addSongIdentifier = async (songId: string, input: CreateIdentifierInput) => {
   const [existing] = await db.select({ id: songs.id }).from(songs).where(eq(songs.id, songId)).limit(1);
   if (!existing) throw new AppError('Song not found', 404);
 
-  const [identifier] = await db
-    .insert(catalog_identifiers)
-    .values({
-      song_id:         songId,
-      identifier_type: input.identifier_type,
-      value:           input.value,
-      assigned_by:     input.assigned_by,
-      assigned_at:     input.assigned_at ? new Date(input.assigned_at) : undefined,
-    })
-    .returning();
-
-  return identifier;
+  return distributionService.createIdentifier({
+    song_id:         songId,
+    identifier_type: input.identifier_type,
+    value:           input.value,
+    assigned_by:     input.assigned_by,
+  });
 };
