@@ -86,7 +86,12 @@ export interface SongCoreWriteInput {
 }
 
 export const createSongCore = async (input: SongCoreWriteInput) => {
-  const { writers, producers, tags, ...rest } = input;
+  // Phase 7d retirement: `isrc` is no longer written to the legacy songs.isrc
+  // column (excluded from `rest` below) — Distribution is its sole write
+  // target now. The column is left in place, frozen at whatever value
+  // dual-write (Phase 7b) last gave it, as a deprecated rollback reference
+  // only; nothing reads it any more (Phase 7c).
+  const { writers, producers, tags, isrc, ...rest } = input;
 
   const [song] = await db
     .insert(songs)
@@ -107,10 +112,8 @@ export const createSongCore = async (input: SongCoreWriteInput) => {
     `);
   }
 
-  // Phase 7b dual-write: songs.isrc stays the legacy scalar column;
-  // Distribution also gets the canonical row so 7c can read from it exclusively.
-  if (input.isrc) {
-    await distributionService.setIsrcForSong(song.id, input.isrc, { assignedBy: 'songs-core' });
+  if (isrc) {
+    await distributionService.setIsrcForSong(song.id, isrc, { assignedBy: 'songs-core' });
   }
 
   dispatchEvent('song.created', { song_id: song.id, title: song.title, artist_id: song.artist_id }).catch(() => {});
@@ -122,7 +125,7 @@ export const updateSongCore = async (id: string, input: SongCoreWriteInput) => {
   const existing = await db.select({ id: songs.id }).from(songs).where(eq(songs.id, id)).limit(1);
   if (!existing.length) throw new AppError('Song not found', 404);
 
-  const { writers, producers, tags, slug, title, ...rest } = input;
+  const { writers, producers, tags, slug, title, isrc, ...rest } = input;
   const patch: Record<string, unknown> = { ...rest, updated_at: new Date() };
   if (title !== undefined) patch.title = title;
   if (slug !== undefined) patch.slug = slug;
@@ -143,8 +146,8 @@ export const updateSongCore = async (id: string, input: SongCoreWriteInput) => {
     `);
   }
 
-  if (input.isrc) {
-    await distributionService.setIsrcForSong(id, input.isrc, { assignedBy: 'songs-core' });
+  if (isrc) {
+    await distributionService.setIsrcForSong(id, isrc, { assignedBy: 'songs-core' });
   }
 
   dispatchEvent('song.updated', { song_id: id }).catch(() => {});

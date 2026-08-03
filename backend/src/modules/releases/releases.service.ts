@@ -114,12 +114,15 @@ export interface ReleaseCoreWriteInput {
   primary_isrc?: string;
 }
 
-// Phase 7b dual-write: `upc`/`primary_isrc` are written to their legacy
-// scalar columns above AND to Distribution here, so Distribution has a
-// complete record before Phase 7c switches reads over to it. `primary_isrc`
-// has no known song attribution at this call site, so it lands as a
-// release-scoped lead row (see distribution.service.ts setLeadIsrcForRelease).
-async function dualWriteIdentifiers(releaseId: string, input: ReleaseCoreWriteInput) {
+// Phase 7d retirement: `upc`/`primary_isrc` are no longer written to their
+// legacy scalar columns (stripped out of `rest`/`patch` below) — Distribution
+// is their sole write target now. The columns themselves are left in place,
+// frozen at whatever value dual-write (Phase 7b) last gave them, as a
+// deprecated rollback reference only; nothing reads them any more (Phase 7c).
+// `primary_isrc` has no known song attribution at this call site, so it
+// lands as a release-scoped lead row (see distribution.service.ts
+// setLeadIsrcForRelease).
+async function writeIdentifiersToDistribution(releaseId: string, input: ReleaseCoreWriteInput) {
   if (input.upc) {
     await distributionService.setUpcForRelease(releaseId, input.upc, { assignedBy: 'releases-core' });
   }
@@ -129,7 +132,7 @@ async function dualWriteIdentifiers(releaseId: string, input: ReleaseCoreWriteIn
 }
 
 export const createReleaseCore = async (input: ReleaseCoreWriteInput) => {
-  const { release_title, slug, ...rest } = input;
+  const { release_title, slug, upc, primary_isrc, ...rest } = input;
   const [release] = await db
     .insert(releases)
     .values({
@@ -139,7 +142,7 @@ export const createReleaseCore = async (input: ReleaseCoreWriteInput) => {
     } as typeof releases.$inferInsert)
     .returning();
   triggerReleaseIntelAnalysis(release.id);
-  await dualWriteIdentifiers(release.id, input);
+  await writeIdentifiersToDistribution(release.id, input);
   return release;
 };
 
@@ -150,7 +153,7 @@ export const updateReleaseCore = async (
   id: string,
   input: ReleaseCoreWriteInput,
 ): Promise<{ release: typeof releases.$inferSelect; stateChange: StateChange | null }> => {
-  const { release_title, music_status, ...rest } = input;
+  const { release_title, music_status, upc, primary_isrc, ...rest } = input;
   const patch: Record<string, unknown> = { ...rest, updated_at: new Date() };
   if (release_title !== undefined) {
     patch.release_title = release_title;
@@ -187,7 +190,7 @@ export const updateReleaseCore = async (
     .returning();
   if (!updated) throw new AppError('Release not found', 404);
 
-  await dualWriteIdentifiers(id, input);
+  await writeIdentifiersToDistribution(id, input);
 
   const stateChange = await syncReleaseState(id);
   return { release: updated, stateChange };

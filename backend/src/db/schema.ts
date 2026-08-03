@@ -321,6 +321,10 @@ export const songs = pgTable(
     explicit: boolean('explicit').default(false),
     track_number: integer('track_number'),
     disk_number: integer('disk_number'),
+    // DEPRECATED as of Phase 7d — canonical value now lives in
+    // distribution_identifiers (identifier_type='isrc', song_id=this song).
+    // Frozen at its last dual-written value; no code writes or reads this
+    // column any more.
     isrc: text('isrc'),
     release_status: songReleaseStatusEnum('release_status').default('draft').notNull(),
     // AI intelligence scores (0.00–1.00)
@@ -401,6 +405,9 @@ export const releases = pgTable(
     release_date: date('release_date'),
     cover_art_url: text('cover_art_url'),
     description: text('description'),
+    // DEPRECATED as of Phase 7d — canonical value now lives in
+    // distribution_identifiers (identifier_type='upc'). Frozen at its last
+    // dual-written value; no code writes or reads this column any more.
     upc: text('upc'),
     total_tracks: integer('total_tracks'),
     // Legacy fields (song_id was the old single-song link; now nullable)
@@ -426,6 +433,10 @@ export const releases = pgTable(
     soundcloud_url: text('soundcloud_url'),
     // Release Intelligence v1 — territories + lead-track ISRC convenience field
     territories: jsonb('territories').default([]),
+    // DEPRECATED as of Phase 7d — canonical value now lives in
+    // distribution_identifiers as the song-scoped isrc row with is_lead=true
+    // and release_id set to this release. Frozen at its last dual-written
+    // value; no code writes or reads this column any more.
     primary_isrc: text('primary_isrc'),
     created_at: timestamp('created_at').defaultNow().notNull(),
     updated_at: timestamp('updated_at').defaultNow().notNull(),
@@ -3244,6 +3255,11 @@ export type CatalogDocument    = typeof catalog_documents.$inferSelect;
 export type NewCatalogDocument = typeof catalog_documents.$inferInsert;
 
 // ── catalog_identifiers ───────────────────────────────────────────────────────
+// DEPRECATED as of Phase 7d — superseded by `distribution_identifiers`
+// (distribution/distribution.service.ts is the sole canonical ISRC/UPC/ISWC
+// store). No code writes this table any more (retired in Phase 7b). Kept,
+// not dropped, as a historical/rollback reference — see the architecture
+// roadmap Phase 7 notes on `distribution_identifiers` below.
 
 export const catalog_identifiers = pgTable(
   'catalog_identifiers',
@@ -3326,10 +3342,10 @@ export const catalogCreditsRelations = relations(catalog_credits, ({ one }) => (
 // migrations 0057/0058)
 // Canonical owner of DSP delivery, store/territory availability, takedowns,
 // re-delivery, distribution health, and delivery logs. Also the SOLE source
-// of truth for ISRC/UPC/ISWC/catalog-number going forward — `catalog_identifiers`
-// and the isrc/upc/primary_isrc columns on `releases`/`songs` are being
-// retired per Phase 7 (backfill -> dual-write -> read cutover -> retirement)
-// and kept only as a deprecated rollback reference during the transition.
+// of truth for ISRC/UPC/ISWC/catalog-number — `catalog_identifiers` and the
+// isrc/upc/primary_isrc columns on `releases`/`songs` completed retirement
+// in Phase 7 (backfill 7a, dual-write 7b, read cutover 7c, retirement 7d)
+// and are kept, not dropped, only as a deprecated rollback reference.
 // A release's "lead ISRC" is not a duplicated value — it's the `is_lead`
 // flag on that song's own canonical identifier row, so there is never a
 // second copy of an ISRC to keep in sync.
