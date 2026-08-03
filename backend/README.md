@@ -75,9 +75,8 @@ Creates one admin user and one DATIAM artist profile:
 npm run db:seed
 ```
 
-Default credentials:
-- Email: `admin@datiam.com`
-- Password: `DatiamOS2024!`
+Default credentials come from your `.env` (`ADMIN_EMAIL` / `ADMIN_PASSWORD` —
+see `.env.example`). Never commit or document the real values here.
 
 ---
 
@@ -213,10 +212,10 @@ curl -X POST $BASE/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{"email":"test@datiam.com","password":"password123","full_name":"Test User"}'
 
-# Login
+# Login (use your actual ADMIN_EMAIL / ADMIN_PASSWORD from .env)
 curl -X POST $BASE/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@datiam.com","password":"DatiamOS2024!"}'
+  -d '{"email":"admin@datiam.com","password":"your-admin-password"}'
 
 # Get profile (replace TOKEN)
 curl $BASE/api/artist/profile \
